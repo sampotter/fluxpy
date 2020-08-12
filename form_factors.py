@@ -569,6 +569,11 @@ class FormFactorMatrix:
         # a FormFactorMatrix instance prevents us from pickling
         del self._scene
 
+    @staticmethod
+    def from_file(path):
+        with open(path, 'rb') as f:
+            return pickle.load(f)
+
     @classmethod
     def assemble_using_quadtree(cls, *args, **kwargs):
         return FormFactorMatrix(
