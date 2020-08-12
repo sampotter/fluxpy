@@ -1,5 +1,22 @@
-import colorcet as cc
-import distmesh as dm
+cmap = dict()
+try:
+    import colorcet as cc
+    cmap['jet'] = cc.cm.rainbow
+    cmap['gray'] = cc.cm.gray
+    cmap['fire'] = cc.cm.fire
+except ImportError:
+    print('failed to import colorcet: using matplotlib colormaps')
+    cmap['jet'] = 'jet'
+    cmap['gray'] = 'gray'
+    cmap['fire'] = 'inferno'
+
+try:
+    import distmesh as dm
+    USE_DISTMESH = True
+except ImportError:
+    print('failed to import distmesh: will use scipy.spatial.Delaunay')
+    USE_DISTMESH = False
+
 import embree
 import matplotlib.pyplot as plt
 import meshio
@@ -96,7 +113,7 @@ if __name__ == '__main__':
     fig = plt.figure()
     ax = fig.add_subplot()
     im = ax.imshow(Z, extent=[X.min(), X.max(), Y.max(), X.min()],
-                   cmap=cc.cm.rainbow, zorder=1)
+                   cmap=cmap['jet'], zorder=1)
     ax.set_aspect('equal')
     ax.grid(zorder=2)
     ax.plot([x0, x1, x1, x0, x0], [y0, y0, y1, y1, y0], c='k',
@@ -110,15 +127,26 @@ if __name__ == '__main__':
     plt.close(fig)
     print('wrote lunar_south_pole.png to disk')
 
-    # Here, we use DistMesh to mesh Haworth. We use the library
-    # PyDistmesh which reimplements distmesh in Python. This snippet
-    # of code could modified without too much trouble to mesh the
-    # entire rectangular bounding box, and to vary the target edge
-    # length ("fh" below).
+    # Create function z = z(x, y) that linearly interpolates DEM data
     z = scipy.interpolate.interp2d(X, Y, Z)
-    fd = lambda p: dm.dcircle(p, *p0, r0)
-    fh = dm.huniform
-    V, F = dm.distmesh2d(fd, fh, h, (x0, x1, y0, y1), fig=None)
+
+    if USE_DISTMESH:
+        # Here, we use DistMesh to mesh Haworth. We use the library
+        # PyDistmesh which reimplements distmesh in Python. This snippet
+        # of code could modified without too much trouble to mesh the
+        # entire rectangular bounding box, and to vary the target edge
+        # length ("fh" below).
+        fd = lambda p: dm.dcircle(p, *p0, r0)
+        fh = dm.huniform
+        V, F = dm.distmesh2d(fd, fh, h, (x0, x1, y0, y1), fig=None)
+    else:
+        X_mesh, Y_mesh = np.meshgrid(
+            np.linspace(x0, x1, int((x1 - x0)//h)),
+            np.linspace(y0, y1, int((y1 - y0)//h))
+        )
+        points_mesh = np.array([X_mesh.flatten(), Y_mesh.flatten()]).T
+        delaunay = scipy.spatial.Delaunay(points_mesh)
+        V, F = delaunay.points, delaunay.simplices
     V = np.row_stack([V.T, np.array([z(*v)[0] for v in V])]).T
     num_faces = F.shape[0]
     print('created mesh with %d triangles' % num_faces)
@@ -217,17 +245,17 @@ if __name__ == '__main__':
     plt.close(fig)
     print('wrote haworth_blocks.png to disk')
 
-    fig, ax = tripcolor_vector(V, F, E, cmap=cc.cm.gray)
+    fig, ax = tripcolor_vector(V, F, E, cmap=cmap['gray'])
     fig.savefig('haworth_E.png')
     plt.close(fig)
     print('wrote haworth_E.png to disk')
 
-    fig, ax = tripcolor_vector(V, F, T, vmin=0, vmax=400, cmap=cc.cm.fire)
+    fig, ax = tripcolor_vector(V, F, T, vmin=0, vmax=400, cmap=cmap['fire'])
     fig.savefig('haworth_T.png')
     plt.close(fig)
     print('wrote haworth_T.png to disk')
 
-    fig, ax = tripcolor_vector(V, F, T, I=I_shadow, cmap=cc.cm.rainbow)
+    fig, ax = tripcolor_vector(V, F, T, I=I_shadow, cmap=cmap['jet'])
     fig.savefig('haworth_T_shadow.png')
     plt.close(fig)
     print('wrote haworth_T_shadow.png to disk')
