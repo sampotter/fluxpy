@@ -41,7 +41,6 @@ def _(mat: scipy.sparse.spmatrix, tol):
     return np.linalg.matrix_rank(mat.toarray(), tol)
 
 def _compute_FF_block(P, N, A, I=None, J=None, scene=None, eps=None):
-
     if I is None: I = np.arange(P.shape[0])
     if J is None: J = np.arange(P.shape[0])
 
