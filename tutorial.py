@@ -194,18 +194,29 @@ if __name__ == '__main__':
     geometry.release()
     scene.commit()
 
-    # Build the compressed form factor matrix. All of the code related
-    # to this can be found in the "form_factors.py" file in this
-    # directory.
-    FF = FormFactorMatrix.assemble_using_quadtree(scene, V, F, tol=5e-4)
+    FF = None
+    if os.path.isfile('FF.bin'):
+        FF = FormFactorMatrix.from_file('FF.bin')
+        print('loaded form factor matrix from FF.bin')
+        if FF.shape[0] != num_faces or FF.shape[1] != num_faces:
+            print('FF.bin has wrong size: %d x %d (only %d faces)' % (
+                (*FF.shape, num_faces)))
+        FF = None
+    if FF is None:
+        # Build the compressed form factor matrix. All of the code related
+        # to this can be found in the "form_factors.py" file in this
+        # directory.
+        FF = FormFactorMatrix.assemble_using_quadtree(scene, V, F, tol=5e-4)
+        print('assembled form factor matrix (%1.2f MB)' %
+              (FF.nbytes/(1024**2),))
 
-    # Python makes it very easy to serialize object hierarchies and
-    # write them to disk as binary files. We do that here to save the
-    # compressed form factor matrix. We can reload it later if we
-    # want, without having to first compute it (or load an OBJ file,
-    # or set up Embree, or any of that stuff).
-    FF.save('FF.bin')
-    print('saved compressed form factor matrix to FF.bin')
+        # Python makes it very easy to serialize object hierarchies and
+        # write them to disk as binary files. We do that here to save the
+        # compressed form factor matrix. We can reload it later if we
+        # want, without having to first compute it (or load an OBJ file,
+        # or set up Embree, or any of that stuff).
+        FF.save('FF.bin')
+        print('saved compressed form factor matrix to FF.bin')
 
     # We can also build the uncompressed form factor matrix, which
     # would be done like this:
