@@ -7,8 +7,6 @@ import pickle
 import scipy.sparse
 import scipy.sparse.linalg
 
-from functools import singledispatch
-
 
 DEFAULT_EPS = 1e-5
 
@@ -26,86 +24,73 @@ def _get_surface_normals_and_areas(V, F):
     return N, A
 
 
-@singledispatch
-def _estimate_rank(mat, tol):
-    # TODO: replace with: "scipy.linalg.interpolative.estimate_rank
-    if not isinstance(mat, np.ndarray):
-        raise Exception(f'_estimate_rank not implemented for type {type(mat)}')
-    return np.linalg.matrix_rank(mat, tol)
-
-
-@_estimate_rank.register
-def _(mat: scipy.sparse.spmatrix, tol):
-    # TODO: terribly hacky approach but works for now...
-    # it is very important to fix this for performance reasons!
-    return np.linalg.matrix_rank(mat.toarray(), tol)
+def _estimate_rank(spmat, tol, k0=40):
+    k = k0
+    while True:
+        S = scipy.sparse.linalg.svds(spmat, k, return_singular_vectors=False)
+        sv_thresh = S[-1]*max(spmat.shape)*tol
+        if S[0] < sv_thresh:
+            return np.where((S < sv_thresh)[::-1])[0][0]
+        k *= 2
+        if k > min(spmat.shape):
+            return min(spmat.shape)
 
 
 def _compute_FF_block(P, N, A, I=None, J=None, scene=None, eps=None):
+    if eps is None:
+        eps = DEFAULT_EPS
+
     if I is None:
         I = np.arange(P.shape[0])
     if J is None:
         J = np.arange(P.shape[0])
     m, n = len(I), len(J)
 
-    # Before doing any raytracing, rule out pairs of triangles
-    # which aren't facing each other
-
-    # TODO: compute tmp3 using only O(N) memory... should be doable
-
-    tmp1 = N[I]@P[J].T - \
-        np.outer(np.sum(N[I]*P[I], axis=1), np.ones(n))
-    tmp1 = np.maximum(0, tmp1)
-
-    tmp2 = P[I]@N[J].T - \
-        np.broadcast_to(np.sum(N[J]*P[J], axis=1), (m, n))
-    tmp2 = np.maximum(0, tmp2)
-
-    vis = tmp1*tmp2
-    np.fill_diagonal(vis, 0)
-    nnz = np.count_nonzero(vis)
-    if nnz == 0:
-        return vis
-
-    if scene:
-        if eps is None:
-            eps = DEFAULT_EPS
-
-        Ivis, Jvis = vis.nonzero()
-
-        P_IIvis, JJvis = P[I[Ivis]], J[Jvis]
-
-        rayhit = embree.RayHit1M(nnz)
-        rayhit.org[:] = P_IIvis
-        rayhit.dir[:] = P[JJvis] - P_IIvis
+    def check_vis(i, J):
+        assert J.size > 0
+        rayhit = embree.RayHit1M(len(J))
+        rayhit.org[:] = P[i]
+        rayhit.dir[:] = P[J] - P[i]
         rayhit.tnear[:] = eps
         rayhit.tfar[:] = np.inf
         rayhit.flags[:] = 0
         rayhit.geom_id[:] = embree.INVALID_GEOMETRY_ID
-
         context = embree.IntersectContext()
         scene.intersect1M(context, rayhit)
-
-        not_hit = np.logical_or(
-            rayhit.geom_id == embree.INVALID_GEOMETRY_ID,
-            rayhit.prim_id != JJvis
+        return np.logical_and(
+            rayhit.geom_id != embree.INVALID_GEOMETRY_ID,
+            rayhit.prim_id == J
         )
-        ind_vis = np.ravel_multi_index(
-            np.array([Ivis[not_hit], Jvis[not_hit]]),
-            vis.shape
-        )
-        np.put(vis, ind_vis, 0)
 
-        num_hit = len(not_hit) - not_hit.sum()
-        assert np.count_nonzero(vis) == num_hit
+    NJ_PJ = np.sum(N[J]*P[J], axis=1)
+    AJ = A[J]
 
-    # TODO: only compute these where vis is nonzero
-    S = np.sum(P[I]**2, axis=1).reshape(m, 1) \
-        + np.sum(P[J]**2, axis=1).reshape(1, n)
-    S -= 2*P[I]@P[J].T
-    S[S == 0] = np.inf
+    data = np.array([], dtype=P.dtype)
+    indices = np.array([], dtype=int)
+    indptr = np.array([0], dtype=int)
+    for r, i in enumerate(I):
+        row_data = np.maximum(0, N[i]@(P[J] - P[i]).T) \
+            * np.maximum(0, P[i]@N[J].T - NJ_PJ)
+        row_data[r] = 0
+        row_indices = np.where(abs(row_data) > 0)[0]
+        if row_indices.size == 0:
+            indptr = np.concatenate([indptr, [indptr[-1]]])
+            continue
+        vis = check_vis(i, row_indices)
+        row_indices = row_indices[vis]
+        s = np.pi*np.sum((P[i] - P[J[row_indices]])**2, axis=1)**2
+        s[s == 0] = np.inf
+        row_data = row_data[row_indices]*AJ[row_indices]/s
+        data = np.concatenate([data, row_data])
+        indices = np.concatenate([indices, row_indices])
+        indptr = np.concatenate([indptr, [indptr[-1] + row_indices.size]])
 
-    return (vis*A[J])/(np.pi*S**2)
+    vis = scipy.sparse.csr_matrix((data, indices, indptr), shape=(m, n))
+
+    if indices.size == 0:
+        return vis
+
+    return vis
 
 
 def _quadrant_order(X, bbox=None):
@@ -460,31 +445,36 @@ class FormFactor2dTreeBlock(FormFactorBlock):
         #
         if len(I) == 0 and len(J) == 0:
             return self.root.make_null_block()
-        mat = self.root._compute_FF_block(I, J)
-        assert isinstance(mat, np.ndarray)
-        size, shape = mat.size, mat.shape
-        sparsity = size/np.product(shape)
+        spmat = self.root._compute_FF_block(I, J)
+        nnz, shape = spmat.nnz, spmat.shape
+        size = np.product(shape)
+        sparsity = nnz/size
         if size < self._min_size:
             # TODO: _sparse_threshold should be O(log(n)/n), not constant
             if sparsity < self._sparsity_threshold:
-                return self.root.make_sparse_block(mat, fmt='csr')
+                return self.root.make_sparse_block(spmat, fmt='csr')
             else:
-                return self.root.make_dense_block(mat)
+                return self.root.make_dense_block(spmat.toarray())
         else:
-            rank = _estimate_rank(mat, self._tol)  # TODO: inefficient?
+            # TODO: how inefficient is this now that we're using our
+            # new implementation of _estimate_rank? at the very least,
+            # we should save the SVD computed in the process of
+            # determing the rank and pass it to make_svd_block if
+            # necessary to avoid recomputing the SVD
+            rank = _estimate_rank(spmat, self._tol)
             if rank == 0:
-                if np.count_nonzero(mat) > 0:
-                    return self.root.make_sparse_block(mat)
+                if nnz > 0:
+                    return self.root.make_sparse_block(spmat)
                 else:
                     return self.root.make_zero_block(shape)
             elif rank < min(len(I), len(J)) and rank <= self._max_rank:
-                return self.root.make_svd_block(mat, rank)
+                return self.root.make_svd_block(spmat, rank)
             else:
                 block = self._make_tree_block(I, J)
                 if _is_dense(block._blocks).all():
-                    block = self.root.make_dense_block(mat)
+                    block = self.root.make_dense_block(spmat)
                 elif _is_sparse(block._blocks).all():
-                    block = self.root.make_sparse_block(mat)
+                    block = self.root.make_sparse_block(spmat)
                 return block
 
     def __matmul__(self, x):
