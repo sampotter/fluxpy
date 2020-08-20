@@ -138,7 +138,7 @@ if __name__ == '__main__':
         # length ("fh" below).
         fd = lambda p: dm.dcircle(p, *p0, r0)
         fh = dm.huniform
-        V, F = dm.distmesh2d(fd, fh, h, (x0, x1, y0, y1), fig=None)
+        V, F = dm.distmesh2d(fd, fh, h, (x0, y0, x1, y1), fig=None)
     else:
         X_mesh, Y_mesh = np.meshgrid(
             np.linspace(x0, x1, int((x1 - x0)//h)),
