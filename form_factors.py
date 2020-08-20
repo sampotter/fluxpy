@@ -40,10 +40,12 @@ def _(mat: scipy.sparse.spmatrix, tol):
     # it is very important to fix this for performance reasons!
     return np.linalg.matrix_rank(mat.toarray(), tol)
 
-def _compute_FF_block(P, N, A, I=None, J=None, scene=None, eps=None):
-    if I is None: I = np.arange(P.shape[0])
-    if J is None: J = np.arange(P.shape[0])
 
+def _compute_FF_block(P, N, A, I=None, J=None, scene=None, eps=None):
+    if I is None:
+        I = np.arange(P.shape[0])
+    if J is None:
+        J = np.arange(P.shape[0])
     m, n = len(I), len(J)
 
     # Before doing any raytracing, rule out pairs of triangles
@@ -463,15 +465,13 @@ class FormFactor2dTreeBlock(FormFactorBlock):
         size, shape = mat.size, mat.shape
         sparsity = size/np.product(shape)
         if size < self._min_size:
-            if sparsity < self._sparsity_threshold: # this should be
-                                                    # O(\log(n)/n),
-                                                    # not constant!!!
-                                                    # bug!!!)
+            # TODO: _sparse_threshold should be O(log(n)/n), not constant
+            if sparsity < self._sparsity_threshold:
                 return self.root.make_sparse_block(mat, fmt='csr')
             else:
                 return self.root.make_dense_block(mat)
         else:
-            rank = _estimate_rank(mat, self._tol) # TODO: inefficient?
+            rank = _estimate_rank(mat, self._tol)  # TODO: inefficient?
             if rank == 0:
                 if np.count_nonzero(mat) > 0:
                     return self.root.make_sparse_block(mat)
