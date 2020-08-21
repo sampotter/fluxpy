@@ -66,13 +66,25 @@ def _compute_FF_block(P, N, A, I=None, J=None, scene=None, eps=None):
     NJ_PJ = np.sum(N[J]*P[J], axis=1)
     AJ = A[J]
 
+    # Find row indices of the entries of I and J that are the
+    # same. These are diagonal entries of the form factor matrix and
+    # should be set to zero.
+    is_diag_entry = np.zeros(I.shape, dtype=np.bool)
+    isect_inds = np.intersect1d(I, J, return_indices=True)[1]
+    is_diag_entry[isect_inds] = True
+    del isect_inds
+
     data = np.array([], dtype=P.dtype)
     indices = np.array([], dtype=int)
     indptr = np.array([0], dtype=int)
     for r, i in enumerate(I):
         row_data = np.maximum(0, N[i]@(P[J] - P[i]).T) \
             * np.maximum(0, P[i]@N[J].T - NJ_PJ)
-        row_data[r] = 0
+
+        # Set diagonal entries to zero.
+        if is_diag_entry[r]:
+            row_data[r] = 0
+
         row_indices = np.where(abs(row_data) > 0)[0]
         if row_indices.size == 0:
             indptr = np.concatenate([indptr, [indptr[-1]]])
