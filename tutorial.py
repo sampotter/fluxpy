@@ -223,7 +223,7 @@ if __name__ == '__main__':
     ### FF_gt = _compute_FF_block(P, N, A,
     ### scene=scene) FF_gt = scipy.sparse.csr_matrix(FF_gt)
 
-    # Here, we use Embree directly to fine the indices of triangles
+    # Here, we use Embree directly to find the indices of triangles
     # which are directly illuminated (I_sun) or not (I_shadow).
     eps = 1e3*np.finfo(np.float32).resolution
     ray = embree.Ray1M(num_faces)
