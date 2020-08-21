@@ -240,7 +240,7 @@ if __name__ == '__main__':
 
     # Compute the direct illumination.
     E = np.zeros((N.shape[0],))
-    E[I_sun] = F0*(N[I_sun]@dir_sun)
+    E[I_sun] = F0*np.maximum(0, N[I_sun]@dir_sun)
     print('computed direct illumination')
 
     # Compute the steady state temperature. This function is at the
