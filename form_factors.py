@@ -27,6 +27,7 @@ def _get_surface_normals_and_areas(V, F):
 def _estimate_rank(spmat, tol, k0=40):
     k = k0
     while True:
+        k = min(k, min(spmat.shape) - 1)
         S = scipy.sparse.linalg.svds(spmat, k, return_singular_vectors=False)
         sv_thresh = S[-1]*max(spmat.shape)*tol
         if S[0] < sv_thresh:
