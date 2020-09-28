@@ -8,7 +8,69 @@ import scipy.sparse
 import scipy.sparse.linalg
 
 
+from functools import singledispatch
+
+
+DEBUG = False
 DEFAULT_EPS = 1e-5
+
+
+class IndentedPrinter(object):
+    indent = -1
+    def print(self, *args, **kwargs):
+        if DEBUG:
+            print('    ' * IndentedPrinter.indent, end='')
+            print(*args, **kwargs)
+    def __enter__(self):
+        IndentedPrinter.indent += 1
+        return self
+    def __exit__(self, type, value, traceback):
+        IndentedPrinter.indent -= 1
+
+
+class DebugLinearOperator(scipy.sparse.linalg.LinearOperator):
+    def __init__(self, spmat):
+        self._spmat = spmat
+        self._spmat_adjoint = self._spmat.T
+        self.matvec_count = 0
+        self.rmatvec_count = 0
+        self.matmat_count = 0
+        self.rmatmat_count = 0
+
+    def _matvec(self, x):
+        self.matvec_count += 1
+        return self._spmat@x
+
+    def _matmat(self, A):
+        self.matmat_count += 1
+        return self._spmat@A
+
+    def _rmatvec(self, x):
+        self.rmatvec_count += 1
+        return self._spmat_adjoint@x
+
+    def _rmatmat(self, A):
+        self.rmatmat_count += 1
+        return self._spmat_adjoint@A
+
+    def debug_print(self):
+        with IndentedPrinter() as _:
+            _.print('matvecs: %d' % self.matvec_count)
+            _.print('matmats: %d' % self.matmat_count)
+            _.print('rmatvecs: %d' % self.rmatvec_count)
+            _.print('rmatmats: %d' % self.rmatmat_count)
+
+    @property
+    def dtype(self):
+        return self._spmat.dtype
+
+    @property
+    def nnz(self):
+        return self._spmat.nnz
+
+    @property
+    def shape(self):
+        return self._spmat.shape
 
 
 def _get_centroids(V, F):
@@ -28,7 +90,11 @@ def _estimate_rank(spmat, tol, k0=40):
     k = k0
     while True:
         k = min(k, min(spmat.shape) - 1)
-        S = scipy.sparse.linalg.svds(spmat, k, return_singular_vectors=False)
+        with IndentedPrinter() as _:
+            _.print('svds(%d x %d, %d)' % (*spmat.shape, k))
+            wrapped_spmat = DebugLinearOperator(spmat)
+            S = scipy.sparse.linalg.svds(wrapped_spmat, k, return_singular_vectors=False)
+            wrapped_spmat.debug_print()
         sv_thresh = S[-1]*max(spmat.shape)*tol
         if S[0] < sv_thresh:
             return np.where((S < sv_thresh)[::-1])[0][0]
@@ -38,72 +104,81 @@ def _estimate_rank(spmat, tol, k0=40):
 
 
 def _compute_FF_block(P, N, A, I=None, J=None, scene=None, eps=None):
-    if eps is None:
-        eps = DEFAULT_EPS
+    with IndentedPrinter() as _:
+        _.print('_compute_FF_block()')
 
-    if I is None:
-        I = np.arange(P.shape[0])
-    if J is None:
-        J = np.arange(P.shape[0])
-    m, n = len(I), len(J)
+        if eps is None:
+            eps = DEFAULT_EPS
 
-    def check_vis(i, J):
-        assert J.size > 0
-        rayhit = embree.RayHit1M(len(J))
-        rayhit.org[:] = P[i]
-        rayhit.dir[:] = P[J] - P[i]
-        rayhit.tnear[:] = eps
-        rayhit.tfar[:] = np.inf
-        rayhit.flags[:] = 0
-        rayhit.geom_id[:] = embree.INVALID_GEOMETRY_ID
-        context = embree.IntersectContext()
-        scene.intersect1M(context, rayhit)
-        return np.logical_and(
-            rayhit.geom_id != embree.INVALID_GEOMETRY_ID,
-            rayhit.prim_id == J
-        )
+        if I is None:
+            I = np.arange(P.shape[0])
+        if J is None:
+            J = np.arange(P.shape[0])
+        m, n = len(I), len(J)
 
-    NJ_PJ = np.sum(N[J]*P[J], axis=1)
-    AJ = A[J]
+        def check_vis(i, J):
+            assert J.size > 0
+            rayhit = embree.RayHit1M(len(J))
+            rayhit.org[:] = P[i]
+            rayhit.dir[:] = P[J] - P[i]
+            rayhit.tnear[:] = eps
+            rayhit.tfar[:] = np.inf
+            rayhit.flags[:] = 0
+            rayhit.geom_id[:] = embree.INVALID_GEOMETRY_ID
+            context = embree.IntersectContext()
+            scene.intersect1M(context, rayhit)
+            return np.logical_and(
+                rayhit.geom_id != embree.INVALID_GEOMETRY_ID,
+                rayhit.prim_id == J
+            )
 
-    # Find row indices of the entries of I and J that are the
-    # same. These are diagonal entries of the form factor matrix and
-    # should be set to zero.
-    is_diag_entry = np.zeros(I.shape, dtype=np.bool)
-    isect_inds = np.intersect1d(I, J, return_indices=True)[1]
-    is_diag_entry[isect_inds] = True
-    del isect_inds
+        NJ_PJ = np.sum(N[J]*P[J], axis=1)
+        AJ = A[J]
 
-    data = np.array([], dtype=P.dtype)
-    indices = np.array([], dtype=int)
-    indptr = np.array([0], dtype=int)
-    for r, i in enumerate(I):
-        row_data = np.maximum(0, N[i]@(P[J] - P[i]).T) \
-            * np.maximum(0, P[i]@N[J].T - NJ_PJ)
+        # Find row indices of the entries of I and J that are the
+        # same. These are diagonal entries of the form factor matrix and
+        # should be set to zero.
+        is_diag_entry = np.zeros(I.shape, dtype=np.bool)
+        isect_inds = np.intersect1d(I, J, return_indices=True)[1]
+        is_diag_entry[isect_inds] = True
+        del isect_inds
 
-        # Set diagonal entries to zero.
-        if is_diag_entry[r]:
-            row_data[r] = 0
+        # NOTE: we're deliberately using Python's built-in lists here
+        # to accumulate the data for the sparse matrix instead of
+        # numpy arrays, since using np.concatenate in the loop below
+        # ends up making _compute_FF_block O(N^3).
+        data = []
+        indices = []
+        indptr = [0]
 
-        row_indices = np.where(abs(row_data) > 0)[0]
-        if row_indices.size == 0:
-            indptr = np.concatenate([indptr, [indptr[-1]]])
-            continue
-        vis = check_vis(i, row_indices)
-        row_indices = row_indices[vis]
-        s = np.pi*np.sum((P[i] - P[J[row_indices]])**2, axis=1)**2
-        s[s == 0] = np.inf
-        row_data = row_data[row_indices]*AJ[row_indices]/s
-        data = np.concatenate([data, row_data])
-        indices = np.concatenate([indices, row_indices])
-        indptr = np.concatenate([indptr, [indptr[-1] + row_indices.size]])
+        for r, i in enumerate(I):
+            row_data = np.maximum(0, N[i]@(P[J] - P[i]).T) \
+                * np.maximum(0, P[i]@N[J].T - NJ_PJ)
 
-    vis = scipy.sparse.csr_matrix((data, indices, indptr), shape=(m, n))
+            # Set diagonal entries to zero.
+            if is_diag_entry[r]:
+                row_data[r] = 0
 
-    if indices.size == 0:
+            row_indices = np.where(abs(row_data) > 0)[0]
+            if row_indices.size == 0:
+                indptr.append(indptr[-1])
+                continue
+            vis = check_vis(i, row_indices)
+            row_indices = row_indices[vis]
+            s = np.pi*np.sum((P[i] - P[J[row_indices]])**2, axis=1)**2
+            s[s == 0] = np.inf
+            row_data = row_data[row_indices]*AJ[row_indices]/s
+
+            data.extend(row_data.tolist())
+            indices.extend(row_indices.tolist())
+            indptr.append(indptr[-1] + row_indices.size)
+
+        data = np.array(data, dtype=np.float32)
+        indices = np.array(indices, dtype=np.intc)
+        indptr = np.array(indptr, dtype=np.intc)
+
+        vis = scipy.sparse.csr_matrix((data, indices, indptr), shape=(m, n))
         return vis
-
-    return vis
 
 
 def _quadrant_order(X, bbox=None):
@@ -325,9 +400,8 @@ class FormFactorZeroBlock(FormFactorLeafBlock):
 class FormFactorDenseBlock(FormFactorLeafBlock):
 
     def __init__(self, root, mat):
-        if not isinstance(mat, np.ndarray):
-            import pdb; pdb.set_trace()
-            raise Exception('`mat` must be a numpy ndarray')
+        if isinstance(mat, scipy.sparse.spmatrix):
+            mat = mat.toarray()
         super().__init__(root, mat.shape)
         self._mat = mat
 
@@ -378,7 +452,11 @@ class FormFactorSvdBlock(FormFactorLeafBlock):
     def __init__(self, linop, mat, k):
         super().__init__(linop, mat.shape)
         self._k = k
-        [u, s, vt] = scipy.sparse.linalg.svds(mat, k)
+        with IndentedPrinter() as _:
+            _.print('svds(%d x %d, %d)' % (*mat.shape, k))
+            wrapped_mat = DebugLinearOperator(mat)
+            [u, s, vt] = scipy.sparse.linalg.svds(wrapped_mat, k)
+            wrapped_mat.debug_print()
         self._u = u
         self._s = s
         self._vt = vt
@@ -440,48 +518,62 @@ class FormFactor2dTreeBlock(FormFactorBlock):
             row = []
             for j, J in enumerate(self._col_block_inds):
                 J_ = J if J0 is None else J0[J]
-                block = self._get_form_factor_block(I_, J_)
+                with IndentedPrinter() as _:
+                    _.print('_get_form_factor_block(|I_%d| = %d, |J_%d| = %d)' % (
+                        i, len(I), j, len(J)))
+                    block = self._get_form_factor_block(I_, J_, i == j)
+                    if block is None:
+                        import pdb; pdb.set_trace()
                 row.append(block)
             blocks.append(row)
         self._blocks = np.array(blocks, dtype=FormFactorBlock)
 
-    def _get_form_factor_block(self, I, J):
-        # TODO: according to some policy, we will occasionally want to
-        # replace this with a linear operator version to save
-        # memory... to get the best effect from this, we're going to
-        # need to come up with a good policy to decide how to do this
-        #
-        # maybe there's some way to query numpy and figure out what
-        # the biggest matrix it can allocate is? or maybe we should
-        # just pass a "max_bytes" parameter as some kind of
-        # threshold...
-        #
+    def _get_form_factor_block(self, I, J, is_diag=False):
+        # If the matrix is empty (i.e., shape is (0, 0)), then
+        # immediately return a "null block".
         if len(I) == 0 and len(J) == 0:
             return self.root.make_null_block()
+
+        # Precompute the block as a sparse matrix.
         spmat = self.root._compute_FF_block(I, J)
         nnz, shape = spmat.nnz, spmat.shape
         size = np.product(shape)
         sparsity = nnz/size
+
+        if nnz == 0:
+            return self.root.make_zero_block(shape)
+
         if size < self._min_size:
-            # TODO: _sparse_threshold should be O(log(n)/n), not constant
             if sparsity < self._sparsity_threshold:
                 return self.root.make_sparse_block(spmat, fmt='csr')
             else:
                 return self.root.make_dense_block(spmat.toarray())
         else:
-            # TODO: how inefficient is this now that we're using our
-            # new implementation of _estimate_rank? at the very least,
-            # we should save the SVD computed in the process of
-            # determing the rank and pass it to make_svd_block if
-            # necessary to avoid recomputing the SVD
-            rank = _estimate_rank(spmat, self._tol)
-            if rank == 0:
-                if nnz > 0:
+            if not is_diag:
+                # TODO: how inefficient is this now that we're using our
+                # new implementation of _estimate_rank? at the very least,
+                # we should save the SVD computed in the process of
+                # determing the rank and pass it to make_svd_block if
+                # necessary to avoid recomputing the SVD
+                #
+                # TODO: need to check how much time passing
+                # "return_singular_vectors=False" saves
+                with IndentedPrinter() as _:
+                    _.print('_estimate_rank')
+                    rank = _estimate_rank(spmat, self._tol)
+                if rank == 0:
                     return self.root.make_sparse_block(spmat)
+                # elif rank < min(len(I), len(J), self._max_rank + 1):
+                #     return self.root.make_svd_block(spmat, rank)
+                # Compute the size of the SVD and compare with the size
+                # of the sparse matrix (already computed) to determine
+                # which to use
+                nbytes_svd = rank*np.dtype(spmat.dtype).itemsize*(sum(shape)+1)
+                nbytes_sparse = spmat.data.nbytes + spmat.indices.nbytes + spmat.indptr.nbytes
+                if nbytes_svd < nbytes_sparse:
+                    return self.root.make_svd_block(spmat, rank)
                 else:
-                    return self.root.make_zero_block(shape)
-            elif rank < min(len(I), len(J)) and rank <= self._max_rank:
-                return self.root.make_svd_block(spmat, rank)
+                    return self.root.make_sparse_block(spmat)
             else:
                 block = self._make_tree_block(I, J)
                 if _is_dense(block._blocks).all():
@@ -550,7 +642,7 @@ class FormFactorOctreeBlock(FormFactor2dTreeBlock):
 
 class FormFactorMatrix:
 
-    def __init__(self, scene, V, F, tol=1e-5, max_rank=60, min_size=1024,
+    def __init__(self, scene, V, F, tol=1e-5, max_rank=60, min_size=16384,
                  RootBlock=FormFactorQuadtreeBlock):
         self.V = V
         self.F = F
