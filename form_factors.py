@@ -396,6 +396,9 @@ class FormFactorZeroBlock(FormFactorLeafBlock):
     def nbytes(self):
         return 0
 
+    def tocsr(self):
+        return scipy.sparse.csr_matrix(self.shape, dtype=self.dtype)
+
 
 class FormFactorDenseBlock(FormFactorLeafBlock):
 
@@ -445,6 +448,9 @@ class FormFactorCsrBlock(FormFactorSparseBlock):
     @property
     def nbytes(self):
         return self._spmat.data.nbytes
+
+    def tocsr(self):
+        return self._spmat
 
 
 class FormFactorSvdBlock(FormFactorLeafBlock):
@@ -504,7 +510,14 @@ class FormFactorSvdBlock(FormFactorLeafBlock):
 
 class FormFactor2dTreeBlock(FormFactorBlock):
 
-    def __init__(self, root, I0=None, J0=None):
+    def __init__(self, root, parent_spmat=None, I0=None, J0=None):
+        # TODO: it would be helpful to come up with a way to
+        # distinguish more carefully between the two different
+        # permutations used here. The arrays I and J (stored in
+        # _row_block_inds and _col_block_inds) index into the current
+        # block, while I0 and J0 index into the "ambient" index space,
+        # so that I0[I] indexes the original form factor matrix.
+
         super().__init__(
             root,
             root.shape if I0 is None else (len(I0), len(J0))
@@ -519,26 +532,32 @@ class FormFactor2dTreeBlock(FormFactorBlock):
             for j, J in enumerate(self._col_block_inds):
                 J_ = J if J0 is None else J0[J]
                 with IndentedPrinter() as _:
-                    _.print('_get_form_factor_block(|I_%d| = %d, |J_%d| = %d)' % (
-                        i, len(I), j, len(J)))
-                    block = self._get_form_factor_block(I_, J_, i == j)
+                    _.print(
+                        '_get_form_factor_block(|I_%d| = %d, |J_%d| = %d)' % (
+                            i, len(I), j, len(J)))
+                    if parent_spmat is None:
+                        spmat = self.root._compute_FF_block(I_, J_)
+                    else:
+                        try:
+                            spmat = parent_spmat[I, :][:, J]
+                        except:
+                            import pdb; pdb.set_trace()
+                            print()
+                    is_diag = i == j
+                    block = self._get_form_factor_block(spmat, I_, J_, is_diag)
                     if block is None:
                         import pdb; pdb.set_trace()
                 row.append(block)
             blocks.append(row)
         self._blocks = np.array(blocks, dtype=FormFactorBlock)
 
-    def _get_form_factor_block(self, I, J, is_diag=False):
-        # If the matrix is empty (i.e., shape is (0, 0)), then
-        # immediately return a "null block".
-        if len(I) == 0 and len(J) == 0:
-            return self.root.make_null_block()
-
-        # Precompute the block as a sparse matrix.
-        spmat = self.root._compute_FF_block(I, J)
+    def _get_form_factor_block(self, spmat, I, J, is_diag=False):
         nnz, shape = spmat.nnz, spmat.shape
         size = np.product(shape)
         sparsity = nnz/size
+
+        if shape[0] == 0 and shape[1] == 0:
+            return self.root.make_null_block()
 
         if nnz == 0:
             return self.root.make_zero_block(shape)
@@ -568,18 +587,23 @@ class FormFactor2dTreeBlock(FormFactorBlock):
                 # Compute the size of the SVD and compare with the size
                 # of the sparse matrix (already computed) to determine
                 # which to use
-                nbytes_svd = rank*np.dtype(spmat.dtype).itemsize*(sum(shape)+1)
-                nbytes_sparse = spmat.data.nbytes + spmat.indices.nbytes + spmat.indptr.nbytes
+                nbytes_svd = \
+                    rank*np.dtype(spmat.dtype).itemsize*(sum(shape) + 1)
+                nbytes_sparse = spmat.data.nbytes \
+                    + spmat.indices.nbytes + spmat.indptr.nbytes
                 if nbytes_svd < nbytes_sparse:
                     return self.root.make_svd_block(spmat, rank)
                 else:
                     return self.root.make_sparse_block(spmat)
             else:
-                block = self._make_tree_block(I, J)
-                if _is_dense(block._blocks).all():
-                    block = self.root.make_dense_block(spmat)
-                elif _is_sparse(block._blocks).all():
-                    block = self.root.make_sparse_block(spmat)
+                # Since we descend depth-first through the
+                # hierarchical block matrix, we want to free this here
+                # to keep our memory footprint small
+                block = self._make_tree_block(spmat, I, J)
+                if block.is_dense():
+                    block = self.root.make_dense_block(block.toarray())
+                elif block.is_sparse():
+                    block = self.root.make_sparse_block(block.tocsr())
                 return block
 
     def __matmul__(self, x):
@@ -608,6 +632,21 @@ class FormFactor2dTreeBlock(FormFactorBlock):
     @property
     def is_leaf(self):
         return False
+
+    def is_dense(self):
+        return _is_dense(self._blocks).all()
+
+    def is_sparse(self):
+        return _is_sparse(self._blocks).all()
+
+    def tocsr(self):
+        row = []
+        for row_blocks in self._blocks:
+            col = []
+            for block in row_blocks:
+                col.append(block.tocsr())
+            row.append(scipy.sparse.hstack(col))
+        return scipy.sparse.vstack(row)
 
 
 class FormFactorQuadtreeBlock(FormFactor2dTreeBlock):
