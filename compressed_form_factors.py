@@ -81,7 +81,7 @@ class FormFactorNullBlock(FormFactorLeafBlock,
     def __init__(self, root):
         super().__init__(root, (0, 0))
 
-    def _matmat_(self, x):
+    def _matmat(self, x):
         return np.array([], dtype=self.dtype)
 
     @property
@@ -95,7 +95,7 @@ class FormFactorZeroBlock(FormFactorLeafBlock,
     def __init__(self, root, shape):
         super().__init__(root, shape)
 
-    def _matmat_(self, x):
+    def _matmat(self, x):
         m = self.shape[0]
         y_shape = (m,) if x.ndim == 1 else (m, x.shape[1])
         return np.zeros(y_shape, dtype=self.dtype)
@@ -124,7 +124,7 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
         except:
             import pdb; pdb.set_trace()
 
-    def _matmat_(self, x):
+    def _matmat(self, x):
         return self._mat@x
 
     def _get_sparsity(self, tol=None):
@@ -139,7 +139,7 @@ class FormFactorSparseBlock(FormFactorLeafBlock,
     def __init__(self, *args):
         super().__init__(*args)
 
-    def _matmat_(self, x):
+    def _matmat(self, x):
         return np.array(self._spmat@x)
 
 
@@ -188,17 +188,17 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
             self._u = self._u[self._I, :]
             self._vt = self._vt[:, self._J]
 
-    def _matmat_(self, x):
+    def _matmat(self, x):
         if self._compressed:
             y_ = self._vt@x[self._J]
-            y_ *= self._s
+            y_ = (y_.T*self._s).T
             y_ = self._u@y_
             y = np.zeros(self.shape[0], dtype=self.dtype)
             y[self._I] = y_
             return y
         else:
             y = self._vt@x
-            y *= self._s
+            y = (y.T*self._s).T
             y = self._u@y
             return y
 
@@ -318,7 +318,7 @@ class FormFactor2dTreeBlock(CompressedFormFactorBlock,
                     block = self.root.make_sparse_block(block.tocsr())
                 return block
 
-    def _matmat_(self, x):
+    def _matmat(self, x):
         ys = []
         for i in range(len(self._row_block_inds)):
             ys.append(sum(
@@ -467,5 +467,5 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         with open(path, 'wb') as f:
             pickle.dump(self, f)
 
-    def _matmat_(self, x):
+    def _matmat(self, x):
         return self._root@x
