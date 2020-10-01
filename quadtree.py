@@ -1,3 +1,7 @@
+import itertools as it
+import numpy as np
+
+
 def get_quadtree_inds(x, y):
     assert x.size == y.size
 
@@ -9,6 +13,10 @@ def get_quadtree_inds(x, y):
 
     xm = (x.max() + x.min())/2
     ym = (y.max() + y.min())/2
+
+    I = np.empty(len(x), dtype=np.intc)
+
+    i = 0
 
     I00 = np.where((x <= xm) & (y <= ym))[0]
     I10 = np.where((x > xm) & (y <= ym))[0]
@@ -23,3 +31,19 @@ def get_quadtree_inds(x, y):
     I = np.concatenate([I00, I10, I01, I11])
 
     return I
+
+
+def get_quadrant_order(X, bbox=None):
+    if bbox is not None:
+        (xmin, xmax), (ymin, ymax) = bbox
+    else:
+        xmin, ymin = np.min(X, axis=0)
+        xmax, ymax = np.max(X, axis=0)
+    xc, yc = (xmin + xmax)/2, (ymin + ymax)/2
+    x, y = X.T
+    Is = []
+    for xop, yop in it.product([np.less_equal, np.greater], repeat=2):
+        B = np.column_stack([xop(x, xc), yop(y, yc)])
+        I = np.where(np.all(B, axis=1))[0]
+        Is.append(I)
+    return Is
