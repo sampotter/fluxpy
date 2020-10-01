@@ -11,6 +11,93 @@ from cached_property import cached_property
 from debug import IndentedPrinter
 
 
+def _get_form_factor_block(scene, P, N, A, I, J, eps):
+    m, n = len(I), len(J)
+
+    def check_vis(i, J):
+        assert J.size > 0
+        rayhit = embree.RayHit1M(len(J))
+        context = embree.IntersectContext()
+        rayhit.org[:] = P[i]
+        rayhit.dir[:] = P[J] - P[i]
+        rayhit.tnear[:] = eps
+        rayhit.tfar[:] = np.inf
+        rayhit.flags[:] = 0
+        rayhit.geom_id[:] = embree.INVALID_GEOMETRY_ID
+        scene.intersect1M(context, rayhit)
+        return np.logical_and(
+            rayhit.geom_id != embree.INVALID_GEOMETRY_ID,
+            rayhit.prim_id == J
+        )
+
+    NJ_PJ = np.sum(N[J]*P[J], axis=1)
+    AJ = A[J]
+
+    # NOTE: we're deliberately using Python's built-in lists here
+    # to accumulate the data for the sparse matrix instead of
+    # numpy arrays, since using np.concatenate in the loop below
+    # ends up making _compute_FF_block O(N^3).
+    size = m
+    data = np.empty(m, dtype=np.float32)
+    indices = np.empty(m, dtype=np.intc)
+    indptr = [0]
+
+    # Current index into data and indices
+    i0 = 0
+
+    for r, i in enumerate(I):
+        row_data = np.maximum(0, N[i]@(P[J] - P[i]).T) \
+            * np.maximum(0, P[i]@N[J].T - NJ_PJ)
+
+        # Set diagonal entries to zero.
+        row_data[i == J] = 0
+
+        row_indices = np.where(abs(row_data) > eps)[0]
+        if row_indices.size == 0:
+            indptr.append(indptr[-1])
+            continue
+        vis = check_vis(i, J[row_indices])
+        row_indices = row_indices[vis]
+
+        s = np.pi*np.sum((P[i] - P[J[row_indices]])**2, axis=1)**2
+        s[s == 0] = np.inf
+        row_data = row_data[row_indices]*AJ[row_indices]/s
+
+        assert row_data.size == row_indices.size
+
+        if size < row_data.size + i0:
+            size *= 2
+
+            tmp = np.empty(size, dtype=np.float32)
+            tmp[:i0] = data[:i0]
+            data = tmp
+
+            tmp = np.empty(size, dtype=np.intc)
+            tmp[:i0] = indices[:i0]
+            indices = tmp
+
+        data[i0:(row_data.size + i0)] = row_data
+        indices[i0:(row_indices.size + i0)] = row_indices
+
+        i0 += row_data.size
+
+        indptr.append(indptr[-1] + row_indices.size)
+
+    data = data[:i0]
+    indices = indices[:i0]
+    indptr = np.array(indptr, dtype=np.intc)
+
+    nbytes = data.nbytes + indices.nbytes + indptr.nbytes
+    print('spmat size: %1.2f MB' % (nbytes/1024**2))
+
+    print(len(data))
+    print(len(indices))
+
+    vis = scipy.sparse.csr_matrix((data, indices, indptr), shape=(m, n))
+
+    return vis
+
+
 def get_form_factor_block(shape_model, I=None, J=None, eps=None):
     P = shape_model.P
     N = shape_model.N
@@ -18,73 +105,16 @@ def get_form_factor_block(shape_model, I=None, J=None, eps=None):
 
     scene = shape_model.scene
 
+    if eps is None:
+        eps = config.DEFAULT_EPS
+    if I is None:
+        I = np.arange(P.shape[0])
+    if J is None:
+        J = np.arange(P.shape[0])
+
     with IndentedPrinter() as _:
-        _.print('_compute_FF_block()')
-
-        if eps is None:
-            eps = config.DEFAULT_EPS
-
-        if I is None:
-            I = np.arange(P.shape[0])
-        if J is None:
-            J = np.arange(P.shape[0])
-        m, n = len(I), len(J)
-
-        def check_vis(i, J):
-            assert J.size > 0
-            rayhit = embree.RayHit1M(len(J))
-            rayhit.org[:] = P[i]
-            rayhit.dir[:] = P[J] - P[i]
-            rayhit.tnear[:] = eps
-            rayhit.tfar[:] = np.inf
-            rayhit.flags[:] = 0
-            rayhit.geom_id[:] = embree.INVALID_GEOMETRY_ID
-            context = embree.IntersectContext()
-            scene.intersect1M(context, rayhit)
-            return np.logical_and(
-                rayhit.geom_id != embree.INVALID_GEOMETRY_ID,
-                rayhit.prim_id == J
-            )
-
-        NJ_PJ = np.sum(N[J]*P[J], axis=1)
-        AJ = A[J]
-
-        # NOTE: we're deliberately using Python's built-in lists here
-        # to accumulate the data for the sparse matrix instead of
-        # numpy arrays, since using np.concatenate in the loop below
-        # ends up making _compute_FF_block O(N^3).
-        data = []
-        indices = []
-        indptr = [0]
-
-        for r, i in enumerate(I):
-            row_data = np.maximum(0, N[i]@(P[J] - P[i]).T) \
-                * np.maximum(0, P[i]@N[J].T - NJ_PJ)
-
-            # Set diagonal entries to zero.
-            row_data[i == J] = 0
-
-            row_indices = np.where(abs(row_data) > eps)[0]
-            if row_indices.size == 0:
-                indptr.append(indptr[-1])
-                continue
-            vis = check_vis(i, J[row_indices])
-            row_indices = row_indices[vis]
-
-            s = np.pi*np.sum((P[i] - P[J[row_indices]])**2, axis=1)**2
-            s[s == 0] = np.inf
-            row_data = row_data[row_indices]*AJ[row_indices]/s
-
-            data.extend(row_data.tolist())
-            indices.extend(row_indices.tolist())
-            indptr.append(indptr[-1] + row_indices.size)
-
-        data = np.array(data, dtype=np.float32)
-        indices = np.array(indices, dtype=np.intc)
-        indptr = np.array(indptr, dtype=np.intc)
-
-        vis = scipy.sparse.csr_matrix((data, indices, indptr), shape=(m, n))
-        return vis
+        _.print('_get_form_factor_block()')
+        return _get_form_factor_block(scene, P, N, A, I, J, eps)
 
 
 class FormFactorMatrix(scipy.sparse.linalg.LinearOperator):
