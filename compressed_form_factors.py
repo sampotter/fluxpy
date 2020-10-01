@@ -23,7 +23,7 @@ def _is_sparse(block):
         or isinstance(block, FormFactorZeroBlock)
 
 
-class CompressedFormFactorBlock(scipy.sparse.linalg.LinearOperator):
+class CompressedFormFactorBlock:
 
     def __init__(self, root, shape):
         self._root = root
@@ -75,12 +75,13 @@ class FormFactorLeafBlock(CompressedFormFactorBlock):
         return True
 
 
-class FormFactorNullBlock(FormFactorLeafBlock):
+class FormFactorNullBlock(FormFactorLeafBlock,
+                          scipy.sparse.linalg.LinearOperator):
 
     def __init__(self, root):
         super().__init__(root, (0, 0))
 
-    def __matmul__(self, x):
+    def _matmat_(self, x):
         return np.array([], dtype=self.dtype)
 
     @property
@@ -88,12 +89,13 @@ class FormFactorNullBlock(FormFactorLeafBlock):
         return 0
 
 
-class FormFactorZeroBlock(FormFactorLeafBlock):
+class FormFactorZeroBlock(FormFactorLeafBlock,
+                          scipy.sparse.linalg.LinearOperator):
 
     def __init__(self, root, shape):
         super().__init__(root, shape)
 
-    def __matmul__(self, x):
+    def _matmat_(self, x):
         m = self.shape[0]
         y_shape = (m,) if x.ndim == 1 else (m, x.shape[1])
         return np.zeros(y_shape, dtype=self.dtype)
@@ -106,7 +108,8 @@ class FormFactorZeroBlock(FormFactorLeafBlock):
         return scipy.sparse.csr_matrix(self.shape, dtype=self.dtype)
 
 
-class FormFactorDenseBlock(FormFactorLeafBlock):
+class FormFactorDenseBlock(FormFactorLeafBlock,
+                          scipy.sparse.linalg.LinearOperator):
 
     def __init__(self, root, mat):
         if isinstance(mat, scipy.sparse.spmatrix):
@@ -121,7 +124,7 @@ class FormFactorDenseBlock(FormFactorLeafBlock):
         except:
             import pdb; pdb.set_trace()
 
-    def __matmul__(self, x):
+    def _matmat_(self, x):
         return self._mat@x
 
     def _get_sparsity(self, tol=None):
@@ -130,12 +133,13 @@ class FormFactorDenseBlock(FormFactorLeafBlock):
         return 0 if size == 0 else nnz/size
 
 
-class FormFactorSparseBlock(FormFactorLeafBlock):
+class FormFactorSparseBlock(FormFactorLeafBlock,
+                          scipy.sparse.linalg.LinearOperator):
 
     def __init__(self, *args):
         super().__init__(*args)
 
-    def __matmul__(self, x):
+    def _matmat_(self, x):
         return np.array(self._spmat@x)
 
 
@@ -159,7 +163,8 @@ class FormFactorCsrBlock(FormFactorSparseBlock):
         return self._spmat
 
 
-class FormFactorSvdBlock(FormFactorLeafBlock):
+class FormFactorSvdBlock(FormFactorLeafBlock,
+                         scipy.sparse.linalg.LinearOperator):
 
     def __init__(self, linop, mat, k):
         super().__init__(linop, mat.shape)
@@ -183,7 +188,7 @@ class FormFactorSvdBlock(FormFactorLeafBlock):
             self._u = self._u[self._I, :]
             self._vt = self._vt[:, self._J]
 
-    def __matmul__(self, x):
+    def _matmat_(self, x):
         if self._compressed:
             y_ = self._vt@x[self._J]
             y_ *= self._s
@@ -214,7 +219,8 @@ class FormFactorSvdBlock(FormFactorLeafBlock):
         return self._compressed
 
 
-class FormFactor2dTreeBlock(CompressedFormFactorBlock):
+class FormFactor2dTreeBlock(CompressedFormFactorBlock,
+                            scipy.sparse.linalg.LinearOperator):
 
     def __init__(self, root, shape_model, parent_spmat=None, I0=None, J0=None):
         # TODO: it would be helpful to come up with a way to
@@ -312,7 +318,7 @@ class FormFactor2dTreeBlock(CompressedFormFactorBlock):
                     block = self.root.make_sparse_block(block.tocsr())
                 return block
 
-    def __matmul__(self, x):
+    def _matmat_(self, x):
         ys = []
         for i in range(len(self._row_block_inds)):
             ys.append(sum(
@@ -461,5 +467,5 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         with open(path, 'wb') as f:
             pickle.dump(self, f)
 
-    def __matmul__(self, x):
+    def _matmat_(self, x):
         return self._root@x
