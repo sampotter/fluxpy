@@ -190,11 +190,11 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
 
     def _matmat(self, x):
         if self._compressed:
-            y_ = self._vt@x[self._J]
+            y_ = self._vt@x[self._J, :]
             y_ = (y_.T*self._s).T
             y_ = self._u@y_
-            y = np.zeros(self.shape[0], dtype=self.dtype)
-            y[self._I] = y_
+            y = np.zeros((self.shape[0], x.shape[1]), dtype=self.dtype)
+            y[self._I, :] = y_
             return y
         else:
             y = self._vt@x
