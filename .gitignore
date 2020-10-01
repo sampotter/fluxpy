@@ -1,0 +1,6 @@
+*.bin
+*.egg-info
+*.obj
+*.png
+*.txt
+__pycache__
