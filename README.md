@@ -48,4 +48,30 @@ how to use this package. To run one of them, try:
 cd examples
 python haworth.py
 ```
-after following the installation instructions above.
+after following the installation instructions above. For more specific
+instructions about particular examples, see below.
+
+### Lunar south pole example
+
+Running the following scripts in order:
+``` shell
+python lsp_make_obj.py
+python lsp_compress_form_factor_matrix.py
+python lsp_spice.py
+```
+will do the following:
+
+1. Create a shape model from a section of the DEM in the file
+   `LDEM_80S_150M_adjusted.grd`. The resulting shape model will
+   contain around ~160K faces. The script can be modified easily to
+   change the portion of the DEM that is used to build the shape model
+   or the number of triangles.
+
+2. Build a compressed form factor matrix for the shape model
+   constructed in the previous step and write it to disk.
+
+3. Load both the shape model and the compressed form factor matrix and
+   use SPICE (through SpiceyPy) to step through a number of sun
+   positions, compute the direct insolation, and solve for the steady
+   state temperature at each time instant. This temperature is plotted
+   and written to disk.
