@@ -12,7 +12,21 @@ def get_cross_products(V, F):
     return C
 
 
-def get_surface_normals_and_areas(V, F):
+def get_face_areas(V, F):
+    C = get_cross_products(V, F)
+    C_norms = np.sqrt(np.sum(C**2, axis=1))
+    A = C_norms/2
+    return A
+
+
+def get_surface_normals(V, F):
+    C = get_cross_products(V, F)
+    C_norms = np.sqrt(np.sum(C**2, axis=1))
+    N = C/C_norms.reshape(C.shape[0], 1)
+    return N
+
+
+def get_surface_normals_and_face_areas(V, F):
     C = get_cross_products(V, F)
     C_norms = np.sqrt(np.sum(C**2, axis=1))
     N = C/C_norms.reshape(C.shape[0], 1)
@@ -22,16 +36,23 @@ def get_surface_normals_and_areas(V, F):
 
 class TrimeshShapeModel:
 
-    def __init__(self, V, F):
+    def __init__(self, V, F, N=None):
         self.dtype = V.dtype
 
         self.V = V
         self.F = F
 
-        P = get_centroids(V, F)
-        N, A = get_surface_normals_and_areas(V, F)
+        if N is None:
+            N, A = get_surface_normals_and_face_areas(V, F)
+        else:
+            if N.shape[0] != F.shape[0]:
+                raise Exception(
+                    'must pass same number of surface normals as faces (got ' +
+                    '%d faces and %d normals' % (F.shape[0], N.shape[0])
+                )
+            A = get_face_areas(V, F)
 
-        self.P = P
+        self.P = get_centroids(V, F)
         self.N = N
         self.A = A
 

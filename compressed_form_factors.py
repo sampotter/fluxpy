@@ -8,7 +8,6 @@ import linalg
 
 from debug import DebugLinearOperator, IndentedPrinter
 from form_factors import get_form_factor_block
-from plot import plot_blocks
 from quadtree import get_quadrant_order
 
 
@@ -56,9 +55,6 @@ class CompressedFormFactorBlock:
     @property
     def _sparsity_threshold(self):
         return self._root.sparsity_threshold
-
-    def show(self, **kwargs):
-        return plot_blocks(self, **kwargs)
 
 
 class FormFactorLeafBlock(CompressedFormFactorBlock):
@@ -292,6 +288,7 @@ class FormFactor2dTreeBlock(CompressedFormFactorBlock,
                 with IndentedPrinter() as _:
                     _.print('estimate_rank')
                     rank = linalg.estimate_rank(spmat, self._tol)
+                    print('|I| = %d, |J| = %d, k = %d' % (I.size, J.size, rank))
                 if rank == 0:
                     return self.root.make_sparse_block(spmat)
                 # elif rank < min(len(I), len(J), self._max_rank + 1):
