@@ -78,5 +78,5 @@ for i in range(100):
     T, nmul = get_T(FF, E, rho, emiss)
     print(' (nmul = %d)' % nmul)
     fig, ax = tripcolor_vector(V, F, T, cmap=cc.cm.rainbow)
-    fig.savefig('frames/haworth_T_%03d.png' % i)
+    fig.savefig('haworth_T_%03d.png' % i)
     plt.close(fig)
