@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-import compressed_form_factors as cff
+import flux.compressed_form_factors as cff
 
 
 # TODO: this function REALLY needs to be profiled and optimized!!!

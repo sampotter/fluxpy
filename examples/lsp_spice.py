@@ -1,7 +1,7 @@
 '''This script uses SPICE to compute a trajectory for the sun, loads a
 shape model discretizing a patch of the lunar south pole (made using
-haworth_make_obj.py), and a compressed form factor matrix for that
-shape model (computed using haworth_compress_form_factor_matrix.py).
+lsp_make_obj.py), and a compressed form factor matrix for that
+shape model (computed using lsp_compress_form_factor_matrix.py).
 It then proceeds to compute the steady state temperature at each sun
 position, writing a plot of the temperature to disk for each sun
 position.
@@ -9,16 +9,16 @@ position.
 '''
 
 import colorcet as cc
-import compressed_form_factors as cff
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 import spiceypy as spice
 
+import flux.compressed_form_factors as cff
 
-from model import get_T
-from plot import tripcolor_vector
-from shape import TrimeshShapeModel
+from flux.model import get_T
+from flux.plot import tripcolor_vector
+from flux.shape import TrimeshShapeModel
 
 clktol = '10:000'
 
@@ -58,15 +58,15 @@ rho = 0.12 # Visual (?) albedo
 
 # Load shape model
 
-V = np.load('haworth_V.npy')
-F = np.load('haworth_F.npy')
-N = np.load('haworth_N.npy')
+V = np.load('lsp_V.npy')
+F = np.load('lsp_F.npy')
+N = np.load('lsp_N.npy')
 
 shape_model = TrimeshShapeModel(V, F, N)
 
 # Load compressed form factor matrix from disk
 
-FF_path = 'haworth_compressed_form_factors.bin'
+FF_path = 'lsp_compressed_form_factors.bin'
 FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
 
 # Compute steady state temperature
@@ -78,5 +78,5 @@ for i in range(100):
     T, nmul = get_T(FF, E, rho, emiss)
     print(' (nmul = %d)' % nmul)
     fig, ax = tripcolor_vector(V, F, T, cmap=cc.cm.rainbow)
-    fig.savefig('haworth_T_%03d.png' % i)
+    fig.savefig('lsp_T_%03d.png' % i)
     plt.close(fig)

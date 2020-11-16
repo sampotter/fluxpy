@@ -4,7 +4,7 @@ import numpy as np
 from scipy.constants import sigma # Stefan-Boltzmann constant
 
 
-from solve import solve_kernel_system
+from flux.solve import solve_kernel_system
 
 
 def get_T(L, Q, rho, emiss, tol=np.finfo(np.float64).eps):

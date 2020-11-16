@@ -2,7 +2,7 @@ import numpy as np
 import scipy.sparse.linalg
 
 
-from debug import DebugLinearOperator, IndentedPrinter
+from flux.debug import DebugLinearOperator, IndentedPrinter
 
 
 def estimate_rank(spmat, tol, k0=40):

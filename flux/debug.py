@@ -1,11 +1,11 @@
-import config
+import flux.config
 import scipy.sparse.linalg
 
 
 class IndentedPrinter(object):
     indent = -1
     def print(self, *args, **kwargs):
-        if config.DEBUG:
+        if flux.config.DEBUG:
             print('    ' * IndentedPrinter.indent, end='')
             print(*args, **kwargs)
     def __enter__(self):

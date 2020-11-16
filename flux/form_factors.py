@@ -1,4 +1,4 @@
-import config
+import flux.config
 import embree
 import numpy as np
 import scipy.sparse
@@ -8,7 +8,7 @@ import scipy.sparse.linalg
 from cached_property import cached_property
 
 
-from debug import IndentedPrinter
+from flux.debug import IndentedPrinter
 
 
 def _get_form_factor_block(scene, P, N, A, I, J, eps):
@@ -88,10 +88,6 @@ def _get_form_factor_block(scene, P, N, A, I, J, eps):
     indptr = np.array(indptr, dtype=np.intc)
 
     nbytes = data.nbytes + indices.nbytes + indptr.nbytes
-    print('spmat size: %1.2f MB' % (nbytes/1024**2))
-
-    print(len(data))
-    print(len(indices))
 
     vis = scipy.sparse.csr_matrix((data, indices, indptr), shape=(m, n))
 
@@ -106,7 +102,7 @@ def get_form_factor_block(shape_model, I=None, J=None, eps=None):
     scene = shape_model.scene
 
     if eps is None:
-        eps = config.DEFAULT_EPS
+        eps = flux.config.DEFAULT_EPS
     if I is None:
         I = np.arange(P.shape[0])
     if J is None:
@@ -126,7 +122,7 @@ class FormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         self.J = J
 
         if eps is None:
-            self.eps = config.DEFAULT_EPS
+            self.eps = flux.config.DEFAULT_EPS
 
         self._col_vis = np.empty(len(self.J), dtype=object)
 

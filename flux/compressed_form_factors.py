@@ -3,12 +3,12 @@ import pickle
 import scipy.sparse.linalg
 
 
-import linalg
+import flux.linalg
 
 
-from debug import DebugLinearOperator, IndentedPrinter
-from form_factors import get_form_factor_block
-from quadtree import get_quadrant_order
+from flux.debug import DebugLinearOperator, IndentedPrinter
+from flux.form_factors import get_form_factor_block
+from flux.quadtree import get_quadrant_order
 
 
 @np.vectorize
@@ -124,7 +124,7 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
         return self._mat@x
 
     def _get_sparsity(self, tol=None):
-        nnz = linalg.nnz(self._mat, tol)
+        nnz = flux.linalg.nnz(self._mat, tol)
         size = self._mat.size
         return 0 if size == 0 else nnz/size
 
@@ -206,7 +206,8 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
         return nbytes
 
     def _get_sparsity(self, tol=None):
-        u_nnz, v_nnz = linalg.nnz(self._u, tol), linalg.nnz(self._vt, tol)
+        u_nnz = flux.linalg.nnz(self._u, tol)
+        v_nnz = flux.linalg.nnz(self._vt, tol)
         size = self._u.size + self._vt.size + self._k
         return 0 if size == 0 else (u_nnz + v_nnz + self._k)/size
 
@@ -287,8 +288,7 @@ class FormFactor2dTreeBlock(CompressedFormFactorBlock,
                 # "return_singular_vectors=False" saves
                 with IndentedPrinter() as _:
                     _.print('estimate_rank')
-                    rank = linalg.estimate_rank(spmat, self._tol)
-                    print('|I| = %d, |J| = %d, k = %d' % (I.size, J.size, rank))
+                    rank = flux.linalg.estimate_rank(spmat, self._tol)
                 if rank == 0:
                     return self.root.make_sparse_block(spmat)
                 # elif rank < min(len(I), len(J), self._max_rank + 1):
@@ -456,9 +456,6 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def make_octree_block(self, *args):
         return FormFactorOctreeBlock(self, *args)
-
-    def show(self, **kwargs):
-        return self._root.show(**kwargs)
 
     def save(self, path):
         with open(path, 'wb') as f:

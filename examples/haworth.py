@@ -33,11 +33,11 @@ import scipy.interpolate
 import time
 
 
-from compressed_form_factors import CompressedFormFactorMatrix
-from form_factors import get_form_factor_block
-from model import get_T
-from plot import tripcolor_vector
-from shape import TrimeshShapeModel
+from flux.compressed_form_factors import CompressedFormFactorMatrix
+from flux.form_factors import get_form_factor_block
+from flux.model import get_T
+from flux.plot import plot_blocks, tripcolor_vector
+from flux.shape import TrimeshShapeModel
 
 
 if __name__ == '__main__':
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     # Finally, we make some plots showing what we just did, and write
     # them to disk:
 
-    fig, ax = FF.show()
+    fig, ax = plot_blocks(FF._root)
     fig.savefig('haworth_blocks.png')
     plt.close(fig)
     print('wrote haworth_blocks.png to disk')
