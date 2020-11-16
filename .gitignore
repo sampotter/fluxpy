@@ -6,3 +6,8 @@
 *~
 .DS_Store
 __pycache__
+*.so
+*.pdf
+*.npy
+build
+flux/thermal.c
