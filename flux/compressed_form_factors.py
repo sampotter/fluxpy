@@ -120,6 +120,9 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
         except:
             import pdb; pdb.set_trace()
 
+    def toarray(self):
+        return self._mat
+
     def _matmat(self, x):
         return self._mat@x
 
@@ -347,6 +350,15 @@ class FormFactor2dTreeBlock(CompressedFormFactorBlock,
 
     def is_sparse(self):
         return _is_sparse(self._blocks).all()
+
+    def toarray(self):
+        row = []
+        for row_blocks in self._blocks:
+            col = []
+            for block in row_blocks:
+                col.append(block.toarray())
+            row.append(np.hstack(col))
+        return np.vstack(row)
 
     def tocsr(self):
         row = []
