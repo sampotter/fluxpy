@@ -97,6 +97,30 @@ class TrimeshShapeModel:
     def num_faces(self):
         return self.P.shape[0]
 
+    def check_vis_1_to_N(self, i, J, eps=None):
+        if eps is None:
+            eps = 1e3*np.finfo(np.float32).resolution
+
+        D = self.P[J] - self.P[i]
+        D /= np.sqrt(np.sum(D**2, axis=1)).reshape(D.shape[0], 1)
+        P = self.P[i] + eps*D
+
+        rayhit = embree.RayHit1M(len(J))
+        context = embree.IntersectContext()
+        rayhit.org[:] = P
+        rayhit.dir[:] = D
+        rayhit.tnear[:] = 0
+        rayhit.tfar[:] = np.inf
+        rayhit.flags[:] = 0
+        rayhit.geom_id[:] = embree.INVALID_GEOMETRY_ID
+
+        self.scene.intersect1M(context, rayhit)
+
+        return np.logical_and(
+            rayhit.geom_id != embree.INVALID_GEOMETRY_ID,
+            rayhit.prim_id == J
+        )
+
     def get_direct_irradiance(self, F0, dir_sun, eps=None):
         if eps is None:
             eps = 1e3*np.finfo(np.float32).resolution
