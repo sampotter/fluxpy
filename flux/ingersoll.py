@@ -308,7 +308,7 @@ only one of return_part_indices or return_parts should be true''')
         # Compute the z component of the crater vertices
         Rc = np.sqrt(np.sum(xy**2, axis=1))
         I = Rc <= self.rc + np.finfo(np.float32).eps
-        Z = -(np.sqrt(self.r**2 - Rc**2) - self.H)[I]
+        Z = self.H - np.sqrt(self.r**2 - Rc[I]**2)
         assert Z.max() < np.finfo(np.float32).eps
         Z = np.minimum(0, Z)
 
