@@ -16,7 +16,7 @@ import spiceypy as spice
 
 import flux.compressed_form_factors as cff
 
-from flux.model import get_T
+from flux.model import compute_steady_state_temp
 from flux.plot import tripcolor_vector
 from flux.shape import TrimeshShapeModel
 
@@ -72,11 +72,10 @@ FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
 # Compute steady state temperature
 
 for i in range(100):
-    print('frame = %d' % i, end='')
+    print('frame = %d' % i)
     sun_dir = sun_dirs[i]
     E = shape_model.get_direct_irradiance(F0, sun_dir)
-    T, nmul = get_T(FF, E, rho, emiss)
-    print(' (nmul = %d)' % nmul)
+    T = compute_steady_state_temp(FF, E, rho, emiss)
     fig, ax = tripcolor_vector(V, F, T, cmap=cc.cm.rainbow)
     fig.savefig('lsp_T_%03d.png' % i)
     plt.close(fig)
