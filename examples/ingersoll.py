@@ -31,6 +31,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--outdir', type=str, default='.',
         help='Directory to write output files to')
+    parser.add_argument(
+        '--blocks', type=bool, default=False,
+        help='Make a plot of the form factor matrix blocks')
     args = parser.parse_args()
 
 import colorcet as cc
@@ -85,9 +88,12 @@ if __name__ == '__main__':
     FF.save(os.path.join(args.outdir, 'FF.bin'))
     print('- wrote FF.bin')
 
-    fig, ax = plot_blocks(FF._root)
-    fig.savefig(os.path.join(args.outdir, 'blocks.png'))
-    plt.close(fig)
+    if args.blocks:
+        tic()
+        fig, ax = plot_blocks(FF._root)
+        fig.savefig(os.path.join(args.outdir, 'blocks.png'))
+        plt.close(fig)
+        print('- wrote blocks.png [%1.2f s]' % (toc(),))
 
     dir_sun = np.array([np.cos(e0), 0, np.sin(e0)])
 
@@ -138,6 +144,13 @@ if __name__ == '__main__':
 
     stats = {
         'p': args.p,
+        'e0_deg': args.e0,
+        'F0': args.F0,
+        'rho': args.rho,
+        'emiss': args.emiss,
+        'tol': args.tol,
+        'beta': args.beta,
+        'rc': args.rc,
         'h': h,
         'num_faces': F.shape[0],
         'T_gt': float(hc.T_gt),
