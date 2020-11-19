@@ -219,51 +219,13 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
         return self._compressed
 
 
-class FormFactor2dTreeBlock(CompressedFormFactorBlock,
+class FormFactorBlockMatrix(CompressedFormFactorBlock,
                             scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, shape_model, parent_spmat=None, I0=None, J0=None):
-        # TODO: it would be helpful to come up with a way to
-        # distinguish more carefully between the two different
-        # permutations used here. The arrays I and J (stored in
-        # _row_block_inds and _col_block_inds) index into the current
-        # block, while I0 and J0 index into the "ambient" index space,
-        # so that I0[I] indexes the original form factor matrix.
+    def __init__(self, root, shape):
+        super().__init__(root, shape)
 
-        super().__init__(
-            root,
-            root.shape if I0 is None else (len(I0), len(J0))
-        )
-        self._set_block_inds(shape_model, I0, J0)
-        self._row_rev_perm = np.argsort(np.concatenate(self._row_block_inds))
-
-        blocks = []
-        for i, I in enumerate(self._row_block_inds):
-            I_ = I if I0 is None else I0[I]
-            row = []
-            for j, J in enumerate(self._col_block_inds):
-                J_ = J if J0 is None else J0[J]
-                with IndentedPrinter() as _:
-                    _.print(
-                        '_get_form_factor_block(|I_%d| = %d, |J_%d| = %d)' % (
-                            i, len(I), j, len(J)))
-                    if parent_spmat is None:
-                        spmat = get_form_factor_block(shape_model, I_, J_)
-                    else:
-                        try:
-                            spmat = parent_spmat[I, :][:, J]
-                        except:
-                            import pdb; pdb.set_trace()
-                            print()
-                    is_diag = i == j
-                    block = self._get_block(shape_model, spmat, I_, J_, is_diag)
-                    if block is None:
-                        import pdb; pdb.set_trace()
-                row.append(block)
-            blocks.append(row)
-        self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
-
-    def _get_block(self, shape_model, spmat, I, J, is_diag=False):
+    def make_block(self, shape_model, I, J, is_diag=False, spmat=None):
         nnz, shape = spmat.nnz, spmat.shape
         size = np.product(shape)
         sparsity = nnz/size
@@ -311,7 +273,7 @@ class FormFactor2dTreeBlock(CompressedFormFactorBlock,
                 # Since we descend depth-first through the
                 # hierarchical block matrix, we want to free this here
                 # to keep our memory footprint small
-                block = self._make_tree_block(shape_model, spmat, I, J)
+                block = self.make_child_block(shape_model, spmat, I, J)
                 if block.is_dense():
                     block = self.root.make_dense_block(block.toarray())
                 elif block.is_sparse():
@@ -370,12 +332,57 @@ class FormFactor2dTreeBlock(CompressedFormFactorBlock,
         return scipy.sparse.vstack(row)
 
 
+class FormFactor2dTreeBlock(FormFactorBlockMatrix):
+
+    def __init__(self, root, shape_model, parent_spmat=None, I0=None, J0=None):
+        # TODO: it would be helpful to come up with a way to
+        # distinguish more carefully between the two different
+        # permutations used here. The arrays I and J (stored in
+        # _row_block_inds and _col_block_inds) index into the current
+        # block, while I0 and J0 index into the "ambient" index space,
+        # so that I0[I] indexes the original form factor matrix.
+
+        super().__init__(
+            root,
+            root.shape if I0 is None else (len(I0), len(J0))
+        )
+        self._set_block_inds(shape_model, I0, J0)
+        self._row_rev_perm = np.argsort(np.concatenate(self._row_block_inds))
+
+        blocks = []
+        for i, I in enumerate(self._row_block_inds):
+            I_ = I if I0 is None else I0[I]
+            row = []
+            for j, J in enumerate(self._col_block_inds):
+                J_ = J if J0 is None else J0[J]
+                with IndentedPrinter() as _:
+                    _.print(
+                        '_get_form_factor_block(|I_%d| = %d, |J_%d| = %d)' % (
+                            i, len(I), j, len(J)))
+                    if parent_spmat is None:
+                        spmat = get_form_factor_block(shape_model, I_, J_)
+                    else:
+                        try:
+                            spmat = parent_spmat[I, :][:, J]
+                        except:
+                            import pdb; pdb.set_trace()
+                            print()
+                    is_diag = i == j
+                    block = self.make_block(shape_model, I_, J_, is_diag, spmat)
+                    if block is None:
+                        import pdb; pdb.set_trace()
+                row.append(block)
+            blocks.append(row)
+        self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
+
+
+
 class FormFactorQuadtreeBlock(FormFactor2dTreeBlock):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _make_tree_block(self, *args):
+    def make_child_block(self, *args):
         return self.root.make_quadtree_block(*args)
 
     def _set_block_inds(self, shape_model, I, J):
@@ -391,7 +398,7 @@ class FormFactorOctreeBlock(FormFactor2dTreeBlock):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _make_tree_block(self, *args):
+    def make_child_block(self, *args):
         return self.root.make_octree_block(*args)
 
     def _set_block_inds(self, shape_model, I, J):
@@ -402,17 +409,51 @@ class FormFactorOctreeBlock(FormFactor2dTreeBlock):
         self._col_block_inds = _octant_order(PJ)
 
 
+class FormFactorPartitionBlock(FormFactorBlockMatrix):
+
+    def __init__(self, root, shape_model, parts,
+                 ChildBlock=FormFactorQuadtreeBlock):
+        I_union = []
+        for I in parts:
+            I_union = np.union1d(I_union, I)
+        if I_union.size != sum(I.size for I in parts):
+            raise Exception('parts must be disjoint')
+        del I_union
+
+        self.ChildBlock = ChildBlock
+
+        super().__init__(root, root.shape)
+        self._row_block_inds = parts
+        self._col_block_inds = parts
+        self._row_rev_perm = np.argsort(np.concatenate(self._row_block_inds))
+
+        blocks = []
+        for i, I in enumerate(parts):
+            row_blocks = []
+            for j, J in enumerate(parts):
+                is_diag = i == j
+                spmat = get_form_factor_block(shape_model, I, J)
+                block = self.make_block(shape_model, I, J, is_diag, spmat)
+                row_blocks.append(block)
+            blocks.append(row_blocks)
+        self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
+
+    def make_child_block(self, *args):
+        return self.ChildBlock(self.root, *args)
+
+
 class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, shape_model, tol=1e-5, max_rank=60, min_size=16384,
-                 RootBlock=FormFactorQuadtreeBlock):
+    def __init__(self, shape_model, *args, tol=1e-5, max_rank=60,
+                 min_size=16384, RootBlock=FormFactorQuadtreeBlock,
+                 **kwargs):
         self.dtype = shape_model.dtype
         self.num_faces = shape_model.num_faces
 
         self._tol = tol
         self._max_rank = max_rank
         self._min_size = min_size
-        self._root = RootBlock(self, shape_model)
+        self._root = RootBlock(self, shape_model, *args, **kwargs)
 
     @staticmethod
     def from_file(path):
@@ -428,6 +469,11 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
     def assemble_using_octree(cls, *args, **kwargs):
         return CompressedFormFactorMatrix(
             *args, **kwargs, RootBlock=FormFactorOctreeBlock)
+
+    @classmethod
+    def assemble_using_partition(cls, *args, **kwargs):
+        return CompressedFormFactorMatrix(
+            *args, **kwargs, RootBlock=FormFactorPartitionBlock)
 
     @property
     def shape(self):

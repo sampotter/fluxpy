@@ -1,3 +1,4 @@
+import colorcet as cc
 import cmocean
 import matplotlib.pyplot as plt
 import meshpy.triangle as triangle
@@ -8,14 +9,15 @@ import trimesh
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.form_factors import FormFactorMatrix
-from flux.model import get_T
+from flux.model import compute_steady_state_temp
 from flux.plot import plot_blocks, tripcolor_vector
 from flux.shape import TrimeshShapeModel, get_surface_normals
 
+from scipy.constants import sigma
 from scipy.interpolate import interp1d
 
 # Parameters related to the spatial discretization (triangle mesh)
-p = 5
+p = 11
 h = (2/3)**p
 min_area = (2/3)*h**2
 
@@ -31,6 +33,18 @@ beta = np.deg2rad(40)
 rc = 0.8
 H = rc/np.tan(beta)
 r = rc/np.sin(beta)
+
+# Compute the groundtruth temperature in the shadowed region
+
+Sc = 2*np.pi*r*(r - H) # surface area of crater
+f = Sc/(4*np.pi*r**2)
+T_gt = F0*np.sin(e0)*f
+T_gt *= (1 - rho)/(1 - rho*f)
+T_gt *= 1 + rho*(1 - f)/emiss
+T_gt /= sigma
+T_gt = T_gt**0.25
+
+print('- groundtruth temperature in shadow %1.2f K' % T_gt)
 
 ################################################################################
 # Build the triangulation
@@ -178,6 +192,8 @@ mesh = triangle.build(info, refinement_func=should_refine)
 xy = np.array(mesh.points)
 F = np.array(mesh.elements)
 
+num_faces_ground_plane = len(mesh.elements)
+
 ax = fig.add_subplot(2, 3, 4)
 ax.triplot(*xy.T, triangles=F, linewidth=1, c='k', zorder=1)
 ax.scatter(*xy.T, s=3, c='k', zorder=2)
@@ -211,6 +227,8 @@ info.set_facets(facets)
 mesh = triangle.build(info, refinement_func=should_refine)
 F = np.concatenate([F, xy.shape[0] + np.array(mesh.elements)], axis=0)
 xy = np.concatenate([xy, np.array(mesh.points)], axis=0)
+
+num_faces_shadowed = len(mesh.elements)
 
 ax = fig.add_subplot(2, 3, 5)
 ax.triplot(*np.array(mesh.points).T,
@@ -248,9 +266,11 @@ mesh = triangle.build(info, refinement_func=should_refine)
 F = np.concatenate([F, xy.shape[0] + np.array(mesh.elements)], axis=0)
 xy = np.concatenate([xy, np.array(mesh.points)], axis=0)
 
-mesh = triangle.build(info, refinement_func=should_refine)
-F = np.concatenate([F, xy.shape[0] + np.array(mesh.elements)], axis=0)
-xy = np.concatenate([xy, np.array(mesh.points)], axis=0)
+num_faces_illuminated = len(mesh.elements)
+
+num_faces = F.shape[0]
+assert num_faces_ground_plane + num_faces_illuminated + num_faces_shadowed \
+    == num_faces
 
 ax = fig.add_subplot(2, 3, 6)
 ax.triplot(*np.array(mesh.points).T,
@@ -297,7 +317,16 @@ N[N[:, 2] < 0] *= -1
 
 shape_model = TrimeshShapeModel(V, F, N)
 
-FF = CompressedFormFactorMatrix.assemble_using_quadtree(shape_model, tol=FF_tol)
+parts = [
+    np.arange(num_faces_ground_plane),
+    np.arange(num_faces_ground_plane,
+              num_faces_ground_plane + num_faces_shadowed),
+    np.arange(num_faces_ground_plane + num_faces_shadowed, num_faces)
+]
+
+# FF = CompressedFormFactorMatrix.assemble_using_quadtree(shape_model, tol=FF_tol)
+FF = CompressedFormFactorMatrix.assemble_using_partition(
+    shape_model, parts, tol=FF_tol)
 print('- assembled compressed form factor matrix (tol = %g, %1.1f Mb)' % (
     FF_tol, FF.nbytes/1024**2))
 
@@ -308,18 +337,18 @@ fig, ax = plot_blocks(FF._root)
 fig.savefig('ingersoll_blocks.png')
 plt.close(fig)
 
-# FF = FormFactorMatrix(shape_model)
+FF = FormFactorMatrix(shape_model)
 
 dir_sun = np.array([np.cos(e0), 0, np.sin(e0)])
-E = shape_model.get_direct_irradiance(F0, dir_sun)
+E = shape_model.get_direct_irradiance(F0, dir_sun, eps=1e-6)
 
 fig, ax = tripcolor_vector(V, F, E, cmap=cmocean.cm.gray)
 fig.savefig('ingersoll_E.png')
 plt.close(fig)
 print('- wrote ingersoll_E.png to disk')
 
-T, nmul = get_T(FF, E, rho, emiss)
-print('- computed T (%d matrix multiplications)' % (nmul,))
+T = compute_steady_state_temp(FF, E, rho, emiss)
+print('- computed T')
 
 fig, ax = tripcolor_vector(V, F, T, cmap=cmocean.cm.solar)
 # ax.plot(Xp, Yp, linewidth=1, c='cyan', marker='.', zorder=1)
@@ -329,3 +358,19 @@ fig, ax = tripcolor_vector(V, F, T, cmap=cmocean.cm.solar)
 fig.savefig('ingersoll_T.png')
 plt.close(fig)
 print('- wrote ingersoll_T.png to disk')
+
+i0 = num_faces_ground_plane
+i1 = num_faces_ground_plane + num_faces_shadowed
+error = T[i0:i1] - T_gt
+vmax = abs(error).max()
+vmin = -vmax
+fig, ax = tripcolor_vector(V, F[i0:i1], error, vmin=vmin, vmax=vmax, cmap=cc.cm.fire)
+fig.savefig('error.png')
+plt.close(fig)
+print('- wrote error.png to disk')
+
+max_error = abs(error).max()
+rms_error = np.linalg.norm(error)/np.sqrt(error.size)
+
+print('- max error: %1.2f K' % (max_error,))
+print('- RMS error: %1.2f K' % (rms_error,))

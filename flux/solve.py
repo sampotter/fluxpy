@@ -1,18 +1,24 @@
 import numpy as np
 
 
-def solve_kernel_system(L, b, rho=1, tol=np.finfo(np.float32).eps):
-    x = b
-    dx = L@(rho*b)
-    nmul = 1
-    bnorm = np.linalg.norm(b)
-    err = np.linalg.norm(b - x + dx)/bnorm
-    while np.linalg.norm(err) > tol:
-        x = b + dx
-        dx = L@(rho*b)
-        nmul += 1
-        prev_err = err
-        err = np.linalg.norm(b - x + dx)/bnorm
-        if abs(err - prev_err) < tol:
+def solve_radiosity(FF, E, rho=1, albedo_placement='right',
+                    method='jacobi', tol=None):
+    if tol is None:
+        tol = np.finfo(E.dtype).resolution
+    if albedo_placement not in {'left', 'right'}:
+        raise Exception('albedo_placement must be "left" or "right"')
+    if method != 'jacobi':
+        raise Exception('method must be "jacobi"')
+    B = E.copy()
+    niter = 0
+    while True:
+        niter += 1
+        if albedo_placement == 'left':
+            B1 = E + rho*(FF@B)
+        else:
+            B1 = E + FF@(rho*B)
+        dB = B1 - B
+        B = B1
+        if abs(dB).max()/abs(E).max() <= tol:
             break
-    return x, nmul
+    return B, niter

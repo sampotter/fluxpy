@@ -50,7 +50,7 @@ def plot_blocks(block, **kwargs):
                     ax.add_patch(rect)
                 elif isinstance(child, cff.FormFactorZeroBlock):
                     rect = patches.Rectangle(
-                        c, w, h, edgecolor='none', facecolor='black')
+                        c, w, h, edgecolor='none', facecolor='gray')
                     ax.add_patch(rect)
                 elif isinstance(child, cff.FormFactorSparseBlock):
                     rect = patches.Rectangle(
@@ -60,6 +60,8 @@ def plot_blocks(block, **kwargs):
                     rect = patches.Rectangle(
                         c, w, h, edgecolor='none', facecolor='magenta')
                     ax.add_patch(rect)
+                elif isinstance(child, cff.FormFactorNullBlock):
+                    continue
                 else:
                     raise Exception('TODO: add %s to _plot_block' % type(child))
             else:
