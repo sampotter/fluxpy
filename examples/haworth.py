@@ -35,7 +35,7 @@ import time
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.form_factors import get_form_factor_block
-from flux.model import get_T
+from flux.model import compute_steady_state_temp
 from flux.plot import plot_blocks, tripcolor_vector
 from flux.shape import TrimeshShapeModel
 
@@ -150,8 +150,8 @@ if __name__ == '__main__':
 
     # Compute the steady state temperature. This function is at the
     # top of this file.
-    T, nmul = get_T(FF, E, rho, emiss)
-    print('computed T (%d matrix multiplications)' % (nmul,))
+    T = compute_steady_state_temp(FF, E, rho, emiss)
+    print('computed T')
 
     # Finally, we make some plots showing what we just did, and write
     # them to disk:
