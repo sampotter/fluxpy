@@ -21,8 +21,8 @@ def _get_form_factor_block(shape_model, P, N, A, I, J, eps):
     # numpy arrays, since using np.concatenate in the loop below
     # ends up making _compute_FF_block O(N^3).
     size = m
-    data = np.empty(m, dtype=np.float32)
-    indices = np.empty(m, dtype=np.intc)
+    data = np.empty(m, dtype=shape_model.dtype)
+    indices = np.empty(m, dtype=np.intp)
     indptr = [0]
 
     # Current index into data and indices
@@ -51,11 +51,11 @@ def _get_form_factor_block(shape_model, P, N, A, I, J, eps):
         if size < row_data.size + i0:
             size = max(2*size, row_data.size + i0)
 
-            tmp = np.empty(size, dtype=np.float32)
+            tmp = np.empty(size, dtype=shape_model.dtype)
             tmp[:i0] = data[:i0]
             data = tmp
 
-            tmp = np.empty(size, dtype=np.intc)
+            tmp = np.empty(size, dtype=np.intp)
             tmp[:i0] = indices[:i0]
             indices = tmp
 
@@ -68,7 +68,7 @@ def _get_form_factor_block(shape_model, P, N, A, I, J, eps):
 
     data = data[:i0]
     indices = indices[:i0]
-    indptr = np.array(indptr, dtype=np.intc)
+    indptr = np.array(indptr, dtype=np.intp)
 
     nbytes = data.nbytes + indices.nbytes + indptr.nbytes
 
