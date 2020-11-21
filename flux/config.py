@@ -1,2 +1,2 @@
-DEBUG = True
+DEBUG = False
 DEFAULT_EPS = 1e-5
