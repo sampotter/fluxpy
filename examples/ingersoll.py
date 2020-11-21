@@ -44,7 +44,6 @@ import os.path
 import trimesh
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
-from flux.form_factors import FormFactorMatrix
 from flux.ingersoll import HemisphericalCrater
 from flux.model import compute_steady_state_temp
 from flux.plot import plot_blocks, tripcolor_vector
