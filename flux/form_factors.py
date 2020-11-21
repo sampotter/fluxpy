@@ -49,7 +49,7 @@ def _get_form_factor_block(shape_model, P, N, A, I, J, eps):
         assert row_data.size == row_indices.size
 
         if size < row_data.size + i0:
-            size *= 2
+            size = max(2*size, row_data.size + i0)
 
             tmp = np.empty(size, dtype=np.float32)
             tmp[:i0] = data[:i0]
