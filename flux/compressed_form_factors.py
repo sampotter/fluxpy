@@ -255,9 +255,8 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                     _.print('estimate_rank')
                     rank = flux.linalg.estimate_rank(spmat, self._tol)
                 if rank == 0:
-                    return self.root.make_sparse_block(spmat)
-                # elif rank < min(len(I), len(J), self._max_rank + 1):
-                #     return self.root.make_svd_block(spmat, rank)
+                    return self.root.make_zero_block(shape)
+
                 # Compute the size of the SVD and compare with the size
                 # of the sparse matrix (already computed) to determine
                 # which to use
