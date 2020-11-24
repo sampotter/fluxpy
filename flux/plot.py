@@ -92,3 +92,44 @@ def tripcolor_vector(V, F, v, I=None, **kwargs):
     ax.set_ylim(ymin, ymax)
     fig.tight_layout()
     return fig, ax
+
+
+def imray(shape_model, values, pos, look, up, shape, mode='ortho', **kwargs):
+    '''Trace camera rays and return corresponding values.
+
+    Arguments:
+      shape_model -- The shape model to use to do the raytracing.
+      values -- The array of values. Should be the same length as
+                shape_model.num_faces.
+      pos -- The camera position.
+      look -- The direction the camera should look in.
+      up -- The up vector for the camera.
+      shape -- The size of the image to create.
+      mode -- The type of camera to use (only "ortho" supported for now).
+
+    Keyword Arguments (mode == 'ortho'):
+      h -- The spacing between pixels in the image in world space.
+
+    '''
+
+    left = np.cross(up, look)
+
+    if mode == 'ortho':
+        if 'h' not in kwargs:
+            raise Exception('for "ortho" mode, must pass h kwarg')
+        h = kwargs['h']
+        m, n = shape
+        s = np.linspace(-h*m/2, h*m/2, m)
+        t = np.linspace(-h*n/2, h*n/2, n)
+        s, t = np.meshgrid(s, t)
+        s, t = s.ravel(), t.ravel()
+        orgs = pos + np.outer(s, left) + np.outer(t, up)
+        dirs = np.outer(np.ones(m*n, dtype=look.dtype), look)
+        I = shape_model.intersect(orgs, dirs)
+        im = np.empty(m*n, dtype=values.dtype)
+        im[I != -1] = values[I[I != -1]]
+        im[I == -1] = np.nan
+    else:
+        raise Exception('only mode == "ortho" currently supported')
+
+    return im.reshape(shape)
