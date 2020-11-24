@@ -121,6 +121,26 @@ class TrimeshShapeModel:
             rayhit.prim_id == J
         )
 
+    def intersect(self, origins, dirs):
+        m = origins.shape[0]
+        if dirs.shape[0] != m:
+            raise Exception('origins and dirs need the same number of rows')
+
+        rayhit = embree.RayHit1M(m)
+        context = embree.IntersectContext()
+        rayhit.org[:] = origins
+        rayhit.dir[:] = dirs
+        rayhit.tnear[:] = 0
+        rayhit.tfar[:] = np.inf
+        rayhit.flags[:] = 0
+        rayhit.geom_id[:] = embree.INVALID_GEOMETRY_ID
+
+        self.scene.intersect1M(context, rayhit)
+
+        I = rayhit.prim_id.copy().astype(np.intp)
+        I[rayhit.geom_id == embree.INVALID_GEOMETRY_ID] = -1
+        return I
+
     def get_direct_irradiance(self, F0, dir_sun, eps=None):
         if eps is None:
             eps = 1e3*np.finfo(np.float32).resolution
