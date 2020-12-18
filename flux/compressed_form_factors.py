@@ -8,6 +8,7 @@ import flux.linalg
 
 from flux.debug import DebugLinearOperator, IndentedPrinter
 from flux.form_factors import get_form_factor_block
+from flux.octree import get_octant_order
 from flux.quadtree import get_quadrant_order
 
 
@@ -421,8 +422,8 @@ class FormFactorOctreeBlock(FormFactor2dTreeBlock):
         P = shape_model.P
         PI = P[:] if I is None else P[I]
         PJ = P[:] if J is None else P[J]
-        self._row_block_inds = _octant_order(PI)
-        self._col_block_inds = _octant_order(PJ)
+        self._row_block_inds = get_octant_order(PI) #_octant_order(PI)
+        self._col_block_inds = get_octant_order(PJ) #_octant_order(PJ)
 
 
 class FormFactorPartitionBlock(FormFactorBlockMatrix):
@@ -475,6 +476,18 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
     def from_file(path):
         with open(path, 'rb') as f:
             return pickle.load(f)
+
+    @classmethod
+    def assemble(cls, *args, **kwargs):
+        assert "tree_kind" in kwargs
+        tree_kind = kwargs['tree_kind']
+        del kwargs['tree_kind']
+        if tree_kind == 'quad':
+            return CompressedFormFactorMatrix(
+                *args, **kwargs, RootBlock=FormFactorQuadtreeBlock)
+        elif tree_kind == 'oct':
+            return CompressedFormFactorMatrix(
+                *args, **kwargs, RootBlock=FormFactorOctreeBlock)
 
     @classmethod
     def assemble_using_quadtree(cls, *args, **kwargs):
