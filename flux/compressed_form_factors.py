@@ -281,11 +281,28 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
     def _matmat(self, x):
         ys = []
+        # for i in range(len(self._row_block_inds)):
+        #     ys.append(sum(
+        #         self._blocks[i, j]@x[J]
+        #         for j, J in enumerate(self._col_block_inds)
+        #     ))
         for i in range(len(self._row_block_inds)):
-            ys.append(sum(
-                self._blocks[i, j]@x[J]
-                for j, J in enumerate(self._col_block_inds)
-            ))
+            tmp = []
+            non_empty_FFblocks = (FormFactorSvdBlock,FormFactorSparseBlock,FormFactorDenseBlock)
+            for j, J in enumerate(self._col_block_inds):
+                child = self._blocks[i, j]
+                if child.is_leaf:
+                    if isinstance(child, non_empty_FFblocks):
+                        tmp.append(child @ x[J])
+                else:
+                    tmp.append(child @ x[J])
+
+            if tmp != []:
+                tmp = sum(tmp)
+            else:
+                tmp = np.zeros((child.shape[0],1))
+            ys.append(tmp)
+
         try:
             return np.concatenate(ys)[self._row_rev_perm]
         except:
