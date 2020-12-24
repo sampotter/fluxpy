@@ -1,7 +1,8 @@
 import numpy as np
 import pickle
 import scipy.sparse.linalg
-
+import cupyx as cpx
+import cupy as cp
 
 import flux.linalg
 
@@ -125,12 +126,21 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
         return self._mat
 
     def _matmat(self, x):
+        print("dense",self.shape, x.shape)
         return self._mat@x
 
     def _get_sparsity(self, tol=None):
         nnz = flux.linalg.nnz(self._mat, tol)
         size = self._mat.size
         return 0 if size == 0 else nnz/size
+
+class FormFactorDenseBlockGPU(FormFactorDenseBlock):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+    def _matmat(self, x):
+        return self._mat@x
 
 
 class FormFactorSparseBlock(FormFactorLeafBlock,
@@ -140,8 +150,16 @@ class FormFactorSparseBlock(FormFactorLeafBlock,
         super().__init__(*args)
 
     def _matmat(self, x):
+        print("sparse",self.shape, x.shape)
         return np.array(self._spmat@x)
 
+class FormFactorSparseBlockGPU(FormFactorSparseBlock):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+    def _matmat(self, x):
+        return np.array(self._spmat@x)
 
 class FormFactorCsrBlock(FormFactorSparseBlock):
 
@@ -162,6 +180,19 @@ class FormFactorCsrBlock(FormFactorSparseBlock):
     def tocsr(self):
         return self._spmat
 
+class FormFactorCsrBlockGPU(FormFactorCsrBlock):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+    def _matmat(self, x):
+
+        spmat = cpx.scipy.sparse.csr_matrix(self._spmat).toarray()
+        # print(spmat)
+        cx = cp.array(x)
+        # print(cx)
+        # print(spmat@cx)
+        return (spmat @ cx).get()
 
 class FormFactorSvdBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
@@ -189,6 +220,8 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
             self._vt = self._vt[:, self._J]
 
     def _matmat(self, x):
+        print("svd",self.shape, x.shape)
+
         if self._compressed:
             y_ = self._vt@x[self._J, :]
             y_ = (y_.T*self._s).T
@@ -219,6 +252,24 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
     def compressed(self):
         return self._compressed
 
+class FormFactorSvdBlockGPU(FormFactorSvdBlock):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+    def _matmat(self, x):
+        if self._compressed:
+            y_ = self._vt@x[self._J, :]
+            y_ = (y_.T*self._s).T
+            y_ = self._u@y_
+            y = np.zeros((self.shape[0], x.shape[1]), dtype=self.dtype)
+            y[self._I, :] = y_
+            return y
+        else:
+            y = self._vt@x
+            y = (y.T*self._s).T
+            y = self._u@y
+            return y
 
 class FormFactorBlockMatrix(CompressedFormFactorBlock,
                             scipy.sparse.linalg.LinearOperator):
@@ -268,7 +319,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 if nbytes_svd < nbytes_sparse:
                     return self.root.make_svd_block(spmat, rank)
                 else:
-                    return self.root.make_sparse_block(spmat)
+                    return self.root.make_sparse_block(spmat,nnz=nnz)
             else:
                 # Since we descend depth-first through the
                 # hierarchical block matrix, we want to free this here
@@ -277,7 +328,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 if block.is_dense():
                     block = self.root.make_dense_block(block.toarray())
                 elif block.is_sparse():
-                    block = self.root.make_sparse_block(block.tocsr())
+                    block = self.root.make_sparse_block(block.tocsr(),nnz=nnz)
                 return block
 
     def _matmat(self, x):
@@ -529,9 +580,12 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
     def make_dense_block(self, *args):
         return FormFactorDenseBlock(self, *args)
 
-    def make_sparse_block(self, *args, fmt='csr'):
+    def make_sparse_block(self, *args, fmt='csr', nnz=0):
         if fmt == 'csr':
-            return FormFactorCsrBlock(self, *args)
+            if nnz >10000:
+                return FormFactorCsrBlockGPU(self, *args)
+            else:
+                return FormFactorCsrBlock(self, *args)
         else:
             raise Exception('unknown sparse matrix format "%s"' % fmt)
 
