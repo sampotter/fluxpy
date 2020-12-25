@@ -159,6 +159,7 @@ class FormFactorSparseBlockGPU(FormFactorSparseBlock):
         super().__init__(*args)
 
     def _matmat(self, x):
+        print("sparse",self.shape, x.shape)
         return np.array(self._spmat@x)
 
 class FormFactorCsrBlock(FormFactorSparseBlock):
