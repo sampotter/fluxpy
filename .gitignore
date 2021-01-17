@@ -11,3 +11,4 @@ __pycache__
 *.npy
 build
 flux/thermal.c
+stats
