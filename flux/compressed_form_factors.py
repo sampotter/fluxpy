@@ -252,8 +252,9 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 # TODO: need to check how much time passing
                 # "return_singular_vectors=False" saves
                 with IndentedPrinter() as _:
-                    _.print('estimate_rank')
                     rank = flux.linalg.estimate_rank(spmat, self._tol)
+                    _.print('estimate_rank(tol = %g) = %d' % (self._tol, rank))
+
                 if rank == 0:
                     return self.root.make_zero_block(shape)
 
