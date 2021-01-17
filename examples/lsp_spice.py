@@ -41,16 +41,8 @@ et = np.linspace(et0, et1, nbet)
 # Sun positions over time period
 
 possun = spice.spkpos('SUN', et, 'MOON_ME', 'LT+S', 'MOON')[0]
-lonsun = np.arctan2(possun[:, 1], possun[:, 0])
-lonsun = np.mod(lonsun, 2*np.pi)
-radsun = np.sqrt(np.sum(possun[:, :2]**2, axis=1))
-latsun = np.arctan2(possun[:, 2], radsun)
 
-sun_dirs = np.array([
-    np.cos(lonsun)*np.cos(latsun),
-    np.sin(lonsun)*np.cos(latsun),
-    np.sin(latsun)
-]).T
+sun_dirs = possun/np.sqrt(np.sum(possun**2, axis=1)).reshape(possun.shape[0], 1)
 
 # Use these temporary parameters...
 
