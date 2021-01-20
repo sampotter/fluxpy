@@ -309,7 +309,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 for j, J in enumerate(self._col_block_inds)
                 if not self._blocks[i, j].is_empty_leaf
             )
-            col_block = sum(terms, start=np.zeros((m, 1), dtype=self.dtype))
+            col_block = sum(terms, np.zeros((m, 1), dtype=self.dtype))
             ys.append(col_block)
         try:
             return np.concatenate(ys)[self._row_rev_perm]
