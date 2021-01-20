@@ -86,6 +86,10 @@ class FormFactorNullBlock(FormFactorLeafBlock,
     def nbytes(self):
         return 0
 
+    @property
+    def is_empty_leaf(self):
+        return True
+
 
 class FormFactorZeroBlock(FormFactorLeafBlock,
                           scipy.sparse.linalg.LinearOperator):
@@ -104,6 +108,10 @@ class FormFactorZeroBlock(FormFactorLeafBlock,
 
     def tocsr(self):
         return scipy.sparse.csr_matrix(self.shape, dtype=self.dtype)
+
+    @property
+    def is_empty_leaf(self):
+        return True
 
 
 class FormFactorDenseBlock(FormFactorLeafBlock,
@@ -134,14 +142,9 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
         size = self._mat.size
         return 0 if size == 0 else nnz/size
 
-class FormFactorDenseBlockGPU(FormFactorDenseBlock):
-
-    def __init__(self, *args):
-        super().__init__(*args)
-
-    def _matmat(self, x):
-        return self._mat@x
-
+    @property
+    def is_empty_leaf(self):
+        return False
 
 class FormFactorSparseBlock(FormFactorLeafBlock,
                           scipy.sparse.linalg.LinearOperator):
@@ -153,14 +156,9 @@ class FormFactorSparseBlock(FormFactorLeafBlock,
         print("sparse",self.shape, x.shape)
         return np.array(self._spmat@x)
 
-class FormFactorSparseBlockGPU(FormFactorSparseBlock):
-
-    def __init__(self, *args):
-        super().__init__(*args)
-
-    def _matmat(self, x):
-        print("sparse",self.shape, x.shape)
-        return np.array(self._spmat@x)
+    @property
+    def is_empty_leaf(self):
+        return False
 
 class FormFactorCsrBlock(FormFactorSparseBlock):
 
@@ -237,6 +235,10 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
             return y
 
     @property
+    def is_empty_leaf(self):
+        return False
+
+    @property
     def nbytes(self):
         nbytes = self._u.nbytes + self._s.nbytes + self._vt.nbytes
         if self._compressed:
@@ -305,8 +307,9 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 # TODO: need to check how much time passing
                 # "return_singular_vectors=False" saves
                 with IndentedPrinter() as _:
-                    _.print('estimate_rank')
                     rank = flux.linalg.estimate_rank(spmat, self._tol)
+                    _.print('estimate_rank(tol = %g) = %d' % (self._tol, rank))
+
                 if rank == 0:
                     return self.root.make_zero_block(shape)
 
@@ -334,27 +337,16 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
     def _matmat(self, x):
         ys = []
-        # for i in range(len(self._row_block_inds)):
-        #     ys.append(sum(
-        #         self._blocks[i, j]@x[J]
-        #         for j, J in enumerate(self._col_block_inds)
-        #     ))
-        for i in range(len(self._row_block_inds)):
-            tmp = []
-            non_empty_FFblocks = (FormFactorSvdBlock,FormFactorSparseBlock,FormFactorDenseBlock)
-            for j, J in enumerate(self._col_block_inds):
-                child = self._blocks[i, j]
-                if child.is_leaf:
-                    if isinstance(child, non_empty_FFblocks):
-                        tmp.append(child @ x[J])
-                else:
-                    tmp.append(child @ x[J])
 
-            if tmp != []:
-                tmp = sum(tmp)
-            else:
-                tmp = np.zeros((child.shape[0],1))
-            ys.append(tmp)
+        for i, row_block_inds in enumerate(self._row_block_inds):
+            m = len(row_block_inds)
+            terms = (
+                self._blocks[i, j]@x[J]
+                for j, J in enumerate(self._col_block_inds)
+                if not self._blocks[i, j].is_empty_leaf
+            )
+            col_block = sum(terms, start=np.zeros((m, 1), dtype=self.dtype))
+            ys.append(col_block)
 
         try:
             return np.concatenate(ys)[self._row_rev_perm]
@@ -444,6 +436,9 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             blocks.append(row)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
 
+    @property
+    def is_empty_leaf(self):
+        return False
 
 
 class FormFactorQuadtreeBlock(FormFactor2dTreeBlock):
@@ -509,6 +504,10 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
 
     def make_child_block(self, *args):
         return self.ChildBlock(self.root, *args)
+
+    @property
+    def is_empty_leaf(self):
+        return True
 
 
 class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):

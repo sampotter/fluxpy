@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import numpy as np
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix

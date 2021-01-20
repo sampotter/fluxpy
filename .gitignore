@@ -1,17 +1,20 @@
 *.bin
 *.egg-info
+*.npy
 *.obj
+*.pdf
 *.png
+*.so
 *.txt
 *~
 .DS_Store
+.DS_Store
+.idea
 __pycache__
-*.so
-*.pdf
-*.npy
 build
 flux/thermal.c
-
+stats
 # PyCharm
 .DS_Store
 .idea
+

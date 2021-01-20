@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 
-for p in {5..10}
+TOL=$1
+
+mkdir -p stats/eps_$TOL
+
+for p in {3..12}
 do
 	echo "p = $p"
-	OUTDIR="ingersoll_p$p"
-	time ./ingersoll.py -p $p --outdir=$OUTDIR
+	OUTDIR="stats/eps_$TOL/ingersoll_p$p"
+	time ./ingersoll.py -p $p --tol=$TOL --outdir=$OUTDIR
 	echo ""
 done

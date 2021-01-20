@@ -20,7 +20,7 @@ if __name__ == '__main__':
         '--emiss', type=float, default=0.99,
         help='emissivity')
     parser.add_argument(
-        '--tol', type=float, default=1e-5,
+        '--tol', type=float, default=None,
         help='tolerance used when assembling compressed form factor matrix')
     parser.add_argument(
         '--beta', type=float, default=40,
@@ -41,9 +41,11 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import os.path
+import scipy.sparse
 import trimesh
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
+from flux.form_factors import get_form_factor_block
 from flux.ingersoll import HemisphericalCrater
 from flux.model import compute_steady_state_temp
 from flux.plot import plot_blocks, tripcolor_vector
@@ -77,15 +79,27 @@ if __name__ == '__main__':
     # Create a shape model from the triangle mesh (used for raytracing)
     shape_model = TrimeshShapeModel(V, F, N)
 
-    tic()
-    FF = CompressedFormFactorMatrix.assemble_using_partition(
-        shape_model, parts, tol=args.tol)
-    t_FF = toc()
+    if args.tol is None:
+        print("- tol argument not passed: assembling sparse form factor matrix")
+        tic()
+        FF = get_form_factor_block(shape_model)
+        t_FF = toc()
+        FF_nbytes = FF.data.nbytes + FF.indptr.nbytes + FF.indices.nbytes
+    else:
+        tic()
+        FF = CompressedFormFactorMatrix.assemble_using_partition(
+            shape_model, parts, tol=args.tol)
+        t_FF = toc()
+        FF_nbytes = FF.nbytes
     print('- finished assembly (%1.1f Mb) [%1.2f s]' %
-          (FF.nbytes/1024**2, t_FF))
+          (FF_nbytes/1024**2, t_FF))
 
-    FF.save(os.path.join(args.outdir, 'FF.bin'))
-    print('- wrote FF.bin')
+    if args.tol is None:
+        scipy.sparse.save_npz(os.path.join(args.outdir, 'FF.npz'), FF)
+        print('- wrote FF.npz')
+    else:
+        FF.save(os.path.join(args.outdir, 'FF.bin'))
+        print('- wrote FF.bin')
 
     if args.blocks:
         tic()
@@ -155,7 +169,7 @@ if __name__ == '__main__':
         'T_gt': float(hc.T_gt),
         'max_error': float(max_error),
         'rms_error': float(rms_error),
-        'FF_size': float(FF.nbytes/1024**2),
+        'FF_size': float(FF_nbytes/1024**2),
         't_FF': float(t_FF),
         't_E': float(t_E),
         't_B': float(t_B),
