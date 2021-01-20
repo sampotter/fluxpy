@@ -1,5 +1,8 @@
+#!/usr/bin/env python
+
 import glob
 import json
+import matplotlib
 import matplotlib.pyplot as plt
 import os
 
@@ -35,49 +38,59 @@ stats_path = 'stats/eps_1e-7'
 # MAKE INGERSOLL PLOTS
 #
 
+# plot parameters
+linewidth = 3
+dpi = 100
+marker = 'o'
+
+matplotlib.rcParams.update({'font.size': 18})
+
 StatsGt = read_all_stats_files_to_dicts(os.path.join(stats_gt_path, 'ingersoll_p*'))
 Stats = read_all_stats_files_to_dicts(os.path.join(stats_path, 'ingersoll_p*'))
 
 # Make loglog h vs T_rms plot
 plt.figure(figsize=(6, 6))
 plt.loglog(get_values_by_key(StatsGt, 'h'), get_values_by_key(StatsGt, 'rms_error'),
-           linewidth=1, marker='.', c='black', label='Sparse $F$', zorder=1)
+           linewidth=linewidth, marker='o', c='black', label='Sparse $F$', zorder=1)
 plt.loglog(get_values_by_key(Stats, 'h'), get_values_by_key(Stats, 'rms_error'),
-           linewidth=1, marker='.', c='magenta', linestyle='--',
+           linewidth=linewidth, marker=marker, c='magenta', linestyle='--',
            label='Compressed $F$', zorder=2)
 plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('RMS error in $T$ (shadow)')
 plt.tight_layout()
-plt.savefig('paper_plots/h_vs_rms.pdf')
+plt.savefig('paper_plots/h_vs_rms.pdf', dpi=dpi)
+plt.savefig('paper_plots/h_vs_rms.png', dpi=dpi)
 plt.close()
 
 # Make loglog h vs size plot
 plt.figure(figsize=(6, 6))
 plt.loglog(get_values_by_key(StatsGt, 'h'), get_values_by_key(StatsGt, 'FF_size'),
-           linewidth=1, marker='.', c='black', label='Sparse $F$', zorder=1)
+           linewidth=linewidth, marker=marker, c='black', label='Sparse $F$', zorder=1)
 plt.loglog(get_values_by_key(Stats, 'h'), get_values_by_key(Stats, 'FF_size'),
-           linewidth=1, marker='.', c='magenta', linestyle='--',
+           linewidth=linewidth, marker=marker, c='magenta', linestyle='--',
            label='Compressed $F$', zorder=2)
 plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('Size of $F$ [MB]')
 plt.tight_layout()
-plt.savefig('paper_plots/h_vs_size.pdf')
+plt.savefig('paper_plots/h_vs_size.pdf', dpi=dpi)
+plt.savefig('paper_plots/h_vs_size.png', dpi=dpi)
 plt.close()
 
 # Make loglog h vs compute T time plot
 plt.figure(figsize=(6, 6))
 plt.loglog(get_values_by_key(StatsGt, 'h'), get_values_by_key(StatsGt, 't_T'),
-           linewidth=1, marker='.', c='black', label='Sparse $F$', zorder=1)
+           linewidth=linewidth, marker=marker, c='black', label='Sparse $F$', zorder=1)
 plt.loglog(get_values_by_key(Stats, 'h'), get_values_by_key(Stats, 't_T'),
-           linewidth=1, marker='.', c='magenta', linestyle='--',
+           linewidth=linewidth, marker=marker, c='magenta', linestyle='--',
            label='Compressed $F$', zorder=2)
 plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('Time to compute $T$ [s]')
 plt.tight_layout()
-plt.savefig('paper_plots/h_vs_T_time.pdf')
+plt.savefig('paper_plots/h_vs_T_time.pdf', dpi=dpi)
+plt.savefig('paper_plots/h_vs_T_time.png', dpi=dpi)
 plt.close()
 
 # Make loglog h vs compute B and E time plot
@@ -86,30 +99,32 @@ E_time = [
         get_values_by_key(Stats, 't_E'), get_values_by_key(StatsGt, 't_E'))]
 plt.figure(figsize=(6, 6))
 plt.loglog(get_values_by_key(StatsGt, 'h'), get_values_by_key(StatsGt, 't_B'),
-           linewidth=1, marker='.', c='black', label='Sparse $F$', zorder=1)
-plt.loglog(get_values_by_key(StatsGt, 'h'), E_time, linewidth=1, marker='.',
+           linewidth=linewidth, marker=marker, c='black', label='Sparse $F$', zorder=1)
+plt.loglog(get_values_by_key(StatsGt, 'h'), E_time, linewidth=linewidth, marker=marker,
            c='black', linestyle='--',
            label='Compute $E$', zorder=1)
 plt.loglog(get_values_by_key(Stats, 'h'), get_values_by_key(Stats, 't_B'),
-           linewidth=1, marker='.', c='magenta', linestyle='--',
+           linewidth=linewidth, marker=marker, c='magenta', linestyle='--',
            label='Compressed $F$', zorder=2)
 plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('Time to compute $B$ [s]')
 plt.tight_layout()
-plt.savefig('paper_plots/h_vs_B_and_E_time.pdf')
+plt.savefig('paper_plots/h_vs_B_and_E_time.pdf', dpi=dpi)
+plt.savefig('paper_plots/h_vs_B_and_E_time.png', dpi=dpi)
 plt.close()
 
 # Make loglog h vs assembly time plot
 plt.figure(figsize=(6, 6))
 plt.loglog(get_values_by_key(StatsGt, 'h'), get_values_by_key(StatsGt, 't_FF'),
-           linewidth=1, marker='.', c='black', label='Sparse $F$', zorder=1)
+           linewidth=linewidth, marker=marker, c='black', label='Sparse $F$', zorder=1)
 plt.loglog(get_values_by_key(Stats, 'h'), get_values_by_key(Stats, 't_FF'),
-           linewidth=1, marker='.', c='magenta', linestyle='--',
+           linewidth=linewidth, marker=marker, c='magenta', linestyle='--',
            label='Compressed $F$', zorder=2)
 plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('Time to assemble $F$ [s]')
 plt.tight_layout()
-plt.savefig('paper_plots/h_vs_assembly_time.pdf')
+plt.savefig('paper_plots/h_vs_assembly_time.pdf', dpi=dpi)
+plt.savefig('paper_plots/h_vs_assembly_time.png', dpi=dpi)
 plt.close()
