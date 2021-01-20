@@ -36,7 +36,7 @@ def get_surface_normals_and_face_areas(V, F):
 
 class TrimeshShapeModel:
 
-    def __init__(self, V, F, P=None, N=None, A=None):
+    def __init__(self, V, F, N=None, P=None, A=None):
         self.dtype = V.dtype
 
         self.V = V
