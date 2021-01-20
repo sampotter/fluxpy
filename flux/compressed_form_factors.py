@@ -85,8 +85,8 @@ class FormFactorNullBlock(FormFactorLeafBlock,
         return 0
 
     @property
-    def is_nonempty_leaf(self):
-        return False
+    def is_empty_leaf(self):
+        return True
 
 
 class FormFactorZeroBlock(FormFactorLeafBlock,
@@ -108,8 +108,8 @@ class FormFactorZeroBlock(FormFactorLeafBlock,
         return scipy.sparse.csr_matrix(self.shape, dtype=self.dtype)
 
     @property
-    def is_nonempty_leaf(self):
-        return False
+    def is_empty_leaf(self):
+        return True
 
 
 class FormFactorDenseBlock(FormFactorLeafBlock,
@@ -140,8 +140,8 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
         return 0 if size == 0 else nnz/size
 
     @property
-    def is_nonempty_leaf(self):
-        return True
+    def is_empty_leaf(self):
+        return False
 
 
 class FormFactorSparseBlock(FormFactorLeafBlock,
@@ -154,8 +154,8 @@ class FormFactorSparseBlock(FormFactorLeafBlock,
         return np.array(self._spmat@x)
 
     @property
-    def is_nonempty_leaf(self):
-        return True
+    def is_empty_leaf(self):
+        return False
 
 
 class FormFactorCsrBlock(FormFactorSparseBlock):
@@ -218,8 +218,8 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
             return y
 
     @property
-    def is_nonempty_leaf(self):
-        return True
+    def is_empty_leaf(self):
+        return False
 
     @property
     def nbytes(self):
@@ -302,12 +302,15 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
     def _matmat(self, x):
         ys = []
-        for i in range(len(self._row_block_inds)):
-            ys.append(sum(
+        for i, row_block_inds in enumerate(self._row_block_inds):
+            m = len(row_block_inds)
+            terms = (
                 self._blocks[i, j]@x[J]
                 for j, J in enumerate(self._col_block_inds)
-                if self._blocks[i, j].is_nonempty_leaf
-            ))
+                if not self._blocks[i, j].is_empty_leaf
+            )
+            col_block = sum(terms, start=np.zeros((m, 1), dtype=self.dtype))
+            ys.append(col_block)
         try:
             return np.concatenate(ys)[self._row_rev_perm]
         except:
@@ -396,7 +399,8 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             blocks.append(row)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
 
-    def is_nonempty_leaf(self):
+    @property
+    def is_empty_leaf(self):
         return False
 
 
@@ -464,8 +468,9 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
     def make_child_block(self, *args):
         return self.ChildBlock(self.root, *args)
 
-    def is_nonempty_leaf(self):
-        return False
+    @property
+    def is_empty_leaf(self):
+        return True
 
 
 class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
