@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import colorcet as cc
 import dmsh
 import matplotlib.pyplot as plt
@@ -8,7 +10,7 @@ import scipy.interpolate
 import scipy.ndimage
 import scipy.spatial
 
-from shape import get_centroids, get_surface_normals
+from flux.shape import get_centroids, get_surface_normals
 
 # Read GRD file
 
@@ -82,5 +84,10 @@ N[(N*P).sum(1) < 0] *= -1
 # Save the mesh data to disk as numpy binary files
 
 np.save('haworth_V', V)
+print('- wrote haworth_V.bin')
+
 np.save('haworth_F', F)
+print('- wrote haworth_F.bin')
+
 np.save('haworth_N', N)
+print('- wrote haworth_N.bin')

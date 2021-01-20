@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+
+
 DO_3D_PLOTTING = False
 
 
@@ -130,7 +133,7 @@ if __name__ == '__main__':
     # directory.
     t0 = time.perf_counter()
     FF = CompressedFormFactorMatrix.assemble_using_quadtree(
-        shape_model, tol=5e-5)
+        shape_model, tol=np.finfo(np.float32).resolution)
     print('assembled form factor matrix in %f sec (%1.2f MB)' %
           (time.perf_counter() - t0, FF.nbytes/(1024**2),))
     del t0
