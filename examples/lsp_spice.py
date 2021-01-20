@@ -29,14 +29,12 @@ spice.furnsh('simple.furnsh')
 
 # Define time window
 
-utc0 = '2011 MAR 01 00:00:00.00'
-utc1 = '2012 MAR 01 00:00:00.00'
-stepet = 3600
+utc0 = '2021 SEP 01 00:00:00.00'
+utc1 = '2021 SEP 02 00:00:00.00'
 
 et0 = spice.str2et(utc0)
 et1 = spice.str2et(utc1)
-nbet = int(np.ceil((et1 - et0)/stepet))
-et = np.linspace(et0, et1, nbet)
+et = np.linspace(et0, et1, endpoint=False)
 
 # Sun positions over time period
 
@@ -65,9 +63,8 @@ FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
 
 # Compute steady state temperature
 
-for i in range(100):
+for i, sun_dir in enumerate(sun_dirs):
     print('frame = %d' % i)
-    sun_dir = sun_dirs[i]
     E = shape_model.get_direct_irradiance(F0, sun_dir)
     T = compute_steady_state_temp(FF, E, rho, emiss)
     fig, ax = tripcolor_vector(V, F, T, cmap=cc.cm.rainbow)

@@ -55,8 +55,8 @@ az_ = np.deg2rad(lon_)
 el_ = np.deg2rad(lat_)
 r_ = R + grdz_
 
-i0, i1 = 600, 700
-j0, j1 = 650, 725
+i0, i1 = 2425, 2663
+j0, j1 = 1912, 2172
 
 az = az_[i0:i1, j0:j1]
 el = el_[i0:i1, j0:j1]
@@ -81,8 +81,15 @@ P = get_centroids(V, F)
 N = get_surface_normals(V, F)
 N[(N*P).sum(1) < 0] *= -1
 
+print('- created shape model with %d faces and %d vertices' % (F.shape[0], V.shape[0]))
+
 # Save the mesh data to disk as numpy binary files
 
-np.save('lsp_V', V)
-np.save('lsp_F', F)
-np.save('lsp_N', N)
+np.save('lsp_V.npy', V)
+print('- wrote lsp_V.npy')
+
+np.save('lsp_F.npy', F)
+print('- wrote lsp_F.npy')
+
+np.save('lsp_N.npy', N)
+print('- wrote lsp_N.npy')
