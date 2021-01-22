@@ -1,3 +1,5 @@
+import numpy as np
+
 def get_octant_order(X, bbox=None):
     if bbox is not None:
         (xmin, xmax), (ymin, ymax), (zmin, zmax) = bbox
