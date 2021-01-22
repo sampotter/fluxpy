@@ -29,12 +29,14 @@ spice.furnsh('simple.furnsh')
 
 # Define time window
 
-utc0 = '2021 SEP 01 00:00:00.00'
-utc1 = '2021 SEP 02 00:00:00.00'
+utc0 = '2021 FEB 15 00:00:00.00'
+utc1 = '2021 MAR 15 00:00:00.00'
 
 et0 = spice.str2et(utc0)
 et1 = spice.str2et(utc1)
-et = np.linspace(et0, et1, endpoint=False)
+stepet = 3*24.*3600
+nbet = int(np.ceil((et1 - et0) / stepet))
+et = np.linspace(et0, et1, nbet, endpoint=False)
 
 # Sun positions over time period
 
@@ -62,11 +64,25 @@ FF_path = 'lsp_compressed_form_factors.bin'
 FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
 
 # Compute steady state temperature
+E_arr = []
+for i, sun_dir in enumerate(sun_dirs[:]):
+    E_arr.append(shape_model.get_direct_irradiance(F0, sun_dir))
 
-for i, sun_dir in enumerate(sun_dirs):
+E = np.vstack(E_arr).T
+T_arr = compute_steady_state_temp(FF, E, rho, emiss)
+T = np.vstack(T_arr).T
+
+for i, sun_dir in enumerate(sun_dirs[:]):
     print('frame = %d' % i)
-    E = shape_model.get_direct_irradiance(F0, sun_dir)
-    T = compute_steady_state_temp(FF, E, rho, emiss)
-    fig, ax = tripcolor_vector(V, F, T, cmap=cc.cm.rainbow)
-    fig.savefig('lsp_T_%03d.png' % i)
+    fig, ax = tripcolor_vector(V, F, E[:,i], cmap=cc.cm.gray)
+    fig.savefig('lsp_E1_%03d.png' % i)
+    plt.close(fig)
+
+    fig, ax = tripcolor_vector(V, F, T[:,i], cmap=cc.cm.fire)
+    fig.savefig('lsp_T1_%03d.png' % i)
+    plt.close(fig)
+
+    I_shadow = E[:,i] == 0
+    fig, ax = tripcolor_vector(V, F, T[:,i], I=I_shadow, cmap=cc.cm.rainbow, vmax=100)
+    fig.savefig('lsp_T1_shadow_%03d.png' % i)
     plt.close(fig)
