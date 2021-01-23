@@ -1,4 +1,4 @@
-#!/
+#!/usr/bin/env python
 
 '''This script uses SPICE to compute a trajectory for the sun, loads a
 shape model discretizing a patch of the lunar south pole (made using
@@ -29,14 +29,9 @@ spice.furnsh('simple.furnsh')
 
 # Define time window
 
-utc0 = '2011 MAR 01 00:00:00.00'
-utc1 = '2012 MAR 01 00:00:00.00'
-stepet = 3600
-
-et0 = spice.str2et(utc0)
-et1 = spice.str2et(utc1)
-nbet = int(np.ceil((et1 - et0)/stepet))
-et = np.linspace(et0, et1, nbet)
+et0 = spice.str2et('2011 MAR 01 00:00:00.00')
+et1 = spice.str2et('2011 APR 01 00:00:00.00')
+et = np.linspace(et0, et1, 100, endpoint=False)
 
 # Sun positions over time period
 
@@ -73,11 +68,10 @@ FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
 
 # Compute steady state temperature
 
+E = shape_model.get_direct_irradiance(F0, sun_dirs)
 for i in range(100):
     print('frame = %d' % i)
-    sun_dir = sun_dirs[i]
-    E = shape_model.get_direct_irradiance(F0, sun_dir)
-    T = compute_steady_state_temp(FF, E, rho, emiss)
+    T = compute_steady_state_temp(FF, E[:, i], rho, emiss)
     fig, ax = tripcolor_vector(V, F, T, cmap=cc.cm.rainbow)
     fig.savefig('lsp_T_%03d.png' % i)
     plt.close(fig)
