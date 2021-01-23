@@ -84,6 +84,10 @@ class FormFactorNullBlock(FormFactorLeafBlock,
     def nbytes(self):
         return 0
 
+    @property
+    def is_empty_leaf(self):
+        return True
+
 
 class FormFactorZeroBlock(FormFactorLeafBlock,
                           scipy.sparse.linalg.LinearOperator):
@@ -102,6 +106,10 @@ class FormFactorZeroBlock(FormFactorLeafBlock,
 
     def tocsr(self):
         return scipy.sparse.csr_matrix(self.shape, dtype=self.dtype)
+
+    @property
+    def is_empty_leaf(self):
+        return True
 
 
 class FormFactorDenseBlock(FormFactorLeafBlock,
@@ -131,6 +139,10 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
         size = self._mat.size
         return 0 if size == 0 else nnz/size
 
+    @property
+    def is_empty_leaf(self):
+        return False
+
 
 class FormFactorSparseBlock(FormFactorLeafBlock,
                           scipy.sparse.linalg.LinearOperator):
@@ -140,6 +152,10 @@ class FormFactorSparseBlock(FormFactorLeafBlock,
 
     def _matmat(self, x):
         return np.array(self._spmat@x)
+
+    @property
+    def is_empty_leaf(self):
+        return False
 
 
 class FormFactorCsrBlock(FormFactorSparseBlock):
@@ -202,6 +218,10 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
             return y
 
     @property
+    def is_empty_leaf(self):
+        return False
+
+    @property
     def nbytes(self):
         nbytes = self._u.nbytes + self._s.nbytes + self._vt.nbytes
         if self._compressed:
@@ -252,12 +272,12 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 # TODO: need to check how much time passing
                 # "return_singular_vectors=False" saves
                 with IndentedPrinter() as _:
-                    _.print('estimate_rank')
                     rank = flux.linalg.estimate_rank(spmat, self._tol)
+                    _.print('estimate_rank(tol = %g) = %d' % (self._tol, rank))
+
                 if rank == 0:
-                    return self.root.make_sparse_block(spmat)
-                # elif rank < min(len(I), len(J), self._max_rank + 1):
-                #     return self.root.make_svd_block(spmat, rank)
+                    return self.root.make_zero_block(shape)
+
                 # Compute the size of the SVD and compare with the size
                 # of the sparse matrix (already computed) to determine
                 # which to use
@@ -282,11 +302,15 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
     def _matmat(self, x):
         ys = []
-        for i in range(len(self._row_block_inds)):
-            ys.append(sum(
+        for i, row_block_inds in enumerate(self._row_block_inds):
+            m = len(row_block_inds)
+            terms = (
                 self._blocks[i, j]@x[J]
                 for j, J in enumerate(self._col_block_inds)
-            ))
+                if not self._blocks[i, j].is_empty_leaf
+            )
+            col_block = sum(terms, np.zeros((m, 1), dtype=self.dtype))
+            ys.append(col_block)
         try:
             return np.concatenate(ys)[self._row_rev_perm]
         except:
@@ -375,6 +399,9 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             blocks.append(row)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
 
+    @property
+    def is_empty_leaf(self):
+        return False
 
 
 class FormFactorQuadtreeBlock(FormFactor2dTreeBlock):
@@ -441,6 +468,10 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
     def make_child_block(self, *args):
         return self.ChildBlock(self.root, *args)
 
+    @property
+    def is_empty_leaf(self):
+        return True
+
 
 class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
@@ -459,6 +490,18 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
     def from_file(path):
         with open(path, 'rb') as f:
             return pickle.load(f)
+
+    @classmethod
+    def assemble(cls, *args, **kwargs):
+        assert "tree_kind" in kwargs
+        tree_kind = kwargs['tree_kind']
+        del kwargs['tree_kind']
+        if tree_kind == 'quad':
+            return CompressedFormFactorMatrix(
+                *args, **kwargs, RootBlock=FormFactorQuadtreeBlock)
+        elif tree_kind == 'oct':
+            return CompressedFormFactorMatrix(
+                *args, **kwargs, RootBlock=FormFactorOctreeBlock)
 
     @classmethod
     def assemble_using_quadtree(cls, *args, **kwargs):

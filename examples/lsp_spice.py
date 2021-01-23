@@ -1,3 +1,5 @@
+#!/
+
 '''This script uses SPICE to compute a trajectory for the sun, loads a
 shape model discretizing a patch of the lunar south pole (made using
 lsp_make_obj.py), and a compressed form factor matrix for that

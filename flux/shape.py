@@ -36,21 +36,23 @@ def get_surface_normals_and_face_areas(V, F):
 
 class TrimeshShapeModel:
 
-    def __init__(self, V, F, N=None):
+    def __init__(self, V, F, N=None, P=None, A=None):
         self.dtype = V.dtype
 
         self.V = V
         self.F = F
 
-        if N is None:
+        if N is None and A is None:
             N, A = get_surface_normals_and_face_areas(V, F)
-        else:
+        elif A is None:
             if N.shape[0] != F.shape[0]:
                 raise Exception(
                     'must pass same number of surface normals as faces (got ' +
                     '%d faces and %d normals' % (F.shape[0], N.shape[0])
                 )
             A = get_face_areas(V, F)
+        elif N is None:
+            N = get_surface_normals(V, F)
 
         self.P = get_centroids(V, F)
         self.N = N
@@ -60,11 +62,16 @@ class TrimeshShapeModel:
         assert self.N.dtype == self.dtype
         assert self.A.dtype == self.dtype
 
-        # Next, we need to set up Embree. The lines below allocate some
-        # memory that Embree manages, and loads our vertices and index
-        # lists for the faces. In Embree parlance, we create a "device",
-        # which manages a "scene", which has one "geometry" in it, which
-        # is our mesh.
+        self._make_scene()
+
+    def _make_scene(self):
+        '''Set up an Embree scene. This function allocates some memory that
+        Embree manages, and loads vertices and index lists for the
+        faces. In Embree parlance, this function creates a "device",
+        which manages a "scene", which has one "geometry" in it, which
+        is our mesh.
+
+        '''
         device = embree.Device()
         geometry = device.make_geometry(embree.GeometryType.Triangle)
         scene = device.make_scene()
@@ -73,17 +80,17 @@ class TrimeshShapeModel:
             0, # slot
             embree.Format.Float3, # fmt
             3*np.dtype('float32').itemsize, # byte_stride
-            V.shape[0], # item_count
+            self.V.shape[0], # item_count
         )
-        vertex_buffer[:] = V[:]
+        vertex_buffer[:] = self.V[:]
         index_buffer = geometry.set_new_buffer(
             embree.BufferType.Index, # buf_type
             0, # slot
             embree.Format.Uint3, # fmt
             3*np.dtype('uint32').itemsize, # byte_stride,
-            F.shape[0]
+            self.F.shape[0]
         )
-        index_buffer[:] = F[:]
+        index_buffer[:] = self.F[:]
         geometry.commit()
         scene.attach_geometry(geometry)
         geometry.release()
@@ -92,6 +99,9 @@ class TrimeshShapeModel:
         # This is the only variable we need to retain a reference to
         # (I think)
         self.scene = scene
+
+    def __reduce__(self):
+        return (self.__class__, (self.V, self.F, self.P, self.N, self.A))
 
     @property
     def num_faces(self):
