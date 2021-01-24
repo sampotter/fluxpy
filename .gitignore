@@ -1,3 +1,4 @@
+*.avi
 *.bin
 *.egg-info
 *.ipynb_checkpoints
@@ -7,6 +8,7 @@
 *.png
 *.so
 *.txt
+*.zip
 *~
 .DS_Store
 .DS_Store
