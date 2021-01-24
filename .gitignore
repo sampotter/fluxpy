@@ -1,5 +1,6 @@
 *.bin
 *.egg-info
+*.ipynb_checkpoints
 *.npy
 *.obj
 *.pdf
