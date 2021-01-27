@@ -493,6 +493,18 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
             return pickle.load(f)
 
     @classmethod
+    def assemble(cls, *args, **kwargs):
+        assert "tree_kind" in kwargs
+        tree_kind = kwargs['tree_kind']
+        del kwargs['tree_kind']
+        if tree_kind == 'quad':
+            return CompressedFormFactorMatrix(
+                *args, **kwargs, RootBlock=FormFactorQuadtreeBlock)
+        elif tree_kind == 'oct':
+            return CompressedFormFactorMatrix(
+                *args, **kwargs, RootBlock=FormFactorOctreeBlock)
+
+    @classmethod
     def assemble_using_quadtree(cls, *args, **kwargs):
         return CompressedFormFactorMatrix(
             *args, **kwargs, RootBlock=FormFactorQuadtreeBlock)

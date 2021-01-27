@@ -13,6 +13,8 @@ N = np.load('lsp_N.npy')
 
 # Set up shape model and build form factor matrix
 
+tol = np.finfo(np.float32).eps
+
 shape_model = TrimeshShapeModel(V, F, N)
-FF = CompressedFormFactorMatrix.assemble_using_quadtree(shape_model, tol=1e-5)
+FF = CompressedFormFactorMatrix.assemble_using_quadtree(shape_model, tol=tol)
 FF.save('lsp_compressed_form_factors.bin')

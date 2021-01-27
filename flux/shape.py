@@ -131,38 +131,57 @@ class TrimeshShapeModel:
             rayhit.prim_id == J
         )
 
-    def intersect(self, origins, dirs):
-        m = origins.shape[0]
-        if dirs.shape[0] != m:
-            raise Exception('origins and dirs need the same number of rows')
+    def get_direct_irradiance(self, F0, Dsun, eps=None):
+        '''Compute the insolation from the sun.
 
-        rayhit = embree.RayHit1M(m)
-        context = embree.IntersectContext()
-        rayhit.org[:] = origins
-        rayhit.dir[:] = dirs
-        rayhit.tnear[:] = 0
-        rayhit.tfar[:] = np.inf
-        rayhit.flags[:] = 0
-        rayhit.geom_id[:] = embree.INVALID_GEOMETRY_ID
+        Parameters
+        ----------
+        F0: float
+            The solar constant. [W/m^2]
 
-        self.scene.intersect1M(context, rayhit)
+        Dsun: numpy.ndarray
+            An length 3 vector or Mx3 array of sun directions: vectors
+            indicating the direction of the sun in world coordinates.
 
-        I = rayhit.prim_id.copy().astype(np.intp)
-        I[rayhit.geom_id == embree.INVALID_GEOMETRY_ID] = -1
-        return I
+        eps: float
+            How far to perturb the start of the ray away from each
+            face. Default is 1e3*np.finfo(np.float32).resolution. This
+            is to overcome precision issues with Embree.
 
-    def get_direct_irradiance(self, F0, dir_sun, eps=None):
+        Returns
+        -------
+        E: numpy.ndarray
+            A vector of length self.num_faces or an array of size
+            M x self.num_faces, where M is the number of sun
+            directions.
+
+        '''
         if eps is None:
             eps = 1e3*np.finfo(np.float32).resolution
 
         # Here, we use Embree directly to find the indices of triangles
         # which are directly illuminated (I_sun) or not (I_shadow).
-        ray = embree.Ray1M(self.num_faces)
-        ray.org[:] = self.P + eps*self.N
-        ray.dir[:] = dir_sun
-        ray.tnear[:] = 0
-        ray.tfar[:] = np.inf
-        ray.flags[:] = 0
+
+        n = self.num_faces
+
+        if Dsun.ndim == 1:
+            ray = embree.Ray1M(n)
+            ray.org[:] = self.P + eps*self.N
+            ray.dir[:] = Dsun
+            ray.tnear[:] = 0
+            ray.tfar[:] = np.inf
+            ray.flags[:] = 0
+        elif Dsun.ndim == 2:
+            m = Dsun.size//3
+            ray = embree.Ray1M(m*n)
+            for i in range(m):
+                ray.org[i*n:(i + 1)*n, :] = self.P + eps*self.N
+            for i, d in enumerate(Dsun):
+                ray.dir[i*n:(i + 1)*n, :] = d
+            ray.tnear[:] = 0
+            ray.tfar[:] = np.inf
+            ray.flags[:] = 0
+
         context = embree.IntersectContext()
         self.scene.occluded1M(context, ray)
 
@@ -170,7 +189,12 @@ class TrimeshShapeModel:
         I = np.isposinf(ray.tfar)
 
         # Compute the direct irradiance
-        E = np.zeros(self.num_faces, dtype=self.dtype)
-        E[I] = F0*np.maximum(0, self.N[I]@dir_sun)
-
+        if Dsun.ndim == 1:
+            E = np.zeros(n, dtype=self.dtype)
+            E[I] = F0*np.maximum(0, self.N[I]@Dsun)
+        else:
+            E = np.zeros((n, m), dtype=self.dtype)
+            I = I.reshape(m, n)
+            for i, d in enumerate(Dsun):
+                E[I[i], i] = F0*np.maximum(0, self.N[I[i]]@d)
         return E

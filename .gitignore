@@ -1,5 +1,6 @@
 *.bin
 *.egg-info
+*.ipynb_checkpoints
 *.npy
 *.obj
 *.pdf
@@ -10,6 +11,9 @@
 .DS_Store
 .DS_Store
 .idea
+GPATH
+GRTAGS
+GTAGS
 __pycache__
 build
 flux/thermal.c

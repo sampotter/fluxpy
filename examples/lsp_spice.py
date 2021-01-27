@@ -18,9 +18,11 @@ import spiceypy as spice
 
 import flux.compressed_form_factors as cff
 
+from flux.form_factors import get_form_factor_block
 from flux.model import compute_steady_state_temp
 from flux.plot import tripcolor_vector
 from flux.shape import TrimeshShapeModel
+from flux.util import tic, toc
 
 clktol = '10:000'
 
@@ -29,20 +31,23 @@ spice.furnsh('simple.furnsh')
 
 # Define time window
 
-utc0 = '2021 FEB 15 00:00:00.00'
-utc1 = '2021 MAR 15 00:00:00.00'
-
-et0 = spice.str2et(utc0)
-et1 = spice.str2et(utc1)
-stepet = 3*24.*3600
-nbet = int(np.ceil((et1 - et0) / stepet))
-et = np.linspace(et0, et1, nbet, endpoint=False)
+et0 = spice.str2et('2011 MAR 01 00:00:00.00')
+et1 = spice.str2et('2011 APR 01 00:00:00.00')
+et = np.linspace(et0, et1, 100, endpoint=False)
 
 # Sun positions over time period
 
 possun = spice.spkpos('SUN', et, 'MOON_ME', 'LT+S', 'MOON')[0]
+lonsun = np.arctan2(possun[:, 1], possun[:, 0])
+lonsun = np.mod(lonsun, 2*np.pi)
+radsun = np.sqrt(np.sum(possun[:, :2]**2, axis=1))
+latsun = np.arctan2(possun[:, 2], radsun)
 
-sun_dirs = possun/np.sqrt(np.sum(possun**2, axis=1)).reshape(possun.shape[0], 1)
+sun_dirs = np.array([
+    np.cos(lonsun)*np.cos(latsun),
+    np.sin(lonsun)*np.cos(latsun),
+    np.sin(latsun)
+]).T
 
 # Use these temporary parameters...
 
@@ -62,6 +67,8 @@ shape_model = TrimeshShapeModel(V, F, N)
 
 FF_path = 'lsp_compressed_form_factors.bin'
 FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
+
+FF_gt = get_form_factor_block(shape_model)
 
 # Compute steady state temperature
 E_arr = []
