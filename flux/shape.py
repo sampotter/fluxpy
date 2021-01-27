@@ -159,19 +159,29 @@ class TrimeshShapeModel:
         if eps is None:
             eps = 1e3*np.finfo(np.float32).resolution
 
-        m = Dsun.size//3
-        n = self.num_faces
-
         # Here, we use Embree directly to find the indices of triangles
         # which are directly illuminated (I_sun) or not (I_shadow).
-        ray = embree.Ray1M(m*n)
-        for i in range(m):
-            ray.org[i*n:(i + 1)*n, :] = self.P + eps*self.N
-        for i in range(m):
-            ray.dir[i*n:(i + 1)*n, :] = dir_sun
-        ray.tnear[:] = 0
-        ray.tfar[:] = np.inf
-        ray.flags[:] = 0
+
+        n = self.num_faces
+
+        if Dsun.ndim == 1:
+            ray = embree.Ray1M(n)
+            ray.org[:] = self.P + eps*self.N
+            ray.dir[:] = Dsun
+            ray.tnear[:] = 0
+            ray.tfar[:] = np.inf
+            ray.flags[:] = 0
+        elif Dsun.ndim == 2:
+            m = Dsun.size//3
+            ray = embree.Ray1M(m*n)
+            for i in range(m):
+                ray.org[i*n:(i + 1)*n, :] = self.P + eps*self.N
+            for i, d in enumerate(Dsun):
+                ray.dir[i*n:(i + 1)*n, :] = d
+            ray.tnear[:] = 0
+            ray.tfar[:] = np.inf
+            ray.flags[:] = 0
+
         context = embree.IntersectContext()
         self.scene.occluded1M(context, ray)
 
@@ -184,5 +194,7 @@ class TrimeshShapeModel:
             E[I] = F0*np.maximum(0, self.N[I]@Dsun)
         else:
             E = np.zeros((n, m), dtype=self.dtype)
-            E[I, :] = F0*np.maximum(0, self.N[I]@Dsun.T)
+            I = I.reshape(m, n)
+            for i, d in enumerate(Dsun):
+                E[I[i], i] = F0*np.maximum(0, self.N[I[i]]@d)
         return E
