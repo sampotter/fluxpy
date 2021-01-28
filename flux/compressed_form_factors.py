@@ -8,6 +8,7 @@ import flux.linalg
 
 from flux.debug import DebugLinearOperator, IndentedPrinter
 from flux.form_factors import get_form_factor_block
+from flux.octree import get_octant_order
 from flux.quadtree import get_quadrant_order
 
 
@@ -302,6 +303,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
     def _matmat(self, x):
         ys = []
+        n = x.shape[1]
         for i, row_block_inds in enumerate(self._row_block_inds):
             m = len(row_block_inds)
             terms = (
@@ -309,7 +311,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 for j, J in enumerate(self._col_block_inds)
                 if not self._blocks[i, j].is_empty_leaf
             )
-            col_block = sum(terms, np.zeros((m, 1), dtype=self.dtype))
+            col_block = sum(terms, np.zeros((m, n), dtype=self.dtype))
             ys.append(col_block)
         try:
             return np.concatenate(ys)[self._row_rev_perm]
@@ -432,8 +434,8 @@ class FormFactorOctreeBlock(FormFactor2dTreeBlock):
         P = shape_model.P
         PI = P[:] if I is None else P[I]
         PJ = P[:] if J is None else P[J]
-        self._row_block_inds = _octant_order(PI)
-        self._col_block_inds = _octant_order(PJ)
+        self._row_block_inds = get_octant_order(PI)
+        self._col_block_inds = get_octant_order(PJ)
 
 
 class FormFactorPartitionBlock(FormFactorBlockMatrix):

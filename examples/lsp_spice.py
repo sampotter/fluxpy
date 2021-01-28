@@ -1,4 +1,4 @@
-#!/
+#!/usr/bin/env python
 
 '''This script uses SPICE to compute a trajectory for the sun, loads a
 shape model discretizing a patch of the lunar south pole (made using
@@ -18,9 +18,11 @@ import spiceypy as spice
 
 import flux.compressed_form_factors as cff
 
+from flux.form_factors import get_form_factor_block
 from flux.model import compute_steady_state_temp
 from flux.plot import tripcolor_vector
 from flux.shape import TrimeshShapeModel
+from flux.util import tic, toc
 
 clktol = '10:000'
 
@@ -29,14 +31,9 @@ spice.furnsh('simple.furnsh')
 
 # Define time window
 
-utc0 = '2011 MAR 01 00:00:00.00'
-utc1 = '2012 MAR 01 00:00:00.00'
-stepet = 3600
-
-et0 = spice.str2et(utc0)
-et1 = spice.str2et(utc1)
-nbet = int(np.ceil((et1 - et0)/stepet))
-et = np.linspace(et0, et1, nbet)
+et0 = spice.str2et('2011 MAR 01 00:00:00.00')
+et1 = spice.str2et('2011 APR 01 00:00:00.00')
+et = np.linspace(et0, et1, 100, endpoint=False)
 
 # Sun positions over time period
 
@@ -71,13 +68,28 @@ shape_model = TrimeshShapeModel(V, F, N)
 FF_path = 'lsp_compressed_form_factors.bin'
 FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
 
-# Compute steady state temperature
+FF_gt = get_form_factor_block(shape_model)
 
-for i in range(100):
+# Compute steady state temperature
+E_arr = []
+for i, sun_dir in enumerate(sun_dirs[:]):
+    E_arr.append(shape_model.get_direct_irradiance(F0, sun_dir))
+
+E = np.vstack(E_arr).T
+T_arr = compute_steady_state_temp(FF, E, rho, emiss)
+T = np.vstack(T_arr).T
+
+for i, sun_dir in enumerate(sun_dirs[:]):
     print('frame = %d' % i)
-    sun_dir = sun_dirs[i]
-    E = shape_model.get_direct_irradiance(F0, sun_dir)
-    T = compute_steady_state_temp(FF, E, rho, emiss)
-    fig, ax = tripcolor_vector(V, F, T, cmap=cc.cm.rainbow)
-    fig.savefig('lsp_T_%03d.png' % i)
+    fig, ax = tripcolor_vector(V, F, E[:,i], cmap=cc.cm.gray)
+    fig.savefig('lsp_E1_%03d.png' % i)
+    plt.close(fig)
+
+    fig, ax = tripcolor_vector(V, F, T[:,i], cmap=cc.cm.fire)
+    fig.savefig('lsp_T1_%03d.png' % i)
+    plt.close(fig)
+
+    I_shadow = E[:,i] == 0
+    fig, ax = tripcolor_vector(V, F, T[:,i], I=I_shadow, cmap=cc.cm.rainbow, vmax=100)
+    fig.savefig('lsp_T1_shadow_%03d.png' % i)
     plt.close(fig)
