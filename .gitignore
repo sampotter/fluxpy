@@ -2,7 +2,9 @@
 *.bin
 *.egg-info
 *.ipynb_checkpoints
+*.json
 *.npy
+*.npz
 *.obj
 *.pdf
 *.png
