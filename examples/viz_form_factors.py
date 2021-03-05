@@ -12,9 +12,11 @@ if __name__ == '__main__':
     # assumes that F stores the underlying shape model.
     FF = CompressedFormFactorMatrix.from_file('FF.bin')
 
-    # Select a face by index. We'll pull out the corresponding column of
-    # FF to plot.
+    # Select a face by index, and make sure it's valid
     face_index = 0
+    assert(face_index < FF.num_faces)
+
+    # Pull out the column of FF corresponding to face_index
     e = np.zeros(FF.shape[1])
     e[face_index] = 1
     f = FF@e # Multiply FF on the left by the "face_index"th standard
@@ -23,6 +25,20 @@ if __name__ == '__main__':
     # Since f[face_index] == 0, we set it to -f.max() so that we can
     # visualize its location in the plot below.
     f[face_index] = -f.max()
+
+    # Next, iterate over the indices corresponding to each row block,
+    # and set the entries of f for each block that *doesn't* contain
+    # face_index to NaN. Any NaN triangle will be colored gray, so
+    # that we effectively only plot the block of the partition
+    # containing face_index.
+    #
+    # (Note: if you wanted to plot finer blocks, you could reach into
+    # FF._root._blocks to find the _row_block_inds variable for each
+    # subblock.)
+    for inds in FF._root._row_block_inds:
+        if face_index in inds:
+            continue
+        f[inds] = np.nan
 
     # Make a pv.PolyData and set up a cell array on it containing the
     # values of the column (stored in f).
