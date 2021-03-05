@@ -480,8 +480,7 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
     def __init__(self, shape_model, *args, tol=1e-5, max_rank=60,
                  min_size=16384, RootBlock=FormFactorQuadtreeBlock,
                  **kwargs):
-        self.dtype = shape_model.dtype
-        self.num_faces = shape_model.num_faces
+        self.shape_model = shape_model
 
         self._tol = tol
         self._max_rank = max_rank
@@ -521,8 +520,16 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
             *args, **kwargs, RootBlock=FormFactorPartitionBlock)
 
     @property
+    def dtype(self):
+        return self.shape_model.dtype
+
+    @property
+    def num_faces(self):
+        return self.shape_model.num_faces
+
+    @property
     def shape(self):
-        return self.num_faces, self.num_faces
+        return self.shape_model.num_faces, self.shape_model.num_faces
 
     @property
     def nbytes(self):
