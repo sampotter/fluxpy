@@ -71,6 +71,10 @@ class FormFactorLeafBlock(CompressedFormFactorBlock):
     def is_leaf(self):
         return True
 
+    def get_blocks_at_depth(self, depth):
+        if depth == 0:
+            yield self
+
 
 class FormFactorNullBlock(FormFactorLeafBlock,
                           scipy.sparse.linalg.LinearOperator):
@@ -357,6 +361,13 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             row.append(scipy.sparse.hstack(col))
         return scipy.sparse.vstack(row)
 
+    def get_blocks_at_depth(self, depth):
+        if depth == 0:
+            yield self
+        else:
+            for block in self._blocks.ravel():
+                yield from block.get_blocks_at_depth(depth - 1)
+
 
 class FormFactor2dTreeBlock(FormFactorBlockMatrix):
 
@@ -573,3 +584,12 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def _matmat(self, x):
         return self._root@x
+
+    def get_blocks_at_depth(self, depth):
+        if depth > self.depth:
+            raise Exception('specified depth (%d) exceeds tree depth (%d)' % (
+                depth, self.depth))
+        if depth == 0 or self._root.is_leaf:
+            yield self._root
+        else:
+            yield from self._root.get_blocks_at_depth(depth)
