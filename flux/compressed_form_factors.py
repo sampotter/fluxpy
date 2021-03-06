@@ -368,6 +368,20 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             for block in self._blocks.ravel():
                 yield from block.get_blocks_at_depth(depth - 1)
 
+    def get_row_inds_at_depth(self, depth, parent_inds):
+        assert depth >= 1
+        if depth == 1:
+            for row_block_inds in self._row_block_inds:
+                yield parent_inds[row_block_inds]
+        else:
+            for row_block_inds, block in zip(
+                    self._row_block_inds, np.diag(self._blocks)):
+                if block.is_leaf:
+                    yield parent_inds[row_block_inds]
+                else:
+                    yield from block.get_row_inds_at_depth(
+                        depth - 1, parent_inds[row_block_inds])
+
 
 class FormFactor2dTreeBlock(FormFactorBlockMatrix):
 
@@ -593,3 +607,13 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
             yield self._root
         else:
             yield from self._root.get_blocks_at_depth(depth)
+
+    def get_row_inds_at_depth(self, depth):
+        if depth > self.depth:
+            raise Exception('specified depth (%d) exceeds tree depth (%d)' % (
+                depth, self.depth))
+        row_inds = np.arange(self.num_faces)
+        if depth == 0:
+            yield row_inds
+        else:
+            yield from self._root.get_row_inds_at_depth(depth, row_inds)
