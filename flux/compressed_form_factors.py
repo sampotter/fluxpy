@@ -541,7 +541,7 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     @property
     def sparsity_threshold(self):
-        return 2/3
+        return 2.0/3.0
 
     def make_null_block(self):
         return FormFactorNullBlock(self)
