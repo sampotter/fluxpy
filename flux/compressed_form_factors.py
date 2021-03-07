@@ -361,14 +361,14 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             row.append(scipy.sparse.hstack(col))
         return scipy.sparse.vstack(row)
 
-    def get_blocks_at_depth(self, depth):
+    def _get_blocks_at_depth(self, depth):
         if depth == 0:
             yield self
         else:
             for block in self._blocks.ravel():
-                yield from block.get_blocks_at_depth(depth - 1)
+                yield from block._get_blocks_at_depth(depth - 1)
 
-    def get_row_inds_at_depth(self, depth, parent_inds):
+    def _get_row_inds_at_depth(self, depth, parent_inds):
         assert depth >= 1
         if depth == 1:
             for row_block_inds in self._row_block_inds:
@@ -379,7 +379,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 if block.is_leaf:
                     yield parent_inds[row_block_inds]
                 else:
-                    yield from block.get_row_inds_at_depth(
+                    yield from block._get_row_inds_at_depth(
                         depth - 1, parent_inds[row_block_inds])
 
 
@@ -606,7 +606,7 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         if depth == 0 or self._root.is_leaf:
             yield self._root
         else:
-            yield from self._root.get_blocks_at_depth(depth)
+            yield from self._root._get_blocks_at_depth(depth)
 
     def get_row_inds_at_depth(self, depth):
         if depth > self.depth:
@@ -616,4 +616,4 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         if depth == 0:
             yield row_inds
         else:
-            yield from self._root.get_row_inds_at_depth(depth, row_inds)
+            yield from self._root._get_row_inds_at_depth(depth, row_inds)
