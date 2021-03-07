@@ -382,6 +382,20 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                     yield from block._get_row_inds_at_depth(
                         depth - 1, parent_inds[row_block_inds])
 
+    def _get_row_blocks(self, row_ind, parent_inds):
+        for row_block_inds, row_blocks in zip(
+                self._row_block_inds, self._blocks):
+            row_inds = parent_inds[row_block_inds]
+            if row_ind in row_inds:
+                for block in row_blocks:
+                    if block.is_leaf:
+                        yield block
+                    else:
+                        yield from block._get_row_blocks(row_ind, row_inds)
+                break # Can break here since self._row_block_inds
+                      # partitions parent_inds (could assert this if
+                      # we get paranoid)
+
 
 class FormFactor2dTreeBlock(FormFactorBlockMatrix):
 
@@ -617,3 +631,13 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
             yield row_inds
         else:
             yield from self._root._get_row_inds_at_depth(depth, row_inds)
+
+    def get_row_blocks(self, row_ind):
+        if not (0 <= row_ind and row_ind < self.num_faces):
+            raise Exception('row_ind (== %d) should be in range [0, %d)' % (
+                row_ind, self.num_faces))
+        block, row_inds = self._root, np.arange(self.num_faces)
+        if block.is_leaf:
+            yield block
+        else:
+            yield from block._get_row_blocks(row_ind, row_inds)
