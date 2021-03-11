@@ -101,7 +101,7 @@ class TrimeshShapeModel:
         self.scene = scene
 
     def __reduce__(self):
-        return (self.__class__, (self.V, self.F, self.P, self.N, self.A))
+        return (self.__class__, (self.V, self.F, self.N, self.P, self.A))
 
     @property
     def num_faces(self):
