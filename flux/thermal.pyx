@@ -15,6 +15,7 @@ cdef class PccThermalModel1D:
         double[::1] z
         double[::1] ti
         double[::1] rhoc
+        double[::1] Fgeotherm
         double[::1] Qprev
         double[::1] Fsurf
         double[:, ::1] T
@@ -48,6 +49,10 @@ cdef class PccThermalModel1D:
         return np.asarray(self.rhoc[1:])
 
     @property
+    def Fgeotherm(self):
+        return np.asarray(self.Fgeotherm)
+
+    @property
     def Qprev(self):
         return np.asarray(self.Qprev)
 
@@ -60,7 +65,7 @@ cdef class PccThermalModel1D:
         return np.asarray(self.T)
 
     def __cinit__(self, int nfaces, double[::1] z, double T0, double
-                  ti, double rhoc, double emissivity):
+                  ti, double rhoc, double emissivity, Fgeotherm=0.0):
         self.nfaces = nfaces
         self.nz = z.size
         self.t = 0
@@ -74,6 +79,9 @@ cdef class PccThermalModel1D:
 
         self.rhoc = np.empty((self.nz + 1,), dtype=np.float64)
         self.rhoc[1:] = rhoc
+
+        self.Fgeotherm = np.empty((self.nfaces,), dtype=np.float64)
+        self.Fgeotherm[...] = Fgeotherm
 
         self.Qprev = np.empty((self.nfaces,), dtype=np.float64)
         self.Qprev[...] = 0
@@ -97,7 +105,7 @@ cdef class PccThermalModel1D:
                 &self.ti[0],
                 &self.rhoc[0],
                 self.emissivity,
-                0.0,
+                self.Fgeotherm[i],
                 &self.Fsurf[i]
             )
         self.Qprev[...] = Q[...]
