@@ -101,7 +101,7 @@ if __name__ == '__main__':
         FF.save(os.path.join(args.outdir, 'FF.bin'))
         print('- wrote FF.bin')
 
-    if args.blocks:
+    if args.blocks and args.tol:
         tic()
         fig, ax = plot_blocks(FF._root)
         fig.savefig(os.path.join(args.outdir, 'blocks.png'))
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     fig, ax = tripcolor_vector(V, F, E, cmap=cc.cm.gray)
     fig.savefig(os.path.join(args.outdir, 'E.png'))
     plt.close(fig)
-    print('- wrote E to disk')
+    print('- wrote E.png to disk')
 
     tic()
     B, niter_B = solve_radiosity(FF, E, rho=args.rho)
