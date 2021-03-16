@@ -484,6 +484,10 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
 
 
 class FormFactorQuadtreeBlock(FormFactor2dTreeBlock):
+    """A form factor matrix block corresponding to one level of a quadtree
+    partition.
+
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
