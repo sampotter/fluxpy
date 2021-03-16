@@ -419,6 +419,25 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 class FormFactor2dTreeBlock(FormFactorBlockMatrix):
 
     def __init__(self, root, shape_model, parent_spmat=None, I0=None, J0=None):
+        """Initializes a 2d-tree block.
+
+        Parameters
+        ----------
+        root : FormFactorBlockMatrix
+            The containing instance of the hierarchical block matrix.
+        shape_model : ShapeModel
+            The underlying geometry providing the form factors.
+        parent_spmat : sparse matrix, optional
+            The correct sparse matrix for this block, which can be passed
+            to accelerate construction.
+        I0 : array_like, optional
+            Row indices for the ambient space. If not passed, assumed to span
+            [0, root.shape[0]).
+        J0 : array_like, optional
+            Column indices for the ambient space. See explanation for I0.
+
+        """
+
         # TODO: it would be helpful to come up with a way to
         # distinguish more carefully between the two different
         # permutations used here. The arrays I and J (stored in
