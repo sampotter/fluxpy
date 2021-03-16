@@ -94,6 +94,24 @@ def get_form_factor_block(shape_model, I=None, J=None, eps=None):
         return _get_form_factor_block(shape_model, P, N, A, I, J, eps)
 
 
+def get_vis_block(shape_model, I=None, J=None, eps=None):
+    if eps is None:
+        eps = flux.config.DEFAULT_EPS
+    if I is None:
+        I = np.arange(shape_model.num_faces)
+    if J is None:
+        J = np.arange(shape_model.num_faces)
+
+    m, n = len(I), len(J)
+
+    vis = np.zeros((m, n), dtype=np.bool8)
+
+    for _, i in enumerate(I):
+        vis[_] = shape_model.check_vis_1_to_N(i, J)
+
+    return vis
+
+
 class FormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def __init__(self, shape_model, I=None, J=None, eps=None):
