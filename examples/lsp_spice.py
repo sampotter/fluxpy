@@ -16,6 +16,8 @@ import numpy as np
 import pickle
 import spiceypy as spice
 
+from pathlib import Path
+
 import flux.compressed_form_factors as cff
 
 from flux.form_factors import get_form_factor_block
@@ -79,17 +81,19 @@ E = np.vstack(E_arr).T
 T_arr = compute_steady_state_temp(FF, E, rho, emiss)
 T = np.vstack(T_arr).T
 
+Path('./frames').mkdir(parents=True, exist_ok=True)
+
 for i, sun_dir in enumerate(sun_dirs[:]):
     print('frame = %d' % i)
     fig, ax = tripcolor_vector(V, F, E[:,i], cmap=cc.cm.gray)
-    fig.savefig('lsp_E1_%03d.png' % i)
+    fig.savefig('./frames/lsp_E1_%03d.png' % i)
     plt.close(fig)
 
     fig, ax = tripcolor_vector(V, F, T[:,i], cmap=cc.cm.fire)
-    fig.savefig('lsp_T1_%03d.png' % i)
+    fig.savefig('./frames/lsp_T1_%03d.png' % i)
     plt.close(fig)
 
     I_shadow = E[:,i] == 0
     fig, ax = tripcolor_vector(V, F, T[:,i], I=I_shadow, cmap=cc.cm.rainbow, vmax=100)
-    fig.savefig('lsp_T1_shadow_%03d.png' % i)
+    fig.savefig('./frames/lsp_T1_shadow_%03d.png' % i)
     plt.close(fig)
