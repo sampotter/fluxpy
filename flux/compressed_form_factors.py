@@ -418,7 +418,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
 class FormFactor2dTreeBlock(FormFactorBlockMatrix):
 
-    def __init__(self, root, shape_model, parent_spmat=None, I0=None, J0=None):
+    def __init__(self, root, shape_model, spmat_par=None, I_par=None, J_par=None):
         """Initializes a 2d-tree block.
 
         Parameters
@@ -427,14 +427,14 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             The containing instance of the hierarchical block matrix.
         shape_model : ShapeModel
             The underlying geometry providing the form factors.
-        parent_spmat : sparse matrix, optional
-            The correct sparse matrix for this block, which can be passed
-            to accelerate construction.
-        I0 : array_like, optional
+        spmat_par : sparse matrix, optional
+            The uncompressed sparse form factor matrix for this block's parent.
+            Its rows and columns correspond to the indices in I_par and J_par.
+        I_par : array_like, optional
             Row indices for the ambient space. If not passed, assumed to span
             [0, root.shape[0]).
-        J0 : array_like, optional
-            Column indices for the ambient space. See explanation for I0.
+        J_par : array_like, optional
+            Column indices for the ambient space. See explanation for I_par.
 
         """
 
@@ -442,36 +442,36 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
         # distinguish more carefully between the two different
         # permutations used here. The arrays I and J (stored in
         # _row_block_inds and _col_block_inds) index into the current
-        # block, while I0 and J0 index into the "ambient" index space,
-        # so that I0[I] indexes the original form factor matrix.
+        # block, while I_par and J_par index into the "ambient" index space,
+        # so that I_par[I] indexes the original form factor matrix.
 
         super().__init__(
             root,
-            root.shape if I0 is None else (len(I0), len(J0))
+            root.shape if I_par is None else (len(I_par), len(J_par))
         )
-        self._set_block_inds(shape_model, I0, J0)
+        self._set_block_inds(shape_model, I_par, J_par)
         self._row_rev_perm = np.argsort(np.concatenate(self._row_block_inds))
 
         blocks = []
-        for i, I in enumerate(self._row_block_inds):
-            I_ = I if I0 is None else I0[I]
+        for i, row_inds in enumerate(self._row_block_inds):
+            I = row_inds if I_par is None else I_par[row_inds]
             row = []
-            for j, J in enumerate(self._col_block_inds):
-                J_ = J if J0 is None else J0[J]
+            for j, col_inds in enumerate(self._col_block_inds):
+                J = col_inds if J_par is None else J_par[col_inds]
                 with IndentedPrinter() as _:
                     _.print(
-                        '_get_form_factor_block(|I_%d| = %d, |J_%d| = %d)' % (
-                            i, len(I), j, len(J)))
-                    if parent_spmat is None:
-                        spmat = get_form_factor_block(shape_model, I_, J_)
+                        '_get_form_factor_block(|I%d| = %d, |J%d| = %d)' % (
+                            i, len(row_inds), j, len(col_inds)))
+                    if spmat_par is None:
+                        spmat = get_form_factor_block(shape_model, I, J)
                     else:
                         try:
-                            spmat = parent_spmat[I, :][:, J]
+                            spmat = spmat_par[row_inds, :][:, col_inds]
                         except:
                             import pdb; pdb.set_trace()
                             print()
                     is_diag = i == j
-                    block = self.make_block(shape_model, I_, J_, is_diag, spmat)
+                    block = self.make_block(shape_model, I, J, is_diag, spmat)
                     if block is None:
                         import pdb; pdb.set_trace()
                 row.append(block)
