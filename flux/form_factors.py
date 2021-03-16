@@ -72,9 +72,9 @@ def _get_form_factor_block(shape_model, P, N, A, I, J, eps):
 
     nbytes = data.nbytes + indices.nbytes + indptr.nbytes
 
-    vis = scipy.sparse.csr_matrix((data, indices, indptr), shape=(m, n))
+    spmat = scipy.sparse.csr_matrix((data, indices, indptr), shape=(m, n))
 
-    return vis
+    return spmat
 
 
 def get_form_factor_block(shape_model, I=None, J=None, eps=None):
