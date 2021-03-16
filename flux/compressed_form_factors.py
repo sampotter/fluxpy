@@ -27,6 +27,7 @@ def _is_sparse(block):
 
 
 class CompressedFormFactorBlock(ABC):
+    """A block of a CompressedFormFactorMatrix."""
 
     def __init__(self, root, shape):
         self._root = root
