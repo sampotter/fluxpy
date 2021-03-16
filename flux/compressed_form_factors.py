@@ -299,9 +299,6 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 else:
                     return self.root.make_sparse_block(spmat)
             else:
-                # Since we descend depth-first through the
-                # hierarchical block matrix, we want to free this here
-                # to keep our memory footprint small
                 block = self.make_child_block(shape_model, spmat, I, J)
                 if block.is_dense():
                     block = self.root.make_dense_block(block.toarray())
