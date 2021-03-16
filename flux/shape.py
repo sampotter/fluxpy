@@ -2,6 +2,9 @@ import embree
 import numpy as np
 
 
+from abc import ABC
+
+
 def get_centroids(V, F):
     return V[F].mean(axis=1)
 
@@ -34,7 +37,11 @@ def get_surface_normals_and_face_areas(V, F):
     return N, A
 
 
-class TrimeshShapeModel:
+class ShapeModel(ABC):
+    pass
+
+
+class TrimeshShapeModel(ShapeModel):
 
     def __init__(self, V, F, N=None, P=None, A=None):
         self.dtype = V.dtype
