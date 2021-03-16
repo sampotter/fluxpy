@@ -435,13 +435,6 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
 
         """
 
-        # TODO: it would be helpful to come up with a way to
-        # distinguish more carefully between the two different
-        # permutations used here. The arrays I and J (stored in
-        # _row_block_inds and _col_block_inds) index into the current
-        # block, while I_par and J_par index into the "ambient" index space,
-        # so that I_par[I] indexes the original form factor matrix.
-
         super().__init__(
             root,
             root.shape if I_par is None else (len(I_par), len(J_par))
