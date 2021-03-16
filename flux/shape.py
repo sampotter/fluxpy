@@ -42,8 +42,38 @@ class ShapeModel(ABC):
 
 
 class TrimeshShapeModel(ShapeModel):
+    """A shape model consisting of a single triangle mesh."""
 
     def __init__(self, V, F, N=None, P=None, A=None):
+        """Initialize a triangle mesh shape model. No assumption is made about
+        the way vertices or faces are stored when building the shape
+        model except that V[F] yields the faces of the mesh. Vertices
+        may be repeated or not.
+
+        Parameters
+        ----------
+        V : array_like
+            An array with shape (num_verts, 3) whose rows correspond to the
+            vertices of the triangle mesh
+        F : array_like
+            An array with shape (num_faces, 3) whose rows index the faces
+            of the triangle mesh (i.e., V[F] returns an array with shape
+            (num_faces, 3, 3) such that V[F][i] is a 3x3 matrix whose rows
+            are the vertices of the ith face.
+        N : array_like, optional
+            An array with shape (num_faces, 3) consisting of the triangle
+            mesh face normals. Can be passed to specify the face normals.
+            Otherwise, the face normals will be computed from the cross products
+            of the face edges (i.e. np.cross(vi1 - vi0, vi2 - vi0) normalized).
+        P : array_like, optional
+            An array with shape (num_faces, 3) consisting of the triangle
+            centroids. Can be optionally passed to avoid recomputing.
+        A : array_like, optional
+            An array of shape (num_faces,) containing the triangle areas. Can
+            be optionally passed to avoid recomputing.
+
+        """
+
         self.dtype = V.dtype
 
         self.V = V
