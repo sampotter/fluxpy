@@ -54,9 +54,9 @@ class ThermalTestCase(unittest.TestCase):
             # print("T",model.T)
             # print("Fsurf",model.Fsurf)
 
+        # reformat PccThermalModel1D output at last step and validate with template
         model_output = np.vstack([np.array([0] + [x for x in model.z]),model.T[0]])
-
-        validation = np.round(model_output.T,7) - np.round(template,7)
+        validation = np.round(model_output.T,7) - np.round(template,7) # round at "reasonable" precision
 
         # check if z is the same in both cases
         assert np.abs(np.sum(validation[:,0])) < 1.e-6
