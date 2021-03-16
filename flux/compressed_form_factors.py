@@ -3,6 +3,9 @@ import pickle
 import scipy.sparse.linalg
 
 
+from abc import ABC
+
+
 import flux.linalg
 
 
@@ -23,7 +26,7 @@ def _is_sparse(block):
         or isinstance(block, FormFactorZeroBlock)
 
 
-class CompressedFormFactorBlock:
+class CompressedFormFactorBlock(ABC):
 
     def __init__(self, root, shape):
         self._root = root
