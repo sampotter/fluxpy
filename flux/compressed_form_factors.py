@@ -455,22 +455,15 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             row = []
             for j, col_inds in enumerate(self._col_block_inds):
                 J = col_inds if J_par is None else J_par[col_inds]
-                with IndentedPrinter() as _:
-                    _.print(
-                        '_get_form_factor_block(|I%d| = %d, |J%d| = %d)' % (
-                            i, len(row_inds), j, len(col_inds)))
-                    if spmat_par is None:
-                        spmat = get_form_factor_block(shape_model, I, J)
-                    else:
-                        try:
-                            spmat = spmat_par[row_inds, :][:, col_inds]
-                        except:
-                            import pdb; pdb.set_trace()
-                            print()
-                    is_diag = i == j
-                    block = self.make_block(shape_model, I, J, is_diag, spmat)
-                    if block is None:
-                        import pdb; pdb.set_trace()
+                IndentedPrinter().print(
+                    '_get_form_factor_block(|I%d| = %d, |J%d| = %d)' % (
+                        i, len(row_inds), j, len(col_inds)))
+                if spmat_par is None:
+                    spmat = get_form_factor_block(shape_model, I, J)
+                else:
+                    spmat = spmat_par[row_inds, :][:, col_inds]
+                is_diag = i == j
+                block = self.make_block(shape_model, I, J, is_diag, spmat)
                 row.append(block)
             blocks.append(row)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
