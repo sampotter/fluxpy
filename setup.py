@@ -3,6 +3,8 @@
 from setuptools import Extension, setup # , find_packages
 from Cython.Build import cythonize
 
+DISTNAME = 'python-flux'
+
 ext_modules = [
     Extension(
         name='flux.thermal',
@@ -12,7 +14,7 @@ ext_modules = [
 ]
 
 setup(
-    name='flux',
+    name=DISTNAME,
     packages=['flux'],
     ext_modules=cythonize(ext_modules, language_level=3)
 )
