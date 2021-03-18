@@ -1,9 +1,13 @@
-import numpy as np
-import pickle
-import scipy.sparse.linalg
+import copy
+import itertools as it
 
 
 from abc import ABC
+
+
+import numpy as np
+import pickle
+import scipy.sparse.linalg
 
 
 import flux.linalg
@@ -461,6 +465,40 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
     def is_empty_leaf(self):
         return False
 
+    @property
+    def bshape(self):
+        '''The number of blocks along each dimension.'''
+        return (len(self._row_block_inds), len(self._col_block_inds))
+
+    def get_diag_blocks(self):
+        '''Return a shallow copy of the block matrix with the off-diagonal
+        blocks set to zero.
+
+        '''
+        tmp = copy.copy(self)
+        tmp._blocks = copy.copy(tmp._blocks)
+        for i, j in it.product(*(range(_) for _ in self.bshape)):
+            if i == j:
+                continue
+            block = self.root.make_zero_block(tmp._blocks[i, j].shape)
+            tmp._blocks[i, j] = block
+        return tmp
+
+
+    def get_off_diag_blocks(self):
+        '''Return a shallow copy of the block matrix with the diagonal blocks
+        set to zero.
+
+        '''
+        tmp = copy.copy(self)
+        tmp._blocks = copy.copy(tmp._blocks)
+        for i, j in it.product(*(range(_) for _ in self.bshape)):
+            if i != j:
+                continue
+            block = self.root.make_zero_block(tmp._blocks[i, j].shape)
+            tmp._blocks[i, j] = block
+        return tmp
+
 
 class FormFactorQuadtreeBlock(FormFactor2dTreeBlock):
     """A form factor matrix block corresponding to one level of a quadtree
@@ -674,3 +712,13 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
             yield col_inds
         else:
             yield from block._get_col_inds_for_row(row_ind, row_inds, col_inds)
+
+    def get_diag_blocks(self):
+        tmp = copy.copy(self) # shallow copy
+        tmp._root = tmp._root.get_diag_blocks()
+        return tmp
+
+    def get_off_diag_blocks(self):
+        tmp = copy.copy(self) # shallow copy
+        tmp._root = tmp._root.get_off_diag_blocks()
+        return tmp
