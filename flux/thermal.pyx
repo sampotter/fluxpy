@@ -110,3 +110,30 @@ cdef class PccThermalModel1D:
             )
         self.Qprev[...] = Q[...]
         self.t += dt
+
+def setgrid(nz,zfac,zmax):
+    """
+    construct regularly or geometrically spaced 1D grid
+    z(n)-z(1) = 2*z(1)*(zfac**(n-1)-1)/(zfac-1)
+    choice of z(1) and z(2) is compatible with conductionQ
+    Args:
+        nz: number of layers
+        zfac: spacing factor (?)
+        zmax: maximum depth of layers
+
+    Returns:
+    z: nz layers
+    """
+    dz = zmax/nz
+
+    z = [0]
+    if zfac>1.:
+        dz = zmax/(3.+2.*zfac*(zfac**(nz-2)-1.)/(zfac-1.))
+        z.append(dz)
+        z.append(3*z[1])
+        for i in range(nz+1)[3:]: # nz+1 for compatibility, to get z[-1]=zmax
+            z.append((1+zfac)*z[i-1] - zfac*z[i-2])
+    else:
+        z.extend([(i - 0.5) * dz for i in range(nz+1)[1:]]) # nz+1 for compatibility, to get z[-1]=zmax
+    # here too, we want z to start "underground"
+    return np.array(z)[1:]
