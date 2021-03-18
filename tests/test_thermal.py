@@ -1,8 +1,9 @@
-import unittest
 import csv
 import pathlib
+import unittest
 
 import numpy as np
+
 from flux.thermal import PccThermalModel1D, setgrid
 
 class ThermalTestCase(unittest.TestCase):
@@ -11,7 +12,9 @@ class ThermalTestCase(unittest.TestCase):
         # Get path to data for this test
         path = pathlib.Path(__file__).parent.absolute()
         path /= 'data'
-        path /= 'thermal_pcc_thermal_model_1d.csv'
+        path /= 'thermal'
+        path /= 'pcc_thermal_model_1d'
+        path /= 'template.csv'
 
         # import template output (["index","depth","temperature","heat_flux"])
         template = []
