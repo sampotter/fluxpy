@@ -85,6 +85,7 @@ Path('./frames').mkdir(parents=True, exist_ok=True)
 
 for i, sun_dir in enumerate(sun_dirs[:]):
     print('frame = %d' % i)
+
     fig, ax = tripcolor_vector(V, F, E[:,i], cmap=cc.cm.gray)
     fig.savefig('./frames/lsp_E1_%03d.png' % i)
     plt.close(fig)
