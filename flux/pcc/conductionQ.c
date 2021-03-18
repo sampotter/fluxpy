@@ -52,17 +52,9 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	double arad, brad, ann, annp1, bn, buf, dz, beta;
 	double Told[nz+1];
 
-	for (i = 0; i <= nz; ++i) {
-		printf("rhoc[%d] = %g\n", i, rhoc[i]);
-	}
-
 	/* set some constants */
 	for (i=1; i<=nz; i++) {
 		k[i] = ti[i] * ti[i] / rhoc[i];  // thermal conductivity
-	}
-
-	for (i = 0; i <= nz; ++i) {
-		printf("k[%d] = %g\n", i, k[i]);
 	}
 
 	dz = 2.*z[1];
@@ -76,16 +68,6 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	}
 	buf = dt / (z[nz] - z[nz-1]) / (z[nz] - z[nz-1]);
 	gamma[nz] = k[nz] * buf / (2 * rhoc[nz]);  // assumes rhoc(nz+1)=rhoc(nz)
-
-	printf("beta = %g\n", beta);
-
-	for (int i = 0; i <= nz; ++i) {
-		printf("alpha[%d] = %g\n", i, alpha[i]);
-	}
-
-	for (int i = 0; i <= nz; ++i) {
-		printf("gamma[%d] = %g\n", i, gamma[i]);
-	}
 
 	k1 = k[1] / dz;
 
@@ -101,25 +83,7 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	iter = 0;
 	for (i=1; i<=nz; i++) Told[i] = T[i];
 
-	for (int i = 0; i <= nz; ++i) {
-		printf("a[%d] = %g\n", i, a[i]);
-	}
-
-	for (int i = 0; i <= nz; ++i) {
-		printf("b[%d] = %g\n", i, b[i]);
-	}
-
-	for (int i = 0; i <= nz; ++i) {
-		printf("c[%d] = %g\n", i, c[i]);
-	}
-
   lbpredcorr:
-
-	printf("lbpredcorr:\n");
-
-	for (int i = 0; i <= nz; ++i) {
-		printf("Told[%d] = %g\n", i, Told[i]);
-	}
 
 	/* Emission */
 	arad = -3 * emiss * sigSB * Tr * Tr * Tr * Tr;
@@ -138,16 +102,8 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	r[nz] = gamma[nz] * T[nz-1] + (1. - gamma[nz]) * T[nz] +
 		dt / rhoc[nz] * Fgeotherm / (z[nz] - z[nz-1]);   // assumes rhoc[nz+1]=rhoc[nz]
 
-	for (int i = 0; i <= nz; ++i) {
-		printf("r[%d] = %g\n", i, r[i]);
-	}
-
 	/*  Solve for T at n+1 */
 	tridag(a, b, c, r, T, (unsigned long)nz);  // update by tridiagonal inversion
-
-	for (int i = 0; i <= nz; ++i) {
-		printf("T[%d] = %g\n", i, T[i]);
-	}
 
 	T[0] = 0.5 * (annp1 + bn * T[1] + T[1]);
 

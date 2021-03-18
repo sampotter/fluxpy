@@ -1,5 +1,6 @@
 import unittest
 import csv
+import pathlib
 
 import numpy as np
 from flux.thermal import PccThermalModel1D, setgrid
@@ -7,9 +8,14 @@ from flux.thermal import PccThermalModel1D, setgrid
 class ThermalTestCase(unittest.TestCase):
     def test_pcc_thermal_model_1d(self):
 
+        # Get path to data for this test
+        path = pathlib.Path(__file__).parent.absolute()
+        path /= 'data'
+        path /= 'thermal_pcc_thermal_model_1d.csv'
+
         # import template output (["index","depth","temperature","heat_flux"])
         template = []
-        with open('tests/template.csv') as csvDataFile:
+        with open(path) as csvDataFile:
             csvReader = csv.reader(csvDataFile,delimiter=",",quoting=csv.QUOTE_NONNUMERIC)
             for row in csvReader:
                 template.append(row)
@@ -59,9 +65,10 @@ class ThermalTestCase(unittest.TestCase):
         validation = np.round(model_output.T,7) - np.round(template,7) # round at "reasonable" precision
 
         # check if z is the same in both cases
-        assert np.abs(np.sum(validation[:,0])) < 1.e-6
+        self.assertLess(np.abs(np.sum(validation[:,0])), 1.e-6)
+
         # check if T is the same in both cases
-        assert np.abs(np.sum(validation[:,1])) < 1.e-6
+        self.assertLess(np.abs(np.sum(validation[:,1])), 1.e-6)
 
 if __name__ == '__main__':
     unittest.main()
