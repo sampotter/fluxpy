@@ -309,19 +309,15 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
     def _matmat(self, x):
         ys = []
         n = x.shape[1]
-        for i, row_block_inds in enumerate(self._row_block_inds):
-            m = len(row_block_inds)
-            terms = (
-                self._blocks[i, j]@x[J]
-                for j, J in enumerate(self._col_block_inds)
-                if not self._blocks[i, j].is_empty_leaf
-            )
-            col_block = sum(terms, np.zeros((m, n), dtype=self.dtype))
-            ys.append(col_block)
-        try:
-            return np.concatenate(ys)[self._row_rev_perm]
-        except:
-            import pdb; pdb.set_trace()
+        for i, row_inds in enumerate(self._row_block_inds):
+            m = len(row_inds)
+            y = np.zeros((m, n), dtype=self.dtype)
+            for j, col_inds in enumerate(self._col_block_inds):
+                block = self._blocks[i, j]
+                if block.is_empty_leaf: continue
+                y += block@x[col_inds]
+            ys.append(y)
+        return np.concatenate(ys)[self._row_rev_perm]
 
     @property
     def nbytes(self):
