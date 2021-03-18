@@ -40,6 +40,14 @@ directory propagate immediately, run:
 pip install -e .
 ```
 
+## Running the unit tests ##
+
+To run python-flux's unit tests, just run:
+``` shell
+./run_tests.sh
+```
+from the root of this repository. This script just runs `python -m unittest discover tests`; i.e., it discovers and runs all Python unit tests found in the directory `./tests`.
+
 ## Running the examples ##
 
 The `examples` directory contains simple Python scripts illustrating
