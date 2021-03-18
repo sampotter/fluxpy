@@ -205,30 +205,12 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
         self._u = u
         self._s = s
         self._vt = vt
-        self._try_to_compress()
-
-    def _try_to_compress(self):
-        self._compressed = \
-            self._get_sparsity(self._tol) > self._sparsity_threshold
-        if self._compressed:
-            self._I = np.where(np.any(abs(self._u) > self._tol, axis=1))[0]
-            self._J = np.where(np.any(abs(self._vt) > self._tol, axis=0))[0]
-            self._u = self._u[self._I, :]
-            self._vt = self._vt[:, self._J]
 
     def _matmat(self, x):
-        if self._compressed:
-            y_ = self._vt@x[self._J, :]
-            y_ = (y_.T*self._s).T
-            y_ = self._u@y_
-            y = np.zeros((self.shape[0], x.shape[1]), dtype=self.dtype)
-            y[self._I, :] = y_
-            return y
-        else:
-            y = self._vt@x
-            y = (y.T*self._s).T
-            y = self._u@y
-            return y
+        y = self._vt@x
+        y = (y.T*self._s).T
+        y = self._u@y
+        return y
 
     @property
     def is_empty_leaf(self):
@@ -237,8 +219,6 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
     @property
     def nbytes(self):
         nbytes = self._u.nbytes + self._s.nbytes + self._vt.nbytes
-        if self._compressed:
-            nbytes += self._I.nbytes + self._J.nbytes
         return nbytes
 
     def _get_sparsity(self, tol=None):
@@ -246,10 +226,6 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
         v_nnz = flux.linalg.nnz(self._vt, tol)
         size = self._u.size + self._vt.size + self._k
         return 0 if size == 0 else (u_nnz + v_nnz + self._k)/size
-
-    @property
-    def compressed(self):
-        return self._compressed
 
 
 class FormFactorBlockMatrix(CompressedFormFactorBlock,
@@ -311,17 +287,13 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 return block
 
     def _matmat(self, x):
-        ys = []
-        n = x.shape[1]
+        y = np.zeros((self.shape[0], x.shape[1]), dtype=self.dtype)
         for i, row_inds in enumerate(self._row_block_inds):
-            m = len(row_inds)
-            y = np.zeros((m, n), dtype=self.dtype)
             for j, col_inds in enumerate(self._col_block_inds):
                 block = self._blocks[i, j]
                 if block.is_empty_leaf: continue
-                y += block@x[col_inds]
-            ys.append(y)
-        return np.concatenate(ys)[self._row_rev_perm]
+                y[row_inds] += block@x[col_inds]
+        return y[self._row_rev_perm]
 
     @property
     def nbytes(self):
@@ -470,6 +442,20 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
         '''The number of blocks along each dimension.'''
         return (len(self._row_block_inds), len(self._col_block_inds))
 
+    def get_individual_block(self, i, j):
+        '''Return a shallow copy of the block matrix with all blocks other
+        than (i, j)th block set to zero.
+
+        '''
+        tmp = copy.copy(self)
+        tmp._blocks = copy.copy(tmp._blocks)
+        for i_, j_ in it.product(*(range(_) for _ in self.bshape)):
+            if i_ != i or j_ != j:
+                continue
+            block = self.root.make_zero_block(tmp._blocks[i, j].shape)
+            tmp._blocks[i, j] = block
+        return tmp
+
     def get_diag_blocks(self):
         '''Return a shallow copy of the block matrix with the off-diagonal
         blocks set to zero.
@@ -483,7 +469,6 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             block = self.root.make_zero_block(tmp._blocks[i, j].shape)
             tmp._blocks[i, j] = block
         return tmp
-
 
     def get_off_diag_blocks(self):
         '''Return a shallow copy of the block matrix with the diagonal blocks
@@ -712,6 +697,11 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
             yield col_inds
         else:
             yield from block._get_col_inds_for_row(row_ind, row_inds, col_inds)
+
+    def get_individual_block(self, i, j):
+        tmp = copy.copy(self) # shallow copy
+        tmp._root = tmp._root.get_block(i, j)
+        return tmp
 
     def get_diag_blocks(self):
         tmp = copy.copy(self) # shallow copy
