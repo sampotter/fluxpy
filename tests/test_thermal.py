@@ -31,24 +31,23 @@ class ThermalTestCase(unittest.TestCase):
         z = setgrid(nz=nz, zfac=zfac, zmax=zmax)
         # print(z)
 
-        # set-up thermal model
-        model = PccThermalModel1D(nfaces=1,z=z,T0=210.,ti=120.,rhoc=960000.,emissivity=1.,Fgeotherm=0.2)
-
         # simulated Q input at t steps (dt=495661.76666666666 s)
         Qsim = np.array([470.84688077122127, 470.20160144930207,
                         468.26753214941181,465.04997402136058])
+
+        # set-up thermal model
+        model = PccThermalModel1D(nfaces=1,z=z,T0=210.,ti=120.,rhoc=960000.,
+                                  emissivity=1.,Fgeotherm=0.2, Qprev=Qsim[0])
+
         dt = 495661.76666666666
         nsteps = 1 # corresponding to step 2 output in testcrankQ
-
-        # TODO this is the way I found to set Q for t=0, but it impacts Tsurf.
-        # TODO why can't we set model.Qprev = Qsim[0] for the first step? Maybe it doesn't matter, but for testing...
-        model.step(0., np.array([Qsim[0]]))
 
         # iterate to t = t0+i*dt
         for i in range(nsteps):
             # print input model state
             # print(f"input of step {i}",model.t)
             # print("T",model.T)
+            # print(model.Qprev)
             # print("Fsurf",model.Fsurf)
 
             # set "temporary" Qnp1 (from IR model only)
@@ -61,6 +60,7 @@ class ThermalTestCase(unittest.TestCase):
             # print("###############")
             # print("t",model.t)
             # print("T",model.T)
+            # print(model.Qprev)
             # print("Fsurf",model.Fsurf)
 
         # reformat PccThermalModel1D output at last step and validate with template
