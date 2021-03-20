@@ -174,8 +174,8 @@ class FormFactorSparseBlock(FormFactorLeafBlock,
 
 class FormFactorCsrBlock(FormFactorSparseBlock):
 
-    def __init__(self, linop, mat):
-        super().__init__(linop, mat.shape)
+    def __init__(self, root, mat):
+        super().__init__(root, mat.shape)
         if isinstance(mat, np.ndarray):
             spmat = scipy.sparse.csr_matrix(mat)
         elif isinstance(mat, scipy.sparse.spmatrix):
