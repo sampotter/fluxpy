@@ -294,13 +294,12 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 block = self._blocks[i, j]
                 if block.is_empty_leaf: continue
                 y[row_inds] += block@x[col_inds]
-        return y[self._row_rev_perm]
+        return y
 
     @property
     def nbytes(self):
         return sum(I.nbytes for I in self._row_block_inds) \
             + sum(J.nbytes for J in self._col_block_inds) \
-            + self._row_rev_perm.nbytes \
             + sum(block.nbytes for block in self._blocks.flatten())
 
     @property
@@ -413,7 +412,6 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             root.shape if I_par is None else (len(I_par), len(J_par))
         )
         self._set_block_inds(shape_model, I_par, J_par)
-        self._row_rev_perm = np.argsort(np.concatenate(self._row_block_inds))
 
         blocks = []
         for i, row_inds in enumerate(self._row_block_inds):
@@ -538,7 +536,6 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
         super().__init__(root, root.shape)
         self._row_block_inds = parts
         self._col_block_inds = parts
-        self._row_rev_perm = np.argsort(np.concatenate(self._row_block_inds))
 
         blocks = []
         for i, I in enumerate(parts):
