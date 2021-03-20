@@ -17,6 +17,7 @@ from flux.debug import DebugLinearOperator, IndentedPrinter
 from flux.form_factors import get_form_factor_block
 from flux.octree import get_octant_order
 from flux.quadtree import get_quadrant_order
+from flux.util import nbytes
 
 
 @np.vectorize
