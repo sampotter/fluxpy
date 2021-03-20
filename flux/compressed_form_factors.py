@@ -219,8 +219,7 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
 
     @property
     def nbytes(self):
-        nbytes = self._u.nbytes + self._s.nbytes + self._vt.nbytes
-        return nbytes
+        return nbytes(self._u) + nbytes(self._s) + nbytes(self._vt)
 
     def _get_sparsity(self, tol=None):
         u_nnz = flux.linalg.nnz(self._u, tol)
