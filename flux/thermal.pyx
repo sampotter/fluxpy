@@ -87,13 +87,14 @@ cdef class PccThermalModel1D:
         self.bcond = bcond
 
         self.z = np.empty((self.nz + 1,), dtype=np.float64)
+        self.z[0] = 0.
         self.z[1:] = z[...]
 
         self.ti = np.empty((self.nz + 1,), dtype=np.float64)
-        self.ti[1:] = ti
+        self.ti[:] = ti
 
         self.rhoc = np.empty((self.nz + 1,), dtype=np.float64)
-        self.rhoc[1:] = rhoc
+        self.rhoc[:] = rhoc
 
         self.Fgeotherm = np.empty((self.nfaces,), dtype=np.float64)
         self.Fgeotherm[...] = Fgeotherm
@@ -172,7 +173,6 @@ def setgrid(nz,zfac,zmax):
     Returns:
     z: nz layers
     """
-    dz = zmax/nz
 
     z = [0]
     if zfac>1.:
@@ -182,6 +182,7 @@ def setgrid(nz,zfac,zmax):
         for i in range(nz+1)[3:]: # nz+1 for compatibility, to get z[-1]=zmax
             z.append((1+zfac)*z[i-1] - zfac*z[i-2])
     else:
+        dz = zmax/nz
         z.extend([(i - 0.5) * dz for i in range(nz+1)[1:]]) # nz+1 for compatibility, to get z[-1]=zmax
     # here too, we want z to start "underground"
     return np.array(z)[1:]
