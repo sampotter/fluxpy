@@ -1,5 +1,6 @@
 import copy
 import itertools as it
+import logging
 
 
 from abc import ABC
@@ -17,6 +18,7 @@ from flux.debug import DebugLinearOperator, IndentedPrinter
 from flux.form_factors import get_form_factor_block
 from flux.octree import get_octant_order
 from flux.quadtree import get_quadrant_order
+from flux.util import nbytes
 
 
 @np.vectorize
@@ -173,8 +175,8 @@ class FormFactorSparseBlock(FormFactorLeafBlock,
 
 class FormFactorCsrBlock(FormFactorSparseBlock):
 
-    def __init__(self, linop, mat):
-        super().__init__(linop, mat.shape)
+    def __init__(self, root, mat):
+        super().__init__(root, mat.shape)
         if isinstance(mat, np.ndarray):
             spmat = scipy.sparse.csr_matrix(mat)
         elif isinstance(mat, scipy.sparse.spmatrix):
@@ -194,14 +196,10 @@ class FormFactorCsrBlock(FormFactorSparseBlock):
 class FormFactorSvdBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, linop, mat, k):
-        super().__init__(linop, mat.shape)
-        self._k = k
-        with IndentedPrinter() as _:
-            _.print('svds(%d x %d, %d)' % (*mat.shape, k))
-            wrapped_mat = DebugLinearOperator(mat)
-            [u, s, vt] = scipy.sparse.linalg.svds(wrapped_mat, k)
-            wrapped_mat.debug_print()
+    def __init__(self, root, u, s, vt):
+        shape = (u.shape[0], vt.shape[1])
+        super().__init__(root, shape)
+        self._k = s.size
         self._u = u
         self._s = s
         self._vt = vt
@@ -218,8 +216,7 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
 
     @property
     def nbytes(self):
-        nbytes = self._u.nbytes + self._s.nbytes + self._vt.nbytes
-        return nbytes
+        return nbytes(self._u) + nbytes(self._s) + nbytes(self._vt)
 
     def _get_sparsity(self, tol=None):
         u_nnz = flux.linalg.nnz(self._u, tol)
@@ -252,39 +249,32 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 return self.root.make_dense_block(spmat.toarray())
         else:
             if not is_diag:
-                # TODO: how inefficient is this now that we're using our
-                # new implementation of estimate_rank? at the very least,
-                # we should save the SVD computed in the process of
-                # determing the rank and pass it to make_svd_block if
-                # necessary to avoid recomputing the SVD
-                #
-                # TODO: need to check how much time passing
-                # "return_singular_vectors=False" saves
-                with IndentedPrinter() as _:
-                    rank = flux.linalg.estimate_rank(spmat, self._tol)
-                    _.print('estimate_rank(tol = %g) = %d' % (self._tol, rank))
-
-                if rank == 0:
-                    return self.root.make_zero_block(shape)
-
-                # Compute the size of the SVD and compare with the size
-                # of the sparse matrix (already computed) to determine
-                # which to use
-                nbytes_svd = \
-                    rank*np.dtype(spmat.dtype).itemsize*(sum(shape) + 1)
-                nbytes_sparse = spmat.data.nbytes \
-                    + spmat.indices.nbytes + spmat.indptr.nbytes
-                if nbytes_svd < nbytes_sparse:
-                    return self.root.make_svd_block(spmat, rank)
-                else:
-                    return self.root.make_sparse_block(spmat)
+                block = self.make_compressed_sparse_block(spmat)
             else:
                 block = self.make_child_block(shape_model, spmat, I, J)
                 if block.is_dense():
                     block = self.root.make_dense_block(block.toarray())
                 elif block.is_sparse():
                     block = self.root.make_sparse_block(block.tocsr())
-                return block
+            return block
+
+    def make_compressed_sparse_block(self, spmat):
+        ret = flux.linalg.estimate_rank(
+            spmat, self._tol, max_nbytes=nbytes(spmat))
+        if ret is None:
+            return self.root.make_sparse_block(spmat)
+        U, S, Vt, tol = ret
+        svd_block = self.root.make_svd_block(U, S, Vt)
+
+        # If the tolerance estimated this way doesn't satisfy
+        # the requested tolerance, return the sparse block
+        assert tol != 0
+        if tol <= self._tol:
+            return svd_block
+        else:
+            logging.warning('''computed a really inaccurate SVD, using
+            a larger sparse block instead...''')
+            return self.root.make_sparse_block(spmat)
 
     def _matmat(self, x):
         y = np.zeros((self.shape[0], x.shape[1]), dtype=self.dtype)
@@ -293,13 +283,12 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 block = self._blocks[i, j]
                 if block.is_empty_leaf: continue
                 y[row_inds] += block@x[col_inds]
-        return y[self._row_rev_perm]
+        return y
 
     @property
     def nbytes(self):
         return sum(I.nbytes for I in self._row_block_inds) \
             + sum(J.nbytes for J in self._col_block_inds) \
-            + self._row_rev_perm.nbytes \
             + sum(block.nbytes for block in self._blocks.flatten())
 
     @property
@@ -412,7 +401,6 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             root.shape if I_par is None else (len(I_par), len(J_par))
         )
         self._set_block_inds(shape_model, I_par, J_par)
-        self._row_rev_perm = np.argsort(np.concatenate(self._row_block_inds))
 
         blocks = []
         for i, row_inds in enumerate(self._row_block_inds):
@@ -537,7 +525,6 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
         super().__init__(root, root.shape)
         self._row_block_inds = parts
         self._col_block_inds = parts
-        self._row_rev_perm = np.argsort(np.concatenate(self._row_block_inds))
 
         blocks = []
         for i, I in enumerate(parts):

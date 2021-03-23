@@ -3,8 +3,7 @@ import pathlib
 import unittest
 
 import numpy as np
-
-from flux.thermal import PccThermalModel1D, setgrid, analytT_, flux_noatm
+from flux.thermal import *
 
 class ThermalTestCase(unittest.TestCase):
     def test_pcc_thermalQ_model_1d(self):
@@ -98,47 +97,6 @@ class ThermalTestCase(unittest.TestCase):
 
         # check if Tsurface (and Tbottom layer) is the same in both cases
         self.assertLess(np.abs(np.sum(np.round(Tsurface_output,3)-np.round(Tsurface,3))), 1.e-3)
-
-    # inactive, uncomment assert line to activate (would fail...)
-    def test_pcc_thermalT_model_1d(self):
-
-        # generate 1D grid
-        nz = 60
-        zfac = 1.05
-        zmax = 2.5
-        z = setgrid(nz=nz, zfac=zfac, zmax=zmax)
-
-        # parameters
-        T0 = 210.; ti = 120.; rhoc = 960000.
-        Fgeotherm = 0.; P = 670. * 88775.244
-        dt = P / 120
-
-        # print(z)
-        Tan = analytT_(z=z,T0=T0,rhoc=rhoc,ti=ti,P=P, dt=dt)
-
-        # set-up thermal model
-        model = PccThermalModel1D(nfaces=1,z=z,T0=T0, ti=ti,rhoc=rhoc,
-                                  Fgeotherm=Fgeotherm, Tsurfprev=T0, bcond='T')
-
-        # dt = P/12. #495661.76666666666
-        nsteps = 120 # corresponding to step 2 output in testcrankQ
-
-        # print("Tinit",model.T)
-
-        # iterate to t = t0+i*dt
-        for i in range(nsteps):
-            # set T from analytical model
-            Tnp1 = Tan[i,0]
-            # update model to t+=dt
-            model.step(dt, np.array([Tnp1]))
-
-        # reformat PccThermalModel1D output at last step and validate with template
-        model_output = model.T[-1,1:]
-        validation = np.round(model_output.T,7) - np.round(Tan[nsteps-1,:],7) # round at "reasonable" precision
-
-        # check numerical against analytical T
-        # self.assertLess(np.abs(np.sum(validation)), 1.e-6)
-
 
 if __name__ == '__main__':
     unittest.main()

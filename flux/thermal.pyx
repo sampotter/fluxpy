@@ -139,21 +139,21 @@ cdef class PccThermalModel1D:
             self.Qprev[...] = X[...]
 
         elif self.bcond == 'T':
-                for i in range(self.nfaces):
-                    conductionT(
-                        self.nz, # number of grid points
-                        &self.z[0], # depth below surface
-                        dt,
-                        &self.T[i, 0],
-                        self.Tsurfprev[i],
-                        X[i],
-                        &self.ti[0],
-                        &self.rhoc[0],
-                        self.Fgeotherm[i],
-                        &self.Fsurf[i]
-                    )
+            for i in range(self.nfaces):
+                conductionT(
+                    self.nz, # number of grid points
+                    &self.z[0], # depth below surface
+                    dt,
+                    &self.T[i, 0],
+                    self.Tsurfprev[i],
+                    X[i],
+                    &self.ti[0],
+                    &self.rhoc[0],
+                    self.Fgeotherm[i],
+                    &self.Fsurf[i]
+                )
 
-                self.Tsurfprev[...] = X[...]
+            self.Tsurfprev[...] = X[...]
 
         else:
             logging.error("** unknown bcond parameter value: it should be Q or T")
@@ -209,16 +209,18 @@ def analytT_(z,T0,rhoc,ti,P,dt):
     return np.vstack(T)
 
 def flux_noatm(R,decl,latitude,HA,SlopeAngle,azFac):
-#**********************************************************************
-#   flux_noatm: calculates incoming solar flux without atmosphere
-#     R: distance from sun (AU)
-#     decl: planetocentric solar declination (radians)
-#     latitude: (radians)
-#     HA: hour angle (radians from noon, clockwise)
-#     SlopeAngle: >0, (radians)
-#     azFac: azimuth of topographic gradient (radians east of north)
-#            azFac=0 is south-facing
-#**********************************************************************
+    """
+    Calculates incoming solar flux without atmosphere
+    Args:
+        R: distance from sun (AU)
+        decl: planetocentric solar declination (radians)
+        latitude: (radians)
+        HA: hour angle (radians from noon, clockwise)
+        SlopeAngle: >0, (radians)
+        azFac: azimuth of topographic gradient (radians east of north),
+                azFac=0 is south-facing
+    """
+
     from math import sin, cos, sqrt, acos, pi
 
     So=1365.  # solar constant [W/m^2]
