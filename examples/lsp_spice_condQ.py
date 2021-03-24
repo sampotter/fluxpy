@@ -13,15 +13,20 @@ position.
 import colorcet as cc
 import matplotlib.pyplot as plt
 import numpy as np
+import pickle
 import spiceypy as spice
 
 from pathlib import Path
 
+from tqdm import tqdm
+
 import flux.compressed_form_factors as cff
 
-from flux.model import compute_steady_state_temp, update_incoming_radiances
+from flux.form_factors import get_form_factor_block
+from flux.model import compute_steady_state_temp
 from flux.plot import tripcolor_vector
 from flux.shape import TrimeshShapeModel
+from flux.util import tic, toc
 from flux.thermal import PccThermalModel1D, setgrid
 from scipy.constants import sigma
 
@@ -56,8 +61,6 @@ sun_dirs = np.array([
 F0 = 1365 # Solar constant
 emiss = 0.95 # Emissitivity
 rho = 0.12 # Visual (?) albedo
-Fgeoth = 0.2
-subsurf_heat = True
 
 # Load shape model
 
@@ -68,53 +71,52 @@ N = np.load('lsp_N.npy')
 shape_model = TrimeshShapeModel(V, F, N)
 
 # Load compressed form factor matrix from disk
+print("Reading compressed matrix")
 FF_path = 'lsp_compressed_form_factors.bin'
 FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
 # print("Getting FF block") # what's this?
 # FF_gt = get_form_factor_block(shape_model)
 
+# Compute steady state temperature
 E_arr = []
 for i, sun_dir in enumerate(sun_dirs[:]):
     E_arr.append(shape_model.get_direct_irradiance(F0, sun_dir))
-
 E = np.vstack(E_arr).T
 
+subsurf_heat = True
 if not subsurf_heat:
-    # Compute steady state temperature
-    T_arr = compute_steady_state_temp(FF, E, rho, emiss)
-    T = np.vstack(T_arr).T
+    T = compute_steady_state_temp(FF, E, rho, emiss, Fsurf=0.)
+    T = np.vstack(T).T
 else:
-    # spin-up model until equilibrium is reached
-
     # generate 1D grid
     nz = 60
     zfac = 1.05
     zmax = 2.5
     z = setgrid(nz=nz, zfac=zfac, zmax=zmax)
 
-    # compute provisional Tsurf and Q from direct illumination only
-    Qabs0 = (1 - rho) * E[:, 0] + Fgeoth
-    Tsurf0 = (Qabs0 / (sigma * emiss)) ** 0.25
-    # set up model (with Qprev = Qabs0)
-    model = PccThermalModel1D(nfaces=E.shape[0], z=z, T0=210, ti=120., rhoc=960000., # we have rho, but how do we get c?
-                              emissivity=emiss, Fgeotherm=Fgeoth, Qprev=Qabs0.astype(np.double), bcond='Q')
+    # compute provisional T and Q from IR only (Fsurf=kdT/dz=0)
+    Tloc = compute_steady_state_temp(FF, E[:, 0], rho, emiss, Fsurf=0.)
+    Qn = sigma * emiss * (Tloc ** 4.)  # shape=nfaces
+
+    # set up model (with Qprev = Q from provisional model)
+    model = PccThermalModel1D(nfaces=E.shape[0], z=z, T0=210, ti=120., rhoc=960000.,# we have rho, but how do we get c?
+                              emissivity=emiss, Fgeotherm=0., Qprev=Qn.astype(np.double), bcond='Q')
+    # set lists for Tsurf and Fsurf (all nfaces, all time steps); at t0 get from provisional model?
+    T = [Tloc] # Tloc or model.T?
+    Fsurf = [model.Fsurf]
+
     # loop over time-steps/sun angles
-    T = [model.T[:,0]]
-    for i in range(len(sun_dirs) - 1):
-        # get Q(np1) as in Eq. 17-19
-        if i == 0:
-            Qrefl_np1, QIR_np1 = update_incoming_radiances(FF, E[:, i + 1], rho, emiss,
-                                                           Qrefl=0, QIR=0, Tsurf=Tsurf0)
-        else:
-            Qrefl_np1, QIR_np1 = update_incoming_radiances(FF, E[:, i + 1], rho, emiss,
-                                                           Qrefl=Qrefl_np1, QIR=QIR_np1, Tsurf=model.T[:, 0])
-        # compute Qabs, eq 19 radiosity paper
-        Qnp1 = (1 - rho) * (E[:, i + 1] + Qrefl_np1) + emiss * QIR_np1
-        # extrapolate model at t_{i+1}, get model.T(i+1)
+    for i in tqdm(range(len(sun_dirs) - 1)): # len - 1 since we always take E(t_{i+1})=E(np1)
+        # get T(np1), including contribution Fsurf=k dT/dz; convert to Qnp1
+        Tloc = compute_steady_state_temp(FF, E[:, i + 1], rho, emiss, Fsurf=model.Fsurf)
+        Qnp1 = sigma * emiss * (Tloc ** 4.)
+        # extrapolate model at t_{i+1}
         model.step(stepet, Qnp1)
-        # add check for steady-state (model.T(i) - model.T(i-1) < eps) to break loop
-        T.append(model.T[:,0])
+        # append resulting T and F to lists
+        Fsurf.append(model.Fsurf)
+        T.append(Tloc) # Tloc or model.T[:,0]?
     # adapt shapes for plotting
+    Fsurf = np.vstack(Fsurf).T
     T = np.vstack(T).T
 
 Path('./frames').mkdir(parents=True, exist_ok=True)
@@ -124,6 +126,10 @@ for i, sun_dir in enumerate(sun_dirs[:]):
 
     fig, ax = tripcolor_vector(V, F, E[:,i], cmap=cc.cm.gray)
     fig.savefig('./frames/lsp_E1_%03d.png' % i)
+    plt.close(fig)
+
+    fig, ax = tripcolor_vector(V, F, Fsurf[:,i], cmap=cc.cm.gray)
+    fig.savefig('./frames/lsp_F1_%03d.png' % i)
     plt.close(fig)
 
     fig, ax = tripcolor_vector(V, F, T[:,i], cmap=cc.cm.fire)
