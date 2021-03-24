@@ -63,7 +63,7 @@ cdef class PccThermalModel1D:
 
     @property
     def Qprev(self):
-        return np.asarray(self.Qprev)
+        return np.asarray(self.Qprev[:])
 
     @property
     def Fsurf(self):
@@ -104,7 +104,10 @@ cdef class PccThermalModel1D:
         self.Tsurfprev[...] = Tsurfprev
 
         self.Qprev = np.empty((self.nfaces,), dtype=np.float64)
-        self.Qprev[...] = Qprev
+        if nfaces > 1: #TODO not sure if this is the correct way to deal with this error
+            self.Qprev = Qprev
+        else:
+            self.Qprev[...] = Qprev
 
         self.Fsurf = np.empty((self.nfaces,), dtype=np.float64)
         self.Fsurf[...] = 0
