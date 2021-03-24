@@ -268,7 +268,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
         # If the tolerance estimated this way doesn't satisfy
         # the requested tolerance, return the sparse block
-        assert tol != 0
+        # assert tol != 0
         if tol <= self._tol:
             return svd_block
         else:
