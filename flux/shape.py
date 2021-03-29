@@ -168,7 +168,7 @@ class TrimeshShapeModel(ShapeModel):
             rayhit.prim_id == J
         )
 
-    def get_direct_irradiance(self, F0, Dsun, eps=None):
+    def get_direct_irradiance(self, F0, Dsun, basemesh=None, eps=None):
         '''Compute the insolation from the sun.
 
         Parameters
@@ -196,6 +196,9 @@ class TrimeshShapeModel(ShapeModel):
         if eps is None:
             eps = 1e3*np.finfo(np.float32).resolution
 
+        if basemesh == None:
+            basemesh = self
+
         # Here, we use Embree directly to find the indices of triangles
         # which are directly illuminated (I_sun) or not (I_shadow).
 
@@ -220,7 +223,7 @@ class TrimeshShapeModel(ShapeModel):
             ray.flags[:] = 0
 
         context = embree.IntersectContext()
-        self.scene.occluded1M(context, ray)
+        basemesh.scene.occluded1M(context, ray)
 
         # Determine which rays escaped (i.e., can see the sun)
         I = np.isposinf(ray.tfar)
