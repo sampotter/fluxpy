@@ -160,7 +160,6 @@ cdef class PccThermalModel1D:
 
         else:
             logging.error("** unknown bcond parameter value: it should be Q or T")
-
         self.t += dt
 
 def setgrid(nz,zfac,zmax):
