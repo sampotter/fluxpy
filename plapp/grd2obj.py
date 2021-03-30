@@ -195,7 +195,6 @@ def interp_map(x_tot, y_tot, z_tot, X, Y):
     print("Input elevation map interpolated to mesh after", end_interp - start_interp, "seconds.")
     return Z
 
-#
 def sph2cart(r, lat, lon):
     """
     Transform spherical (meters, degrees) to cartesian (meters)
