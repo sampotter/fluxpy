@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Calculates equilibrium temperature based on FF.bin
 # Compares with exact solution for bowl-shaped crater
@@ -32,11 +32,11 @@ from scipy.constants import Stefan_Boltzmann as sigSB
 
 
     
-def exact_solution_ingersoll(F0, e0, rho, emiss, D2d, P, N, E, dir_sun):
+def exact_solution_ingersoll(F0, e0, albedo, emiss, D2d, P, N, E, dir_sun):
     # calculate analytical solution for bowl-shaped crater
     # F0 ... solar constant [W/m^2]
     # e0 ... elevation of sun above horizontal surface [radians]
-    # rho ... albedo
+    # albedo ... (visible) albedo
     # emiss ... (infrared) emissivity 
     # D2d ... diameter-to-depth ratio
     # P ... coordinates of triangle centers
@@ -45,7 +45,7 @@ def exact_solution_ingersoll(F0, e0, rho, emiss, D2d, P, N, E, dir_sun):
     # dir_sun ... vector pointing toward sun
     
     f = 1 / (1 + 0.25*D2d**2)
-    b = f*(emiss + rho*(1-f)) / (1 - rho*f)
+    b = f*(emiss + albedo*(1-f)) / (1 - albedo*f)
     T = np.empty(P.shape[0])
     T[:] = np.nan
     Eexact = np.empty(P.shape[0])
@@ -54,20 +54,20 @@ def exact_solution_ingersoll(F0, e0, rho, emiss, D2d, P, N, E, dir_sun):
     # plain around crater
     k = np.where( P[:,2]==0 )
     Eexact[k] = F0 * np.sin(e0) 
-    Q = (1-rho) * F0 * np.sin(e0)
+    Q = (1-albedo) * F0 * np.sin(e0)
     T[k] = ( Q/(emiss*sigSB) )**0.25 
     
     # shadowed portion of crater
     k = np.where( E==0 )
     Eexact[k] = 0.
-    Q = (1-rho) * F0 * b*np.sin(e0)
+    Q = (1-albedo) * F0 * b*np.sin(e0)
     T[k] = ( Q/(emiss*sigSB) )**0.25
     
     # sunlit portion of crater
     k = np.where( np.logical_and(E>0,  P[:,2]<0) )
     e = np.pi/2 - np.arccos( np.dot(N[k], dir_sun) )
     Eexact[k] = F0 * np.sin(e)
-    Q = (1-rho) * F0 * ( np.sin(e) + b*np.sin(e0) )
+    Q = (1-albedo) * F0 * ( np.sin(e) + b*np.sin(e0) )
     T[k] = ( Q/(emiss*sigSB) )**0.25
 
     return T
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     # Define constants used in the simulation:
     e0 = np.deg2rad(10) # Solar elevation angle
     F0 = 1365 # Solar constant
-    rho = 0.3
+    albedo = 0.3
     emiss = 0.95
     
     dir_sun = np.array([0, -np.cos(e0), np.sin(e0)]) # Direction of sun
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     print('wrote E.png')
 
     tic()
-    B, niter_B = solve_radiosity(FF, E, rho=rho)
+    B, niter_B = solve_radiosity(FF, E, rho=albedo)
     t_B = toc()
     print('- computed radiosity [%1.2f s]' % (t_B,))
 
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     print('- wrote B.png')
 
     tic()
-    T = compute_steady_state_temp(FF, E, rho, emiss)
+    T = compute_steady_state_temp(FF, E, albedo, emiss)
     t_T = toc()
     print('- computed T [%1.2f s]' % (t_T,))
 
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     stats = {
         'e0_deg': np.rad2deg(e0),
         'F0': F0,
-        'rho': rho,
+        'albedo': albedo,
         'emiss': emiss,
         'num_faces': F.shape[0],
         't_E': float(t_E),
@@ -148,7 +148,7 @@ if __name__ == '__main__':
     # exit()
     
     # calculate analytical solution
-    Texact = exact_solution_ingersoll( F0, e0, rho, emiss, 5., \
+    Texact = exact_solution_ingersoll( F0, e0, albedo, emiss, 5., \
                                               P, N, E, dir_sun)
     
     fig, ax = tripcolor_vector(V, F, Texact, cmap=cc.cm.fire)
