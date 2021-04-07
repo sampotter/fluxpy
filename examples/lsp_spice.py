@@ -55,7 +55,7 @@ sun_dirs = np.array([
 
 F0 = 1365 # Solar constant
 emiss = 0.95 # Emissitivity
-rho = 0.12 # Visual (?) albedo
+albedo = 0.12 # Visual (?) albedo
 Fgeoth = 0.2
 subsurf_heat = True
 
@@ -81,7 +81,7 @@ E = np.vstack(E_arr).T
 
 if not subsurf_heat:
     # Compute steady state temperature
-    T_arr = compute_steady_state_temp(FF, E, rho, emiss)
+    T_arr = compute_steady_state_temp(FF, E, albedo, emiss)
     T = np.vstack(T_arr).T
 else:
     # spin-up model until equilibrium is reached
@@ -93,7 +93,7 @@ else:
     z = setgrid(nz=nz, zfac=zfac, zmax=zmax)
 
     # compute provisional Tsurf and Q from direct illumination only
-    Qabs0 = (1 - rho) * E[:, 0] + Fgeoth
+    Qabs0 = (1 - albedo) * E[:, 0] + Fgeoth
     Tsurf0 = (Qabs0 / (sigma * emiss)) ** 0.25
     # set up model (with Qprev = Qabs0)
     model = PccThermalModel1D(nfaces=E.shape[0], z=z, T0=210, ti=120., rhoc=960000., # we have rho, but how do we get c?
@@ -103,13 +103,13 @@ else:
     for i in range(len(sun_dirs) - 1):
         # get Q(np1) as in Eq. 17-19
         if i == 0:
-            Qrefl_np1, QIR_np1 = update_incoming_radiances(FF, E[:, i + 1], rho, emiss,
+            Qrefl_np1, QIR_np1 = update_incoming_radiances(FF, E[:, i + 1], albedo, emiss,
                                                            Qrefl=0, QIR=0, Tsurf=Tsurf0)
         else:
-            Qrefl_np1, QIR_np1 = update_incoming_radiances(FF, E[:, i + 1], rho, emiss,
+            Qrefl_np1, QIR_np1 = update_incoming_radiances(FF, E[:, i + 1], albedo, emiss,
                                                            Qrefl=Qrefl_np1, QIR=QIR_np1, Tsurf=model.T[:, 0])
         # compute Qabs, eq 19 radiosity paper
-        Qnp1 = (1 - rho) * (E[:, i + 1] + Qrefl_np1) + emiss * QIR_np1
+        Qnp1 = (1 - albedo) * (E[:, i + 1] + Qrefl_np1) + emiss * QIR_np1
         # extrapolate model at t_{i+1}, get model.T(i+1)
         model.step(stepet, Qnp1)
         # add check for steady-state (model.T(i) - model.T(i-1) < eps) to break loop
