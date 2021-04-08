@@ -62,7 +62,7 @@ if __name__ == '__main__':
     print('created mesh with %d triangles' % num_faces)
 
     # Let's use another Python library (meshio) to save the triangle
-    # mesh as an OBJ file.
+    # mesh as an OBJ file (optional).
     points = V
     cells = [('triangle', F)]
     mesh = meshio.Mesh(points, cells)
@@ -103,10 +103,10 @@ if __name__ == '__main__':
     print('saved compressed form factor matrix to FF.bin')
 
     # Make plot of blocks in form factor matrix
-    fig, ax = plot_blocks(FF._root)
-    fig.savefig('blocks.png')
-    plt.close(fig)
-    print('wrote blocks.png')
+    #fig, ax = plot_blocks(FF._root)
+    #fig.savefig('blocks.png')
+    #plt.close(fig)
+    #print('wrote blocks.png')
     
     # exit()   # convenient test below
     
@@ -117,7 +117,6 @@ if __name__ == '__main__':
     
     # Compute the direct irradiance and find the elements which are in shadow.
     E = shape_model.get_direct_irradiance(F0, dir_sun)
-    I_shadow = E == 0
 
     # Make plot of direct irradiance
     fig, ax = tripcolor_vector(V, F, E, cmap='gray')

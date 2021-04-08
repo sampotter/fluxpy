@@ -106,7 +106,7 @@ if __name__ == '__main__':
     fig, ax = tripcolor_vector(V, F, E, cmap=cmap['gray'])
     fig.savefig('E.png')
     plt.close(fig)
-    print('wrote E.png')
+    print('- wrote E.png')
 
     tic()
     B, niter_B = solve_radiosity(FF, E, rho=albedo)
