@@ -21,9 +21,8 @@ import flux.compressed_form_factors as cff
 
 from flux.model import compute_steady_state_temp, update_incoming_radiances
 from flux.plot import tripcolor_vector
-from flux.shape import TrimeshShapeModel
 from flux.thermal import PccThermalModel1D, setgrid
-from scipy.constants import sigma
+from scipy.constants import sigma as sigSB
 
 clktol = '10:000'
 
@@ -59,19 +58,15 @@ albedo = 0.12 # Visual (?) albedo
 Fgeoth = 0.2
 subsurf_heat = True
 
-# Load shape model
-
-V = np.load('lsp_V.npy')
-F = np.load('lsp_F.npy')
-N = np.load('lsp_N.npy')
-
-shape_model = TrimeshShapeModel(V, F, N)
-
-# Load compressed form factor matrix from disk
+# Load compressed form factor matrix, including shape model, from disk
 FF_path = 'lsp_compressed_form_factors.bin'
 FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
 # print("Getting FF block") # what's this?
 # FF_gt = get_form_factor_block(shape_model)
+
+shape_model = FF.shape_model
+V = FF.shape_model.V
+F = FF.shape_model.F
 
 E_arr = []
 for i, sun_dir in enumerate(sun_dirs[:]):
@@ -94,7 +89,7 @@ else:
 
     # compute provisional Tsurf and Q from direct illumination only
     Qabs0 = (1 - albedo) * E[:, 0] + Fgeoth
-    Tsurf0 = (Qabs0 / (sigma * emiss)) ** 0.25
+    Tsurf0 = (Qabs0 / (sigSB * emiss)) ** 0.25
     # set up model (with Qprev = Qabs0)
     model = PccThermalModel1D(nfaces=E.shape[0], z=z, T0=210, ti=120., rhoc=960000., # we have rho, but how do we get c?
                               emissivity=emiss, Fgeotherm=Fgeoth, Qprev=Qabs0.astype(np.double), bcond='Q')
