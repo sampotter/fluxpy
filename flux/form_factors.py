@@ -1,3 +1,5 @@
+import pickle
+
 import flux.config
 import numpy as np
 import scipy.sparse
@@ -179,6 +181,11 @@ class FormFactorMatrix(scipy.sparse.linalg.LinearOperator):
     @cached_property
     def NJ_PJ(self):
         return np.sum(self.NJ*self.PJ, axis=1)
+
+    @staticmethod
+    def from_file(path):
+        with open(path, 'rb') as f:
+            return pickle.load(f)
 
     # def _get_col_vis(self, col, j):
     #     nonzero = np.where(abs(col) > self.eps)[0]

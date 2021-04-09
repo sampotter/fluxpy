@@ -12,84 +12,91 @@ import scipy.spatial
 
 from flux.shape import get_centroids, get_surface_normals
 
-# Read GRD file
+def make_shape_model(grdpath):
 
-path = os.path.join('.', 'LDEM_80S_150M_adjusted.grd')
-rootgrp = netCDF4.Dataset(path)
+    # Read GRD file
 
-grdx = np.array(rootgrp['x'])
-grdy = np.array(rootgrp['y'])
+    rootgrp = netCDF4.Dataset(grdpath)
 
-grdz_ = np.array(rootgrp['z']).astype(np.float64)
-grdz_ = grdz_.T # TODO: why is this necessary?
+    grdx = np.array(rootgrp['x'])
+    grdy = np.array(rootgrp['y'])
 
-del rootgrp
+    grdz_ = np.array(rootgrp['z']).astype(np.float64)
+    grdz_ = grdz_.T # TODO: why is this necessary?
 
-grdx_, grdy_ = np.meshgrid(grdx, grdy)
+    del rootgrp
 
-# Unprotect from stereographic to lon/lat
+    grdx_, grdy_ = np.meshgrid(grdx, grdy)
 
-lon0, lat0, R = 0, -90, 1737.4
+    # Unprotect from stereographic to lon/lat
 
-rho = np.sqrt(grdx_**2 + grdy_**2)
-c = 2*np.arctan2(rho, 2*R)
+    lon0, lat0, R = 0, -90, 1737.4
 
-lat_ = np.rad2deg(
-    np.arcsin(np.cos(c)*np.sin(np.deg2rad(lat0)) +
-              (np.cos(np.deg2rad(lat0))*np.sin(c)*grdy_)/rho))
+    rho = np.sqrt(grdx_**2 + grdy_**2)
+    c = 2*np.arctan2(rho, 2*R)
 
-lon_ = np.mod(
-    lon0 + np.rad2deg(
-        np.arctan2(
-            grdx_*np.sin(c),
-            np.cos(np.deg2rad(lat0))*rho*np.cos(c)
-            - np.sin(np.deg2rad(lat0))*grdy_*np.sin(c))),
-    360)
+    lat_ = np.rad2deg(
+        np.arcsin(np.cos(c)*np.sin(np.deg2rad(lat0)) +
+                  (np.cos(np.deg2rad(lat0))*np.sin(c)*grdy_)/rho))
 
-lat_[(grdx_ == 0) & (grdy_ == 0)] = lat0
-lon_[(grdx_ == 0) & (grdy_ == 0)] = lon0
+    lon_ = np.mod(
+        lon0 + np.rad2deg(
+            np.arctan2(
+                grdx_*np.sin(c),
+                np.cos(np.deg2rad(lat0))*rho*np.cos(c)
+                - np.sin(np.deg2rad(lat0))*grdy_*np.sin(c))),
+        360)
 
-# Go from lon/lat to cartesian
+    lat_[(grdx_ == 0) & (grdy_ == 0)] = lat0
+    lon_[(grdx_ == 0) & (grdy_ == 0)] = lon0
 
-az_ = np.deg2rad(lon_)
-el_ = np.deg2rad(lat_)
-r_ = R + grdz_
+    # Go from lon/lat to cartesian
 
-i0, i1 = 2425, 2525
-j0, j1 = 1912, 2012
+    az_ = np.deg2rad(lon_)
+    el_ = np.deg2rad(lat_)
+    r_ = R + grdz_
 
-az = az_[i0:i1, j0:j1]
-el = el_[i0:i1, j0:j1]
-r = r_[i0:i1, j0:j1]
+    i0, i1 = 2425, 2525
+    j0, j1 = 1912, 2012
 
-x = r*np.cos(az)*np.cos(el)
-y = r*np.sin(az)*np.cos(el)
-z = r*np.sin(el)
+    az = az_[i0:i1, j0:j1]
+    el = el_[i0:i1, j0:j1]
+    r = r_[i0:i1, j0:j1]
 
-# Make a simple mesh
+    x = r*np.cos(az)*np.cos(el)
+    y = r*np.sin(az)*np.cos(el)
+    z = r*np.sin(el)
 
-I = np.arange(i0, i1)
-J = np.arange(j0, j1)
-IJ = np.array([_.flatten() for _ in np.meshgrid(I, J, indexing='ij')]).T
+    # Make a simple mesh
 
-V = np.array([x.ravel(), y.ravel(), z.ravel()]).T
-F = scipy.spatial.Delaunay(IJ).simplices
+    I = np.arange(i0, i1)
+    J = np.arange(j0, j1)
+    IJ = np.array([_.flatten() for _ in np.meshgrid(I, J, indexing='ij')]).T
 
-# Compute face normals by computing
+    V = np.array([x.ravel(), y.ravel(), z.ravel()]).T
+    F = scipy.spatial.Delaunay(IJ).simplices
 
-P = get_centroids(V, F)
-N = get_surface_normals(V, F)
-N[(N*P).sum(1) < 0] *= -1
+    # Compute face normals by computing
 
-print('- created shape model with %d faces and %d vertices' % (F.shape[0], V.shape[0]))
+    P = get_centroids(V, F)
+    N = get_surface_normals(V, F)
+    N[(N*P).sum(1) < 0] *= -1
 
-# Save the mesh data to disk as numpy binary files
+    print('- created shape model with %d faces and %d vertices' % (F.shape[0], V.shape[0]))
 
-np.save('lsp_V.npy', V)
-print('- wrote lsp_V.npy')
+    # Save the mesh data to disk as numpy binary files
 
-np.save('lsp_F.npy', F)
-print('- wrote lsp_F.npy')
+    np.save('lsp_V.npy', V)
+    print('- wrote lsp_V.npy')
 
-np.save('lsp_N.npy', N)
-print('- wrote lsp_N.npy')
+    np.save('lsp_F.npy', F)
+    print('- wrote lsp_F.npy')
+
+    np.save('lsp_N.npy', N)
+    print('- wrote lsp_N.npy')
+
+if __name__ == '__main__':
+
+    path = os.path.join('.', 'LDEM_80S_150M_adjusted.grd')
+
+    make_shape_model(grdpath=path)
