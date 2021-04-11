@@ -64,7 +64,7 @@ instructions about particular examples, see below.
 Running the following scripts in order:
 ``` shell
 python lsp_make_shape_model.py
-python lsp_compress_form_factor_matrix.py
+python lsp_form_factor_matrix.py
 python lsp_spice.py
 ```
 will do the following:
