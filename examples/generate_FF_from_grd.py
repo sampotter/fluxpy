@@ -24,16 +24,22 @@ import numpy as np
 import os
 import scipy.interpolate
 import time
+import pickle
+import trimesh
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.plot import plot_blocks, tripcolor_vector
 from flux.shape import TrimeshShapeModel
+from flux.form_factors import get_form_factor_block
+
 
 
 if __name__ == '__main__':
+
+    compress = False  # compressed or uncompressed FF
     
     # Load a DEM stored as a netCDF4 file, and pull out the coordinate data.
-    path = os.path.join('.', 'ingersoll81.grd')
+    path = os.path.join('.', 'ingersoll41.grd')
     rootgrp = netCDF4.Dataset(path)
     X = np.array(rootgrp.variables['x'])
     Y = np.array(rootgrp.variables['y'])
@@ -87,27 +93,45 @@ if __name__ == '__main__':
     # Build the compressed form factor matrix. All of the code related
     # to this can be found in the "form_factors.py" file in this
     # directory.
-    t0 = time.perf_counter()
-    FF = CompressedFormFactorMatrix.assemble_using_quadtree(
-        shape_model, tol=np.finfo(np.float32).resolution)
-    print('assembled form factor matrix in %f sec (%1.2f MB)' %
-          (time.perf_counter() - t0, FF.nbytes/(1024**2),))
-    del t0
+    if compress:
+        t0 = time.perf_counter()
+        FF = CompressedFormFactorMatrix.assemble_using_quadtree(
+            shape_model, tol=np.finfo(np.float32).resolution)
+        print('assembled form factor matrix in %f sec (%1.2f MB)' %
+              (time.perf_counter() - t0, FF.nbytes/(1024**2),))
+        del t0
 
-    # Python makes it very easy to serialize object hierarchies and
-    # write them to disk as binary files. We do that here to save the
-    # compressed form factor matrix. We can reload it later if we
-    # want, without having to first compute it (or load an OBJ file,
-    # or set up Embree, or any of that stuff).
-    FF.save('FF.bin')
-    print('saved compressed form factor matrix to FF.bin')
+        # Python makes it very easy to serialize object hierarchies and
+        # write them to disk as binary files. We do that here to save the
+        # compressed form factor matrix. We can reload it later if we
+        # want, without having to first compute it (or load an OBJ file,
+        # or set up Embree, or any of that stuff).
+        FF.save('FF.bin')
+        print('saved compressed form factor matrix to FF.bin')
 
-    # Make plot of blocks in form factor matrix
-    #fig, ax = plot_blocks(FF._root)
-    #fig.savefig('blocks.png')
-    #plt.close(fig)
-    #print('wrote blocks.png')
-    
+        # Make plot of blocks in form factor matrix
+        #fig, ax = plot_blocks(FF._root)
+        #fig.savefig('blocks.png')
+        #plt.close(fig)
+        #print('wrote blocks.png')
+        
+    else:  # uncompressed
+        # Write the mesh to disk as an OBJ file
+        #trimesh.Trimesh(V, F).export('mesh.obj')
+        #print('- wrote mesh.obj')
+
+        #np.savez('mesh', shape_model=shape_model, V=V, F=F)
+        #print('- wrote mesh.npy')
+
+        with open('mesh.bin', 'wb') as f:
+            pickle.dump(shape_model,f)
+        
+        print('calculating full form factor matrix')
+        FF = get_form_factor_block(shape_model)
+        with open('FF.bin', 'wb') as f:
+            pickle.dump(FF,f)
+            print('saved uncompressed form factor matrix to FF.bin')
+
     # exit()   # convenient test below
     
     # Define constants used in the simulation:

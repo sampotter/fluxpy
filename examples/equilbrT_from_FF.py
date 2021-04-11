@@ -21,6 +21,7 @@ import numpy as np
 import os
 import time
 import json
+import pickle
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.plot import tripcolor_vector
@@ -29,7 +30,7 @@ from flux.solve import solve_radiosity
 from flux.util import tic, toc
 from scipy.constants import Stefan_Boltzmann as sigSB
 
-
+import flux.form_factors as ff
 
     
 def exact_solution_ingersoll(F0, e0, albedo, emiss, D2d, P, N, E, dir_sun):
@@ -74,17 +75,27 @@ def exact_solution_ingersoll(F0, e0, albedo, emiss, D2d, P, N, E, dir_sun):
     
 
 
+compress = False
+
 
 if __name__ == '__main__':
+
+    if compress is False:
+        with open('mesh.bin', 'rb') as f:
+            shape_model = pickle.load(f)
+
+        FF = ff.FormFactorMatrix.from_file('FF.bin')
     
-    # load FF.bin previously generated
-    FF = CompressedFormFactorMatrix.from_file('FF.bin')
+    else:
+        # load FF.bin previously generated
+        FF = CompressedFormFactorMatrix.from_file('FF.bin')
+        shape_model = FF.shape_model
+
     print('- loaded FF.bin')
-    shape_model = FF.shape_model
-    V = FF.shape_model.V
-    F = FF.shape_model.F
-    N = FF.shape_model.N
-    P = FF.shape_model.P
+    V = shape_model.V
+    F = shape_model.F
+    N = shape_model.N
+    P = shape_model.P
     print('- Number of vertices',V.shape[0],'Number of facets',F.shape[0])
     
     # Define constants used in the simulation:
