@@ -29,6 +29,7 @@ python-dateutil==2.8.1
 pytools==2020.4.3
 pyvista==0.28.1
 pyvistaqt==0.3.0
+scikit-learn==0.22.2
 scipy==1.5.4
 scooby==0.5.6
 six==1.15.0
