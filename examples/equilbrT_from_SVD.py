@@ -22,28 +22,31 @@ albedo = 0.12 # Albedo
 e0 = np.deg2rad(10) # Solar elevation angle
 
 #useSVD = False   # use full view factor matrix
-useSVD = True  # use SVD or truncated SVD instead
+useSVD = True  # use SVD or truncated SVD
 
 if __name__ == '__main__':
+
+    # generate_FF_from_grd.py
+
+    with open('mesh.bin', 'rb') as f:
+        shape_model = pickle.load(f)
+        F = shape_model.F
+        N = shape_model.N
+        P = shape_model.P
+        V = shape_model.V
 
     if useSVD is False:
         FF = CompressedFormFactorMatrix.from_file('FF.bin')
         print('- loaded FF.bin')
 
-    #xSVDcomputation('FF.bin', TRUNC=100, mode='full')
-    with open('mesh.bin', 'rb') as f:
-        shape_model = pickle.load(f)
-
     if useSVD is True:
-        # read outputs of xsvdcmp
+        #xSVDcomputation('FF.bin', TRUNC=0, mode='full')
+        xSVDcomputation('FF.bin', TRUNC=1, mode='approx')
+        # read outputs of xSVDcomputation
         U = np.loadtxt('svd_U.dat');
         sigma = np.loadtxt('svd_sigma.dat')
         Vt = np.loadtxt('svd_V.dat')
 
-    F = shape_model.F
-    N = shape_model.N
-    P = shape_model.P
-    V = shape_model.V
         
     dir_sun = np.array([0, -np.cos(e0), np.sin(e0)]) # Direction of sun
     
@@ -86,7 +89,7 @@ if __name__ == '__main__':
         err = Tsurf - Texact
         max_error = np.linalg.norm(err, np.inf)
         abs_error = np.linalg.norm(err, 1) / err.size
-        rms_error = np.linalg.norm(err, 2) / err.size
+        rms_error = np.linalg.norm(err, 2) / np.sqrt(err.size)
         
         print('iteration',i+1,
               'max_error',float(max_error),
@@ -98,7 +101,9 @@ if __name__ == '__main__':
     fig.savefig('T.png')
     plt.close(fig)
     print('- wrote T.png')
-        
+
+    np.savetxt('Tsurf.dat', Tsurf, fmt='%11.7f', newline=' ')
+
     vlim = ( np.percentile(err,95) + np.percentile(err,5) )/2
     fig, ax = tripcolor_vector(V, F, err, vmin=-vlim, vmax=+vlim, cmap='seismic')
     fig.savefig('error.png')
