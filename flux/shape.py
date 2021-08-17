@@ -154,7 +154,12 @@ class TrimeshShapeModel(ShapeModel):
 
         rayhit = embree.RayHit1M(len(J))
         context = embree.IntersectContext()
-        rayhit.org[:] = P
+
+        # TODO clean up how the "shift along N" is defined
+        # (currently proportional to facet side)
+        eps = np.sqrt(self.A[i]) / 200
+
+        rayhit.org[:] = P + eps*self.N[i]
         rayhit.dir[:] = D
         rayhit.tnear[:] = 0
         rayhit.tfar[:] = np.inf
@@ -210,7 +215,7 @@ class TrimeshShapeModel(ShapeModel):
 
         if Dsun.ndim == 1:
             ray = embree.Ray1M(n)
-            ray.org[:] = self.P + eps*self.N
+            ray.org[:] = self.P + eps[:,np.newaxis]*self.N
             ray.dir[:] = Dsun
             ray.tnear[:] = 0
             ray.tfar[:] = np.inf
@@ -219,7 +224,7 @@ class TrimeshShapeModel(ShapeModel):
             m = Dsun.size//3
             ray = embree.Ray1M(m*n)
             for i in range(m):
-                ray.org[i*n:(i + 1)*n, :] = self.P + eps*self.N
+                ray.org[i*n:(i + 1)*n, :] = self.P + eps[:,np.newaxis]*self.N
             for i, d in enumerate(Dsun):
                 ray.dir[i*n:(i + 1)*n, :] = d
             ray.tnear[:] = 0
