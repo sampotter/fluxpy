@@ -90,11 +90,11 @@ def update_incoming_radiances_wsvd(E, albedo, emiss, Qrefl, QIR, Tsurf, Vt, w, U
     # eq 18 radiosity paper, long-wavelength
     #QIR_np1 = FF @ (emiss*sigSB*Tsurf**4 + (1-emiss)*QIR)
     if w.size>1:
-        tmp1 = Vt @ ( emiss*sigSB*Tsurf**4 + (1-emiss)*Qrefl )
+        tmp1 = Vt @ ( emiss*sigSB*Tsurf**4 + (1-emiss)*QIR )
         tmp2 = np.multiply( w, tmp1)
         QIR_np1 = U @ tmp2
     else: # only one mode
-        tmp1 = np.dot( Vt, emiss*sigSB*Tsurf**4 + (1-emiss)*Qrefl )
+        tmp1 = np.dot( Vt, emiss*sigSB*Tsurf**4 + (1-emiss)*QIR )
         tmp2 = np.multiply( w, tmp1 )
         QIR_np1 = np.multiply( U, tmp2 )
 
