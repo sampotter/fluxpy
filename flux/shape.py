@@ -173,7 +173,7 @@ class TrimeshShapeModel(ShapeModel):
             rayhit.prim_id == J
         )
 
-    def get_direct_irradiance(self, F0, Dsun, basemesh=None, eps=None):
+    def get_direct_irradiance(self, F0, Dsun, unit_Svec=False, basemesh=None, eps=None):
         '''Compute the insolation from the sun.
 
         Parameters
@@ -193,6 +193,10 @@ class TrimeshShapeModel(ShapeModel):
             How far to perturb the start of the ray away from each
             face. Default is 1e3*np.finfo(np.float32).resolution. This
             is to overcome precision issues with Embree.
+
+        unit_Svec: bool
+            defines if Dsun is a unit vector (Sun direction) or
+            the actual Sun-origin vector (check AU units below)
 
         Returns
         -------
@@ -214,6 +218,11 @@ class TrimeshShapeModel(ShapeModel):
         n = self.num_faces
 
         if Dsun.ndim == 1:
+            # Normalize Dsun
+            distSunkm = np.sqrt(np.sum(Dsun ** 2))
+            # print(distSunkm)
+            Dsun /= distSunkm
+
             ray = embree.Ray1M(n)
             ray.org[:] = self.P + eps[:,np.newaxis]*self.N
             ray.dir[:] = Dsun
@@ -221,6 +230,10 @@ class TrimeshShapeModel(ShapeModel):
             ray.tfar[:] = np.inf
             ray.flags[:] = 0
         elif Dsun.ndim == 2:
+            # Normalize Dsun
+            distSunkm = np.linalg.norm(Dsun,axis=1)[:,np.newaxis]
+            Dsun /= distSunkm
+
             m = Dsun.size//3
             ray = embree.Ray1M(m*n)
             for i in range(m):
@@ -236,6 +249,11 @@ class TrimeshShapeModel(ShapeModel):
         # Determine which rays escaped (i.e., can see the sun)
         I = np.isposinf(ray.tfar)
 
+        # rescale solar flux depending on distance
+        if not unit_Svec:
+            AU_km = 149597900.
+            F0 *= (AU_km / distSunkm) ** 2
+
         # Compute the direct irradiance
         if Dsun.ndim == 1:
             E = np.zeros(n, dtype=self.dtype)
@@ -244,5 +262,8 @@ class TrimeshShapeModel(ShapeModel):
             E = np.zeros((n, m), dtype=self.dtype)
             I = I.reshape(m, n)
             for i, d in enumerate(Dsun):
-                E[I[i], i] = F0*np.maximum(0, self.N[I[i]]@d)
+                if unit_Svec:
+                    E[I[i], i] = F0*np.maximum(0, self.N[I[i]]@d)
+                else:
+                    E[I[i], i] = F0[i]*np.maximum(0, self.N[I[i]]@d)
         return E
