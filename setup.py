@@ -8,9 +8,9 @@ DISTNAME = 'python-flux'
 ext_modules = [
     Extension(
         name='flux.thermal',
-        sources=['flux/pcc/conductionQ.c', 'flux/pcc/tridag.c',
-                 'flux/thermal.pyx'],
-    )
+        sources=['flux/pcc/conductionQ.c', 'flux/pcc/conductionT.c', 'flux/pcc/tridag.c',
+                 'flux/thermal.pyx']
+    ),
 ]
 
 setup(
