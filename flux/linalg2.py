@@ -33,12 +33,16 @@ def xSVDcomputation(ff_filename='FF.bin', TRUNC=0, mode='full'):
 
     start = time.time()
     if mode=='full':
-        print('- performing full SVD decomposition')
+        print('- performing full SVD decomposition', VF.shape)
         #U,sigma,Vt = numpy.linalg.svd(VF, full_matrices=True, compute_uv=True, hermitian=False)
         U,sigma,Vt = scipy.linalg.svd(VF, full_matrices=True, compute_uv=True)
     else:
-        print('- performing approximate SVD with',TRUNC,'terms')
+        print('- performing approximate SVD with',TRUNC,'terms', VF.shape)
         U,sigma,Vt = randomized_svd(VF, n_components=TRUNC, random_state=None)
+
+    # check that no negative singular values are present
+    assert(len(sigma[sigma<0])==0)
+
     end = time.time()
     print('Time for SVD:',end-start)
 
@@ -46,7 +50,7 @@ def xSVDcomputation(ff_filename='FF.bin', TRUNC=0, mode='full'):
     outdir = '../examples/'
     if TRUNC<Nflat:
         print('- output truncated to',TRUNC,'terms')
-    numpy.savetxt(os.path.join(outdir,'svd_sigma.dat'), sigma, newline=' ')
+    numpy.savetxt(os.path.join(outdir,'svd_sigma.dat'), sigma[:TRUNC], newline=' ')
     numpy.savetxt(os.path.join(outdir,'svd_U.dat'), U[:,0:TRUNC], fmt='%11.7f')
     numpy.savetxt(os.path.join(outdir,'svd_V.dat'), Vt[0:TRUNC,:], fmt='%11.7f')
 

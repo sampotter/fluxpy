@@ -4,6 +4,7 @@ import numpy as np
 
 from abc import ABC
 
+use1M = True
 
 def get_centroids(V, F):
     return V[F].mean(axis=1)
@@ -147,17 +148,23 @@ class TrimeshShapeModel(ShapeModel):
     def check_vis_1_to_N(self, i, J, eps=None):
         if eps is None:
             eps = 1e3*np.finfo(np.float32).resolution
+            # TODO clean up how the "shift along N" is defined
+            # also applied along P
+            # (currently proportional to facet side)
+            eps = np.sqrt(self.A[i]) / 200
 
         D = self.P[J] - self.P[i]
         D /= np.sqrt(np.sum(D**2, axis=1)).reshape(D.shape[0], 1)
         P = self.P[i] + eps*D
 
-        rayhit = embree.RayHit1M(len(J))
-        context = embree.IntersectContext()
+        if use1M:
+            rayhit = embree.RayHit1M(len(J))
+        else:
+            print("Using RayHitNp")
+            rayhit = embree.RayHitNp(len(J))
 
-        # TODO clean up how the "shift along N" is defined
-        # (currently proportional to facet side)
-        eps = np.sqrt(self.A[i]) / 200
+        context = embree.IntersectContext()
+        # context.flags = embree.IntersectContextFlags.COHERENT
 
         rayhit.org[:] = P + eps*self.N[i]
         rayhit.dir[:] = D
@@ -166,7 +173,11 @@ class TrimeshShapeModel(ShapeModel):
         rayhit.flags[:] = 0
         rayhit.geom_id[:] = embree.INVALID_GEOMETRY_ID
 
-        self.scene.intersect1M(context, rayhit)
+        if use1M:
+            self.scene.intersect1M(context, rayhit)
+        else:
+            self.scene.intersectNp(context, rayhit)
+
 
         return np.logical_and(
             rayhit.geom_id != embree.INVALID_GEOMETRY_ID,
@@ -224,7 +235,10 @@ class TrimeshShapeModel(ShapeModel):
             Dsun /= distSunkm
 
             ray = embree.Ray1M(n)
-            ray.org[:] = self.P + eps[:,np.newaxis]*self.N
+            if eps.ndim==0:
+                ray.org[:] = self.P + eps*self.N
+            else:
+                ray.org[:] = self.P + eps[:,np.newaxis]*self.N
             ray.dir[:] = Dsun
             ray.tnear[:] = 0
             ray.tfar[:] = np.inf
@@ -261,6 +275,7 @@ class TrimeshShapeModel(ShapeModel):
         else:
             E = np.zeros((n, m), dtype=self.dtype)
             I = I.reshape(m, n)
+            # TODO check if this can be vectorized
             for i, d in enumerate(Dsun):
                 if unit_Svec:
                     E[I[i], i] = F0*np.maximum(0, self.N[I[i]]@d)

@@ -22,7 +22,7 @@ from pathlib import Path
 import flux.compressed_form_factors as cff
 import flux.form_factors as ff
 
-from flux.model import compute_steady_state_temp, update_incoming_radiances
+from flux.model import compute_steady_state_temp, update_incoming_radiances, update_incoming_radiances_wsvd
 from flux.plot import tripcolor_vector
 from flux.thermal import PccThermalModel1D, setgrid
 from scipy.constants import sigma as sigSB
@@ -34,9 +34,9 @@ F0 = 1365  # Solar constant
 emiss = 0.95  # Emissitivity
 albedo = 0.12  # Visual (?) albedo
 Fgeoth = 0.2
-subsurf_heat = False  # True
+steady_state = False  # True
 
-def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compressed=True):
+def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compressed=True, plot_fluxes=False, use_svd=False):
     """
     Compute Sun position, illuminate FF and compute irradiance and temperature
     Args:
@@ -73,7 +73,12 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
     ]).T
 
     # Load compressed form factor matrix, including shape model, from disk
-    if compressed:
+    if use_svd:
+        V = np.load('lsp_V.npy')
+        F = np.load('lsp_F.npy')
+        N = np.load('lsp_N.npy')
+        shape_model = TrimeshShapeModel(V, F, N)
+    elif compressed:
         logging.warning("Retrieving compressed FF block and shape_model...")
         FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
         shape_model = FF.shape_model
@@ -93,12 +98,15 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
         E_arr.append(shape_model.get_direct_irradiance(F0, sun_dir))
 
     E = np.vstack(E_arr).T
+    Qrefl = []
+    QIR = []
+    T = []
 
-    if not subsurf_heat:
+    if steady_state:
         # Compute steady state temperature
         T_arr = compute_steady_state_temp(FF, E, albedo, emiss)
         T = np.vstack(T_arr).T
-    else:
+    elif False:
         # spin-up model until equilibrium is reached
 
         # generate 1D grid
@@ -131,26 +139,59 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
             T.append(model.T[:,0])
         # adapt shapes for plotting
         T = np.vstack(T).T
+    else:
+        # loop over time-steps/sun angles
+        for i in range(len(sun_dirs) - 1):
+            Qabs0 = (1 - albedo) * E[:, i] + Fgeoth
+            Tsurf0 = (Qabs0 / (sigSB * emiss)) ** 0.25
+            if not use_svd:
+                # get Q(np1) as in Eq. 17-19
+                if i == 0:
+                    Qrefl_np1, QIR_np1 = update_incoming_radiances(FF, E[:, i + 1], albedo, emiss,
+                                                                   Qrefl=0., QIR=0., Tsurf=Tsurf0)
+                else:
+                    Qrefl_np1, QIR_np1 = update_incoming_radiances(FF, E[:, i + 1], albedo, emiss,
+                                                                   Qrefl=Qrefl_np1, QIR=0., Tsurf=Tsurf0)
+            else:
+                # read outputs of xSVDcomputation
+                U = np.loadtxt('svd_U.dat');
+                sigma = np.loadtxt('svd_sigma.dat')
+                Vt = np.loadtxt('svd_V.dat')
+
+                if i == 0:
+                    Qrefl_np1, QIR = update_incoming_radiances_wsvd(E[:, i + 1], albedo, emiss, 0, 0,
+                                                                Tsurf0, Vt, sigma, U)
+                else:
+                    Qrefl_np1, QIR = update_incoming_radiances_wsvd(E[:, i + 1], albedo, emiss, Qrefl_np1, 0,
+                                                                Tsurf0, Vt, sigma, U)
+            # save Qrefl
+            Qrefl.append(Qrefl_np1)
+            T.append(Tsurf0)
+        # adapt shapes for plotting
+        Qrefl = np.vstack(Qrefl).T
+        T = np.vstack(T).T
 
     Path(f"./frames").mkdir(parents=True, exist_ok=True)
 
-    for i, sun_dir in enumerate(sun_dirs[:]):
-        print('frame = %d' % i)
+    if plot_fluxes:
+        for i, sun_dir in enumerate(sun_dirs[:]):
+            print('frame = %d' % i)
 
-        fig, ax = tripcolor_vector(V, F, E[:,i], cmap=cc.cm.gray)
-        fig.savefig(f"./frames/lsp_E1_%03d.png" % i)
-        plt.close(fig)
+            fig, ax = tripcolor_vector(V, F, E[:,i], cmap=cc.cm.gray)
+            fig.savefig(f"./frames/lsp_E1_%03d.png" % i)
+            plt.close(fig)
 
-        fig, ax = tripcolor_vector(V, F, T[:,i], cmap=cc.cm.fire)
-        fig.savefig(f"./frames/lsp_T1_%03d.png" % i)
-        plt.close(fig)
+            fig, ax = tripcolor_vector(V, F, T[:,i], cmap=cc.cm.fire)
+            fig.savefig(f"./frames/lsp_T1_%03d.png" % i)
+            plt.close(fig)
 
-        I_shadow = E[:,i] == 0
-        fig, ax = tripcolor_vector(V, F, T[:,i], I=I_shadow, cmap=cc.cm.rainbow, vmax=100)
-        fig.savefig(f"./frames/lsp_T1_shadow_%03d.png" % i)
-        plt.close(fig)
+            I_shadow = E[:,i] == 0
+            fig, ax = tripcolor_vector(V, F, T[:,i], I=I_shadow, cmap=cc.cm.rainbow, vmax=100)
+            fig.savefig(f"./frames/lsp_T1_shadow_%03d.png" % i)
+            plt.close(fig)
 
-    return {"V":V,"F":F,"T":T,"E":E}
+    # starting E from second element, to have same number of elements on all arrays
+    return {"V":V,"F":F,"E":E[:,1:],'Qrefl':Qrefl,"QIR":QIR,"T":T}
 
 if __name__ == '__main__':
 

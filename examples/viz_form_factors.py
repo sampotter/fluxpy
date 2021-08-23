@@ -2,7 +2,7 @@
 
 import colorcet as cc
 import pyvista as pv
-import pyvistaqt as pvqt
+# import pyvistaqt as pvqt
 import numpy as np
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
@@ -10,10 +10,10 @@ from flux.compressed_form_factors import CompressedFormFactorMatrix
 if __name__ == '__main__':
     # Load a compressed form factor matrix from FF.bin. This script
     # assumes that F stores the underlying shape model.
-    FF = CompressedFormFactorMatrix.from_file('FF.bin')
+    FF = CompressedFormFactorMatrix.from_file('lsp_fake_compressed_form_factors.bin') #'FF.bin')
 
     # Select a face by index, and make sure it's valid
-    face_index = 0
+    face_index = 500   # this will appear in blue/negative on the map!
     assert(face_index < FF.num_faces)
 
     # Pull out the column of FF corresponding to face_index
@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     # Since f[face_index] == 0, we set it to -f.max() so that we can
     # visualize its location in the plot below.
-    f[face_index] = -f.max()
+    f[face_index] = -f.max()  # blue face is the selected one
 
     # Next, iterate over the indices corresponding to each row block,
     # and set the entries of f for each block that *doesn't* contain
@@ -53,6 +53,6 @@ if __name__ == '__main__':
     #
     # (Note: we're using pvqt.BackgroundPlotter here since there are
     # some bugs with pv.Plotter on Mac at the moment.)
-    plotter = pvqt.BackgroundPlotter()
+    plotter = pv.Plotter()
     plotter.add_mesh(tri_mesh, lighting=False, cmap=cc.cm.coolwarm)
     plotter.show()

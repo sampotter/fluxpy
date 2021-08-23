@@ -25,7 +25,7 @@ def setup_form_factor_matrix(compress=True, tol=1e-2):
     shape_model = TrimeshShapeModel(V, F, N)
 
     if compress:
-        FF = CompressedFormFactorMatrix.assemble_using_quadtree(shape_model, tol=tol)
+        FF = CompressedFormFactorMatrix.assemble_using_quadtree(shape_model, tol=tol, min_size=1.e4) #0.*1442402) # 1000)
         FF.save('lsp_compressed_form_factors.bin')
     else:
         FF = get_form_factor_block(shape_model)
