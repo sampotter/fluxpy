@@ -144,15 +144,39 @@ class TrimeshShapeModel(ShapeModel):
     def num_faces(self):
         return self.P.shape[0]
 
-    def check_vis_1_to_N(self, i, J, eps=None):
+    def check_vis(self, I, J, eps=None):
+        '''Compute the visibility mask for pairs of indices (i, j) taken from
+        index arrays I and J. If M = len(I) and N = len(J), the
+        resulting array is an M x N binary matrix V, where V[i, j] ==
+        1 if a ray traced from the centroid of facet i to the centroid
+        of facet j is unoccluded.
+
+        The parameter eps is used to perturb the start of each ray
+        away from the facet centroid. This is because Embree (by
+        default) doesn't know to check for self-intersection. A
+        "filter function" should be set up to support this, but this
+        hasn't been implemented. For now, we use the eps parameter,
+        which is a bit of a hack.
+
+        '''
         if eps is None:
             eps = 1e3*np.finfo(np.float32).resolution
 
-        D = self.P[J] - self.P[i]
-        D /= np.sqrt(np.sum(D**2, axis=1)).reshape(D.shape[0], 1)
-        P = self.P[i] + eps*D
+        M, N = len(I), len(J)
 
-        rayhit = embree.RayHit1M(len(J))
+        PJ = self.P[J]
+
+        D = np.empty((M*N, 3), dtype=self.dtype)
+        for q, i in enumerate(I):
+            D[q*N:(q + 1)*N] = PJ - self.P[i]
+        D /= np.sqrt(np.sum(D**2, axis=1)).reshape(D.shape[0], 1)
+
+        P = np.empty_like(D)
+        for q, i in enumerate(I):
+            P[q*N:(q + 1)*N] = self.P[i]
+        P += eps*D
+
+        rayhit = embree.RayHit1M(M*N)
         context = embree.IntersectContext()
         rayhit.org[:] = P
         rayhit.dir[:] = D
@@ -166,7 +190,10 @@ class TrimeshShapeModel(ShapeModel):
         return np.logical_and(
             rayhit.geom_id != embree.INVALID_GEOMETRY_ID,
             rayhit.prim_id == J
-        )
+        ).reshape(M, N)
+
+    def check_vis_1_to_N(self, i, J, eps=None):
+        return self.check_vis([i], J, eps).ravel()
 
     def get_direct_irradiance(self, F0, Dsun, eps=None):
         '''Compute the insolation from the sun.
