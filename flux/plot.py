@@ -45,7 +45,7 @@ def plot_blocks(block, **kwargs):
             child = block._blocks[i, j]
             if child.is_leaf:
                 if isinstance(child, cff.FormFactorSvdBlock):
-                    facecolor = 'cyan' if child.compressed else 'orange'
+                    facecolor = 'cyan' #if child.compressed else 'orange'
                     rect = patches.Rectangle(
                         c, w, h, edgecolor='none', facecolor=facecolor)
                     ax.add_patch(rect)

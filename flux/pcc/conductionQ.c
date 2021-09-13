@@ -1,5 +1,5 @@
 #include "thrmlLib.h"
-
+#include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -52,10 +52,32 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	double arad, brad, ann, annp1, bn, buf, dz, beta;
 	double Told[nz+1];
 
+    double dT300, cp;
+    double rho[nz+1],Kc[nz+1];
+    const double Kd = 5.7E-3; // Wm^-1K^-1
+    const double Ks = 4.E-4; // Wm^-1K^-1
+    const double H = 0.06; // meters
+    const double rho_d = 1700.; // 1.7 g/cm3 = *10^6/10^3 kg/m3
+    const double rho_s = 1000.; // 1 g/cm3
+    const double B = 4.2E-11; // Wm^-1K^-4
+
 	/* set some constants */
 	for (i=1; i<=nz; i++) {
 		k[i] = ti[i] * ti[i] / rhoc[i];  // thermal conductivity
+//		printf("%d rhoc_old=%f k=%f \n", i, rhoc[i], k[i]);
 	}
+//    for(int i = 0; i < nz; i++) {
+//        rho[i] = rho_d - (rho_d-rho_s)*exp(-z[i]/H);  // eq 9 Hayne15
+//        Kc[i] = Kd - (Kd-Ks)*(rho_d - rho[i])/(rho_d-rho_s); // eq 10 Hayne15
+//
+//        dT300 = (T[i] - 300.)/300.;
+//        cp = 4184 * (0.1812+0.1191*dT300+0.0176*pow(dT300,2)+0.2721*pow(dT300,3)+0.1869*pow(dT300,4)); // Eq 6 Ledlow92 [4184 cal g^-1 K^-1 --> J kg^-1 K^-1]
+//        k[i] = Kc[i] + B*pow(T[i],3);  //  eq 11 Hayne15
+//        rhoc[i] = rho[i]*cp;
+////        printf("%d rhoc_new=%f k=%f \n", i, rhoc[i], k[i]);
+//    }
+//    rhoc[0] = rhoc[1];
+//    rhoc[nz] = rhoc[nz-1];
 
 	dz = 2.*z[1];
 	beta = dt / rhoc[1] / (2.*dz*dz);  // assumes rhoc[0]=rhoc[1]
@@ -84,6 +106,17 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	for (i=1; i<=nz; i++) Told[i] = T[i];
 
   lbpredcorr:
+    // update with new T
+//    for(int i = 0; i < nz; i++) {
+//        dT300 = (T[i] - 300.)/300.;
+//        cp = 4184 * (0.1812+0.1191*dT300+0.0176*pow(dT300,2)+0.2721*pow(dT300,3)+0.1869*pow(dT300,4)); // Eq 6 Ledlow92 [4184 cal g^-1 K^-1 --> J kg^-1 K^-1]
+//
+//        k[i] = Kc[i] + B*pow(T[i],3);  //  eq 11 Hayne15
+//        rhoc[i] = rho[i]*cp;
+////        printf("%d rhoc_new_lbpredcorr@%d=%f k=%f \n", i, iter, rhoc[i], k[i]);
+//        }
+//    rhoc[0] = rhoc[1];
+//    rhoc[nz] = rhoc[nz-1];
 
 	/* Emission */
 	arad = -3 * emiss * sigSB * Tr * Tr * Tr * Tr;
@@ -117,7 +150,7 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 		for (i=1; i<=nz; i++) T[i] = Told[i];
 		goto lbpredcorr;
 	}
-	// if (iter>=5) printf("consider taking shorter time steps %d\n",iter);
+    if (iter>=9) printf("consider taking shorter time steps %d\n",iter);
 
 	*Fsurf = -k[1] * (T[1] - T[0]) / z[1];  // heat flux into surface
 

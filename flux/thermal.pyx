@@ -77,7 +77,7 @@ cdef class PccThermalModel1D:
     def Tsurfprev(self):
         return np.asarray(self.Tsurfprev)
 
-    def __cinit__(self, int nfaces, double[::1] z, double T0, double
+    def __cinit__(self, int nfaces, double[::1] z, double[:,:] T0, double
                   ti, double rhoc, double emissivity=0.0, Fgeotherm=0.0, Qprev=0.0,
                   Tsurfprev=0.0, bcond='Q'):
         self.nfaces = nfaces
@@ -139,6 +139,11 @@ cdef class PccThermalModel1D:
                     self.Fgeotherm[i],
                     &self.Fsurf[i]
                 )
+                # TODO add check for positive Temperatures, else throw error and exit
+                if f"{X[i]}" == 'nan':
+                    print(f"*** Issue at face {i}, X[i]={X[i]}.\nCheck T and consider taking shorter time steps.")
+                    exit()
+
             self.Qprev[...] = X[...]
 
         elif self.bcond == 'T':

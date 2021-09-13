@@ -208,6 +208,8 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
         y = self._vt@x
         y = (y.T*self._s).T
         y = self._u@y
+        # TODO OK? Shouldn't be necessary, but is it ok?
+        y[y<0.] = 0.
         return y
 
     @property
@@ -235,6 +237,10 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         nnz, shape = spmat.nnz, spmat.shape
         size = np.product(shape)
         sparsity = nnz/size
+        # print(size)
+        # exit()
+
+        # print(nnz, shape, size, sparsity, self._min_size, self._sparsity_threshold)
 
         if shape[0] == 0 and shape[1] == 0:
             return self.root.make_null_block()
@@ -243,24 +249,35 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return self.root.make_zero_block(shape)
 
         if size < self._min_size:
+            # if not is_diag:
+            #     # print("make svd", size, sparsity)
+            #     return self.make_compressed_sparse_block(spmat)
+            # else:
             if sparsity < self._sparsity_threshold:
+                # print("make sparse", size, sparsity)
                 return self.root.make_sparse_block(spmat, fmt='csr')
             else:
+                # print("make dense", size, sparsity)
                 return self.root.make_dense_block(spmat.toarray())
         else:
+            # print("Entering here since", size, self._min_size)
             if not is_diag:
+                # print("make svd", size, sparsity)
                 block = self.make_compressed_sparse_block(spmat)
             else:
                 block = self.make_child_block(shape_model, spmat, I, J)
                 if block.is_dense():
+                    # print("make dense child", size, sparsity)
                     block = self.root.make_dense_block(block.toarray())
                 elif block.is_sparse():
+                    # print("make sparse child", size, sparsity)
                     block = self.root.make_sparse_block(block.tocsr())
             return block
 
     def make_compressed_sparse_block(self, spmat):
         ret = flux.linalg.estimate_rank(
             spmat, self._tol, max_nbytes=nbytes(spmat))
+        # print(ret)
         if ret is None:
             return self.root.make_sparse_block(spmat)
         U, S, Vt, tol = ret
@@ -551,7 +568,7 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
                  min_size=16384, RootBlock=FormFactorQuadtreeBlock,
                  **kwargs):
         self.shape_model = shape_model
-
+        print(tol)
         self._tol = tol
         self._max_rank = max_rank
         self._min_size = min_size

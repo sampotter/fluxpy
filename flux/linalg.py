@@ -3,7 +3,7 @@ import scipy.sparse.linalg
 
 
 # from sparsesvd import sparsesvd
-
+from sklearn.utils.extmath import randomized_svd
 
 from flux.debug import DebugLinearOperator, IndentedPrinter
 from flux.util import nbytes
@@ -47,15 +47,21 @@ def estimate_rank(spmat, tol, max_nbytes=None, k0=40):
     dtype_eps = np.finfo(spmat.dtype).eps
     while True:
         k = min(k, m - 1)
-        U, S, Vt = sparse_svd(spmat, k)
+        # U, S, Vt = sparse_svd(spmat, k)
+        U, S, Vt = randomized_svd(spmat, n_components=k, random_state=None)
         svd_nbytes = nbytes(U) + nbytes(S) + nbytes(Vt)
         if max_nbytes is not None and svd_nbytes >= max_nbytes:
+            # print("not worth it, use sparse")
             return None
+        # else:
+        #     return U[:, :], S[:], Vt[:, :], 0
         thresh = sqrt_n*S/S[0]
         if k == m:
             return U, S, Vt, thresh[m]
         assert thresh[0] >= 1
+        # print(k,np.min(thresh), tol)
         below_thresh = np.where(thresh <= tol)[0]
+        # print(below_thresh)
         if below_thresh.size > 0:
             r = below_thresh[0]
             return U[:, :r], S[:r], Vt[:r, :], thresh[r]

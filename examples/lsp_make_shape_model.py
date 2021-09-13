@@ -28,7 +28,7 @@ def make_shape_model(grdpath):
 
     grdx_, grdy_ = np.meshgrid(grdx, grdy)
 
-    # Unprotect from stereographic to lon/lat
+    # Unproject from stereographic to lon/lat
 
     lon0, lat0, R = 0, -90, 1737.4
 
@@ -56,8 +56,8 @@ def make_shape_model(grdpath):
     el_ = np.deg2rad(lat_)
     r_ = R + grdz_
 
-    i0, i1 = 2425, 2525
-    j0, j1 = 1912, 2012
+    i0, i1 = 2475, 2525 # 2425, 2525
+    j0, j1 = 1912, 1962 # 1912, 2012
 
     az = az_[i0:i1, j0:j1]
     el = el_[i0:i1, j0:j1]
