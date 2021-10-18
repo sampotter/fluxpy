@@ -44,8 +44,11 @@ class ThermalTestCase(unittest.TestCase):
         latitude = 5.; latitude = np.deg2rad(latitude)
         Qn = (1 - albedo) * flux_noatm(Rau, Decl, latitude, HA, 0., 0.)
 
+        T0 = np.empty((1, z.size + 1))
+        T0[...] = 210
+
         # set-up thermal model
-        model = PccThermalModel1D(nfaces=1,z=z,T0=210,ti=120.,rhoc=960000.,
+        model = PccThermalModel1D(nfaces=1,z=z,T0=T0,ti=120.,rhoc=960000.,
                                   emissivity=1.,Fgeotherm=0.2, Qprev=Qn, bcond='Q')
 
         dt = 495661.77900000004
