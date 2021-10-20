@@ -2,7 +2,6 @@ import logging
 import os
 from matplotlib import pyplot as plt
 import numpy as np
-from tqdm import tqdm
 import pyvista as pv
 
 from examples.lsp_form_factor_matrix import setup_form_factor_matrix
@@ -43,7 +42,7 @@ print('- wrote blocks.png')
 # (is this correct AT ALL, btw? Not sure...)
 residuals = []
 e = np.zeros(cFF.shape[1])
-for i in tqdm(range(cFF.shape[1])):
+for i in range(cFF.shape[1]):
     e[i] = 1
     tmp = cFF@e - fFF.getrow(i).toarray()
     residuals.append(tmp)
