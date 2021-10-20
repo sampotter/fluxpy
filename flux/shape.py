@@ -150,6 +150,10 @@ class TrimeshShapeModel(ShapeModel):
         return self.P.shape[0]
 
     def check_vis(self, I, J, eps=None):
+    @property
+    def num_verts(self):
+        return self.V.shape[0]
+
         '''Compute the visibility mask for pairs of indices (i, j) taken from
         index arrays I and J. If M = len(I) and N = len(J), the
         resulting array is an M x N binary matrix V, where V[i, j] ==
