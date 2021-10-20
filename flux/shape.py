@@ -141,6 +141,10 @@ class TrimeshShapeModel(ShapeModel):
     def __reduce__(self):
         return (self.__class__, (self.V, self.F, self.N, self.P, self.A))
 
+    def __repr__(self):
+        return 'a TrimeshShapeModel with %d vertices and %d faces' % (
+            self.num_verts, self.num_faces)
+
     @property
     def num_faces(self):
         return self.P.shape[0]
