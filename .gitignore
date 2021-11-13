@@ -20,5 +20,6 @@ GRTAGS
 GTAGS
 __pycache__
 build
+dist
 flux/thermal.c
 stats
