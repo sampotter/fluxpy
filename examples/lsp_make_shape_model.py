@@ -10,9 +10,9 @@ import scipy.interpolate
 import scipy.ndimage
 import scipy.spatial
 
-from flux.shape import get_centroids, get_surface_normals
+from flux.shape import get_centroids, get_surface_normals, TrimeshShapeModel
 
-def make_shape_model(grdpath):
+def make_shape_model(grdpath, verbose=False):
 
     # Read GRD file
 
@@ -82,21 +82,25 @@ def make_shape_model(grdpath):
     N = get_surface_normals(V, F)
     N[(N*P).sum(1) < 0] *= -1
 
+    shape_model = TrimeshShapeModel(V, F, N, P)
+
     print('- created shape model with %d faces and %d vertices' % (F.shape[0], V.shape[0]))
 
-    # Save the mesh data to disk as numpy binary files
-
-    np.save('lsp_V.npy', V)
-    print('- wrote lsp_V.npy')
-
-    np.save('lsp_F.npy', F)
-    print('- wrote lsp_F.npy')
-
-    np.save('lsp_N.npy', N)
-    print('- wrote lsp_N.npy')
+    return shape_model
 
 if __name__ == '__main__':
 
     path = os.path.join('.', 'LDEM_80S_150M_adjusted.grd')
 
-    make_shape_model(grdpath=path)
+    shape_model = make_shape_model(grdpath=path)
+
+    # Save the mesh data to disk as numpy binary files
+
+    np.save('lsp_V.npy', shape_model.V)
+    print('- wrote lsp_V.npy')
+
+    np.save('lsp_F.npy', shape_model.F)
+    print('- wrote lsp_F.npy')
+
+    np.save('lsp_N.npy', shape_model.N)
+    print('- wrote lsp_N.npy')

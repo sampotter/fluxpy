@@ -43,25 +43,32 @@ def sparse_svd(spmat, k):
 
 def estimate_rank(spmat, tol, max_nbytes=None, k0=40):
     assert tol < 1
-    m, k, sqrt_n = min(spmat.shape), k0, np.sqrt(spmat.shape[1])
+
+    if spmat.shape[0] == 0 or spmat.shape[1] == 0:
+        return 0
+
+    if spmat.shape == (1, 1):
+        return 1
+
+    m, k = min(spmat.shape), k0
     dtype_eps = np.finfo(spmat.dtype).eps
     while True:
         k = min(k, m - 1)
-        # U, S, Vt = sparse_svd(spmat, k)
-        U, S, Vt = randomized_svd(spmat, n_components=k, random_state=None)
+        if not k >= 1:
+            raise RuntimeError('bad value of k')
+        U, S, Vt = sparse_svd(spmat, k)
         svd_nbytes = nbytes(U) + nbytes(S) + nbytes(Vt)
         if max_nbytes is not None and svd_nbytes >= max_nbytes:
-            # print("not worth it, use sparse")
             return None
-        # else:
-        #     return U[:, :], S[:], Vt[:, :], 0
-        thresh = sqrt_n*S/S[0]
+        try:
+            thresh = S/S[0]
+        except:
+            import pdb; pdb.set_trace()
+            pass
         if k == m:
             return U, S, Vt, thresh[m]
         assert thresh[0] >= 1
-        # print(k,np.min(thresh), tol)
         below_thresh = np.where(thresh <= tol)[0]
-        # print(below_thresh)
         if below_thresh.size > 0:
             r = below_thresh[0]
             return U[:, :r], S[:r], Vt[:r, :], thresh[r]

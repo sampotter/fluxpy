@@ -30,14 +30,14 @@ import trimesh
 from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.plot import plot_blocks, tripcolor_vector
 from flux.shape import TrimeshShapeModel
-from flux.form_factors import get_form_factor_block
+from flux.form_factors import get_form_factor_matrix
 
 
 
 if __name__ == '__main__':
 
     compress = False  # compressed or uncompressed FF
-    
+
     # Load a DEM stored as a netCDF4 file, and pull out the coordinate data.
     path = os.path.join('.', 'ingersoll41.grd')
     rootgrp = netCDF4.Dataset(path)
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     # with native values of (x,y), Delaunay triangulates without interpolation
     delaunay = scipy.spatial.Delaunay(points_mesh)
     V, F = delaunay.points, delaunay.simplices
-    
+
     V = np.row_stack([V.T, np.array([z(*v)[0] for v in V])]).T
     num_faces = F.shape[0]
     print('created mesh with %d triangles' % num_faces)
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     fig.savefig('topo2.png')
     plt.close(fig)
     print('wrote topo2.png')
-    
+
     # Since Embree runs in single precision, there's no reason to use
     # double precision here.
     V = V.astype(np.float32)
@@ -114,7 +114,7 @@ if __name__ == '__main__':
         #fig.savefig('blocks.png')
         #plt.close(fig)
         #print('wrote blocks.png')
-        
+
     else:  # uncompressed
         # Write the mesh to disk as an OBJ file
         #trimesh.Trimesh(V, F).export('mesh.obj')
@@ -125,20 +125,20 @@ if __name__ == '__main__':
 
         with open('mesh.bin', 'wb') as f:
             pickle.dump(shape_model,f)
-        
+
         print('calculating full form factor matrix')
-        FF = get_form_factor_block(shape_model)
+        FF = get_form_factor_matrix(shape_model)
         with open('FF.bin', 'wb') as f:
             pickle.dump(FF,f)
             print('saved uncompressed form factor matrix to FF.bin')
 
     # exit()   # convenient test below
-    
+
     # Define constants used in the simulation:
     e0 = np.deg2rad(10) # Solar elevation angle
     F0 = 1365 # Solar constant
     dir_sun = np.array([0, -np.cos(e0), np.sin(e0)]) # Direction of sun
-    
+
     # Compute the direct irradiance and find the elements which are in shadow.
     E = shape_model.get_direct_irradiance(F0, dir_sun)
 
@@ -147,4 +147,3 @@ if __name__ == '__main__':
     fig.savefig('E.png')
     plt.close(fig)
     print('wrote E.png')
-

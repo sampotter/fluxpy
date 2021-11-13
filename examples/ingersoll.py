@@ -45,7 +45,7 @@ import scipy.sparse
 import trimesh
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
-from flux.form_factors import get_form_factor_block
+from flux.form_factors import get_form_factor_matrix
 from flux.ingersoll import HemisphericalCrater
 from flux.model import compute_steady_state_temp
 from flux.plot import plot_blocks, tripcolor_vector
@@ -82,7 +82,7 @@ if __name__ == '__main__':
     if args.tol is None:
         print("- tol argument not passed: assembling sparse form factor matrix")
         tic()
-        FF = get_form_factor_block(shape_model)
+        FF = get_form_factor_matrix(shape_model)
         t_FF = toc()
         FF_nbytes = FF.data.nbytes + FF.indptr.nbytes + FF.indices.nbytes
     else:

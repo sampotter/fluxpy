@@ -15,7 +15,7 @@ import flux.linalg
 
 
 from flux.debug import DebugLinearOperator, IndentedPrinter
-from flux.form_factors import get_form_factor_block
+from flux.form_factors import get_form_factor_matrix
 from flux.octree import get_octant_order
 from flux.quadtree import get_quadrant_order
 from flux.util import nbytes
@@ -58,10 +58,6 @@ class CompressedFormFactorBlock(ABC):
     @property
     def _tol(self):
         return self._root._tol
-
-    @property
-    def _max_rank(self):
-        return self._root._max_rank
 
     @property
     def _sparsity_threshold(self):
@@ -233,10 +229,22 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
     def __init__(self, root, shape):
         super().__init__(root, shape)
 
-    def make_block(self, shape_model, I, J, is_diag=False, spmat=None):
+    def make_block(self, shape_model, I, J, is_diag=False, spmat=None,
+                   max_depth=None):
+        if max_depth is not None and not isinstance(max_depth, int):
+            raise RuntimeError(
+                'invalid max_depth type: %s' % str(type(max_depth)))
+
+        if isinstance(max_depth, int) and max_depth <= 0:
+            raise RuntimeError('invalid max_depth value: %d' % max_depth)
+
         nnz, shape = spmat.nnz, spmat.shape
         size = np.product(shape)
-        sparsity = nnz/size
+        try:
+            sparsity = nnz/size
+        except:
+            import pdb; pdb.set_trace()
+            pass
 
         if shape[0] == 0 and shape[1] == 0:
             return self.root.make_null_block()
@@ -244,7 +252,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         if nnz == 0:
             return self.root.make_zero_block(shape)
 
-        if size < self._min_size:
+        if max_depth == 1 or size < self._min_size:
             if sparsity < self._sparsity_threshold:
                 return self.root.make_sparse_block(spmat, fmt='csr')
             else:
@@ -253,7 +261,9 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             if not is_diag:
                 block = self.make_compressed_sparse_block(spmat)
             else:
-                block = self.make_child_block(shape_model, spmat, I, J)
+                new_max_depth = None if max_depth is None else max_depth - 1
+                block = self.make_child_block(shape_model, spmat, I, J,
+                                              new_max_depth)
                 if block.is_dense():
                     block = self.root.make_dense_block(block.toarray())
                 elif block.is_sparse():
@@ -263,7 +273,6 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
     def make_compressed_sparse_block(self, spmat):
         ret = flux.linalg.estimate_rank(
             spmat, self._tol, max_nbytes=nbytes(spmat))
-        # print(ret)
         if ret is None:
             return self.root.make_sparse_block(spmat)
         U, S, Vt, tol = ret
@@ -275,8 +284,8 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         if tol <= self._tol:
             return svd_block
         else:
-            logging.warning('''computed a really inaccurate SVD, using
-            a larger sparse block instead...''')
+            logging.warning("""computed a really inaccurate SVD, using
+            a larger sparse block instead...""")
             return self.root.make_sparse_block(spmat)
 
     def _matmat(self, x):
@@ -379,7 +388,8 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
 class FormFactor2dTreeBlock(FormFactorBlockMatrix):
 
-    def __init__(self, root, shape_model, spmat_par=None, I_par=None, J_par=None):
+    def __init__(self, root, shape_model, spmat_par=None, I_par=None,
+                 J_par=None, max_depth=None):
         """Initializes a 2d-tree block.
 
         Parameters
@@ -396,6 +406,12 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             [0, root.shape[0]).
         J_par : array_like, optional
             Column indices for the ambient space. See explanation for I_par.
+        max_depth : positive integer or None
+            The maximum depth to which to recursively expand this
+            block (i.e., the tree height of the tree below this block
+            will be at most max_depth). If max_depth is None, then the
+            recursion will terminate naturally when one of the other
+            conditions are met.
 
         """
 
@@ -411,15 +427,16 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             row = []
             for j, col_inds in enumerate(self._col_block_inds):
                 J = col_inds if J_par is None else J_par[col_inds]
-                IndentedPrinter().print(
-                    '_get_form_factor_block(|I%d| = %d, |J%d| = %d)' % (
-                        i, len(row_inds), j, len(col_inds)))
                 if spmat_par is None:
-                    spmat = get_form_factor_block(shape_model, I, J)
+                    IndentedPrinter().print(
+                        'get_form_factor_matrix(|I%d| = %d, |J%d| = %d)' % (
+                            i, len(row_inds), j, len(col_inds)))
+                    spmat = get_form_factor_matrix(shape_model, I, J)
                 else:
                     spmat = spmat_par[row_inds, :][:, col_inds]
                 is_diag = i == j
-                block = self.make_block(shape_model, I, J, is_diag, spmat)
+                block = self.make_block(shape_model, I, J, is_diag,
+                                        spmat, max_depth)
                 row.append(block)
             blocks.append(row)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
@@ -430,14 +447,14 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
 
     @property
     def bshape(self):
-        '''The number of blocks along each dimension.'''
+        """The number of blocks along each dimension."""
         return (len(self._row_block_inds), len(self._col_block_inds))
 
     def get_individual_block(self, i, j):
-        '''Return a shallow copy of the block matrix with all blocks other
+        """Return a shallow copy of the block matrix with all blocks other
         than (i, j)th block set to zero.
 
-        '''
+        """
         tmp = copy.copy(self)
         tmp._blocks = copy.copy(tmp._blocks)
         for i_, j_ in it.product(*(range(_) for _ in self.bshape)):
@@ -448,10 +465,10 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
         return tmp
 
     def get_diag_blocks(self):
-        '''Return a shallow copy of the block matrix with the off-diagonal
+        """Return a shallow copy of the block matrix with the off-diagonal
         blocks set to zero.
 
-        '''
+        """
         tmp = copy.copy(self)
         tmp._blocks = copy.copy(tmp._blocks)
         for i, j in it.product(*(range(_) for _ in self.bshape)):
@@ -462,10 +479,10 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
         return tmp
 
     def get_off_diag_blocks(self):
-        '''Return a shallow copy of the block matrix with the diagonal blocks
+        """Return a shallow copy of the block matrix with the diagonal blocks
         set to zero.
 
-        '''
+        """
         tmp = copy.copy(self)
         tmp._blocks = copy.copy(tmp._blocks)
         for i, j in it.product(*(range(_) for _ in self.bshape)):
@@ -490,11 +507,18 @@ class FormFactorQuadtreeBlock(FormFactor2dTreeBlock):
 
     def _set_block_inds(self, shape_model, I, J):
         P = shape_model.P
-        PI = P[:, :2] if I is None else P[I, :2]
-        PJ = P[:, :2] if J is None else P[J, :2]
-        self._row_block_inds = get_quadrant_order(PI)
-        self._col_block_inds = get_quadrant_order(PJ)
 
+        PI = P[:, :2] if I is None else P[I, :2]
+        self._row_block_inds = [
+            I for I in get_quadrant_order(PI)
+            if I.size > 0
+        ]
+
+        PJ = P[:, :2] if J is None else P[J, :2]
+        self._col_block_inds = [
+            J for J in get_quadrant_order(PJ)
+            if J.size > 0
+        ]
 
 class FormFactorOctreeBlock(FormFactor2dTreeBlock):
 
@@ -506,11 +530,18 @@ class FormFactorOctreeBlock(FormFactor2dTreeBlock):
 
     def _set_block_inds(self, shape_model, I, J):
         P = shape_model.P
-        PI = P[:] if I is None else P[I]
-        PJ = P[:] if J is None else P[J]
-        self._row_block_inds = get_octant_order(PI)
-        self._col_block_inds = get_octant_order(PJ)
 
+        PI = P[:] if I is None else P[I]
+        self._row_block_inds = [
+            I for I in get_octant_order(PI)
+            if I.size > 0
+        ]
+
+        PJ = P[:] if J is None else P[J]
+        self._col_block_inds = [
+            J for J in get_octant_order(PJ)
+            if J.size > 0
+        ]
 
 class FormFactorPartitionBlock(FormFactorBlockMatrix):
 
@@ -534,7 +565,7 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
             row_blocks = []
             for j, J in enumerate(parts):
                 is_diag = i == j
-                spmat = get_form_factor_block(shape_model, I, J)
+                spmat = get_form_factor_matrix(shape_model, I, J)
                 block = self.make_block(shape_model, I, J, is_diag, spmat)
                 row_blocks.append(block)
             blocks.append(row_blocks)
@@ -549,48 +580,77 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
 
 
 class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
+    """A compressed form factor (view factor) matrix. This provides an
+    approximate version of the radiosity kernel matrix in an
+    HODLR-style format, which strives to use O(N log N) space and
+    provide an O(N log N) matrix-vector product for use in solving the
+    radiosity integral equation.
 
-    def __init__(self, shape_model, *args, tol=1e-5, max_rank=60,
-                 min_size=16384, RootBlock=FormFactorQuadtreeBlock,
-                 **kwargs):
+    """
+
+    def __init__(self, shape_model, tol=1e-5,
+                 min_size=16384, max_depth=None,
+                 RootBlock=FormFactorQuadtreeBlock, **kwargs):
+        """Create a new CompressedFormFactorMatrix.
+
+        Parameters
+        ----------
+        shape_model : ShapeModel
+            A discretization of the surface over which to solve the
+            radiosity integral equation.
+        tol : nonnegative float
+            The compression tolerance (TODO: this is broken---update this
+            once it's fixed to explain semantics)
+        min_size : positive integer
+            The minimum number of elements needed in a sub-block required
+            before compression is attempted.
+        max_depth : None or positive integer
+            The maximum depth of the hierarchical matrix. If None is passed,
+            then there is no maximum depth.
+        RootBlock : class
+            The class to use for the root node the hierarchical matrix.
+
+        """
+        if tol < 0:
+            raise RuntimeError('tol should be a nonnegative float')
+
         self.shape_model = shape_model
-        print(tol)
         self._tol = tol
-        self._max_rank = max_rank
         self._min_size = min_size
-        self._root = RootBlock(self, shape_model, *args, **kwargs)
+        self._max_depth = max_depth
+        self._root = RootBlock(self, shape_model, max_depth=max_depth, **kwargs)
 
     @staticmethod
     def from_file(path):
         with open(path, 'rb') as f:
             return pickle.load(f)
 
-    @classmethod
-    def assemble(cls, *args, **kwargs):
-        assert "tree_kind" in kwargs
-        tree_kind = kwargs['tree_kind']
-        del kwargs['tree_kind']
-        if tree_kind == 'quad':
-            return CompressedFormFactorMatrix(
-                *args, **kwargs, RootBlock=FormFactorQuadtreeBlock)
-        elif tree_kind == 'oct':
-            return CompressedFormFactorMatrix(
-                *args, **kwargs, RootBlock=FormFactorOctreeBlock)
+    # @classmethod
+    # def assemble(cls, **kwargs):
+    #     assert "tree_kind" in kwargs
+    #     tree_kind = kwargs['tree_kind']
+    #     del kwargs['tree_kind']
+    #     if tree_kind == 'quad':
+    #         return CompressedFormFactorMatrix(
+    #             **kwargs, RootBlock=FormFactorQuadtreeBlock)
+    #     elif tree_kind == 'oct':
+    #         return CompressedFormFactorMatrix(
+    #             **kwargs, RootBlock=FormFactorOctreeBlock)
 
-    @classmethod
-    def assemble_using_quadtree(cls, *args, **kwargs):
-        return CompressedFormFactorMatrix(
-            *args, **kwargs, RootBlock=FormFactorQuadtreeBlock)
+    # @classmethod
+    # def assemble_using_quadtree(cls, **kwargs):
+    #     return CompressedFormFactorMatrix(
+    #         **kwargs, RootBlock=FormFactorQuadtreeBlock)
 
-    @classmethod
-    def assemble_using_octree(cls, *args, **kwargs):
-        return CompressedFormFactorMatrix(
-            *args, **kwargs, RootBlock=FormFactorOctreeBlock)
+    # @classmethod
+    # def assemble_using_octree(cls, **kwargs):
+    #     return CompressedFormFactorMatrix(
+    #         **kwargs, RootBlock=FormFactorOctreeBlock)
 
-    @classmethod
-    def assemble_using_partition(cls, *args, **kwargs):
-        return CompressedFormFactorMatrix(
-            *args, **kwargs, RootBlock=FormFactorPartitionBlock)
+    # @classmethod
+    # def assemble_using_partition(cls, **kwargs):
+    #     return CompressedFormFactorMatrix(
+    #         **kwargs, RootBlock=FormFactorPartitionBlock)
 
     @property
     def dtype(self):

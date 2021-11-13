@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-import logging
+
 import pickle
 
 import numpy as np
 
-from flux.form_factors import get_form_factor_block
-from flux.compressed_form_factors import CompressedFormFactorMatrix
+import flux.compressed_form_factors as cff
+
+from flux.form_factors import get_form_factor_matrix
 from flux.shape import TrimeshShapeModel
 
 
@@ -25,10 +26,14 @@ def setup_form_factor_matrix(compress=True, tol=1e-2, min_size=1.e4):
     shape_model = TrimeshShapeModel(V, F, N)
 
     if compress:
-        FF = CompressedFormFactorMatrix.assemble_using_quadtree(shape_model, tol=tol, min_size=min_size) #0.*1442402) # 1000)
+        FF = cff.CompressedFormFactorMatrix(
+            shape_model,
+            tol=tol,
+            min_size=min_size,
+            RootBlock=cff.FormFactorQuadtreeBlock)
         FF.save('lsp_compressed_form_factors.bin')
     else:
-        FF = get_form_factor_block(shape_model)
+        FF = get_form_factor_matrix(shape_model)
         with open('lsp_full_form_factors.bin', 'wb') as f:
             pickle.dump(FF,f)
 

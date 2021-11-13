@@ -113,6 +113,7 @@ class TrimeshShapeModel(ShapeModel):
         device = embree.Device()
         geometry = device.make_geometry(embree.GeometryType.Triangle)
         scene = device.make_scene()
+        scene.set_flags(embree.SceneFlags.ROBUST)
         vertex_buffer = geometry.set_new_buffer(
             embree.BufferType.Vertex, # buf_type
             0, # slot
@@ -149,14 +150,14 @@ class TrimeshShapeModel(ShapeModel):
     def num_faces(self):
         return self.P.shape[0]
 
-    def check_vis(self, I, J, eps=None):
     @property
     def num_verts(self):
         return self.V.shape[0]
 
+    def get_visibility(self, I, J, eps=None, oriented=False):
         '''Compute the visibility mask for pairs of indices (i, j) taken from
-        index arrays I and J. If M = len(I) and N = len(J), the
-        resulting array is an M x N binary matrix V, where V[i, j] ==
+        index arrays I and J. If m = len(I) and N = len(J), the
+        resulting array is an m x N binary matrix V, where V[i, j] ==
         1 if a ray traced from the centroid of facet i to the centroid
         of facet j is unoccluded.
 
@@ -167,34 +168,47 @@ class TrimeshShapeModel(ShapeModel):
         hasn't been implemented. For now, we use the eps parameter,
         which is a bit of a hack.
 
+        If oriented is True, then this will use the surface normal to
+        check whether both triangles have the correct orientation (the
+        normals and the vector pointing from the centroid of one
+        triangle to the other have a positive dot product---i.e., the
+        triangles are facing one another).
+
         '''
+        # TODO: make it possible to have eps automatically set by
+        # triangle area (but better to use a filter function, as
+        # described above...)
         if eps is None:
             eps = 1e3*np.finfo(np.float32).resolution
-            # TODO clean up how the "shift along N" is defined
-            # also applied along P
-            # (currently proportional to facet side)
-            eps = np.sqrt(self.A[i]) / 200
 
-        M, N = len(I), len(J)
+        m, n = len(I), len(J)
 
         PJ = self.P[J]
 
-        D = np.empty((M*N, 3), dtype=self.dtype)
+        D = np.empty((m*n, 3), dtype=self.dtype)
         for q, i in enumerate(I):
-            D[q*N:(q + 1)*N] = PJ - self.P[i]
-        D /= np.sqrt(np.sum(D**2, axis=1)).reshape(D.shape[0], 1)
+            D[q*n:(q + 1)*n] = PJ - self.P[i]
+        D_norm_sq = np.sqrt(np.sum(D**2, axis=1))
+        mask = D_norm_sq > eps
+        D = D[mask]/D_norm_sq[mask].reshape(-1, 1)
 
-        P = np.empty_like(D)
+        P = np.empty((m*n, 3), dtype=self.dtype)
         for q, i in enumerate(I):
-            P[q*N:(q + 1)*N] = self.P[i]
-        P += eps*D
+            P[q*n:(q + 1)*n] = self.P[i]
 
-        rayhit = embree.RayHit1M(M*N)
+        J_extended = np.empty((m*n,), dtype=J.dtype)
+        for q in range(m):
+            J_extended[q*n:(q + 1)*n] = J
+        J_extended = J_extended[mask]
+
+        num_masked = mask.sum()
+
+        rayhit = embree.RayHit1M(num_masked)
 
         context = embree.IntersectContext()
-        # context.flags = embree.IntersectContextFlags.COHERENT
+        context.flags = embree.IntersectContextFlags.COHERENT
 
-        rayhit.org[:] = P + eps*self.N[i]
+        rayhit.org[:] = P[mask] + eps*D
         rayhit.dir[:] = D
         rayhit.tnear[:] = 0
         rayhit.tfar[:] = np.inf
@@ -206,14 +220,39 @@ class TrimeshShapeModel(ShapeModel):
         else:
             self.scene.intersectNp(context, rayhit)
 
-
-        return np.logical_and(
+        vis = np.ones((m*n,), dtype=bool) # vis by default
+        vis[mask] = np.logical_and(
             rayhit.geom_id != embree.INVALID_GEOMETRY_ID,
-            rayhit.prim_id == J
-        ).reshape(M, N)
+            rayhit.prim_id == J_extended
+        )
 
-    def check_vis_1_to_N(self, i, J, eps=None):
-        return self.check_vis([i], J, eps).ravel()
+        # set vis for any pairs of faces with unoccluded LOS which
+        # aren't oriented towards each other to False
+        if oriented:
+            for q, i in enumerate(I):
+                vis[q*n:(q + 1)*n] *= (PJ - self.P[i])@self.N[i] > 0
+
+        # faces can't see themselves
+        for q, i in enumerate(I):
+            vis[q*n:(q + 1)*n][J == i] = False
+
+        return vis.reshape(m, n)
+
+    def get_visibility_1_to_N(self, i, J, eps=None, oriented=False):
+        '''Convenience function for calling get_visibility with a single
+        source triangle.
+
+        '''
+        return self.get_visibility([i], J, eps, oriented).ravel()
+
+    def get_visibility_matrix(self, eps=None, oriented=False):
+        '''Convenience function for computing the visibility matrix. This just
+        calls get_visibility(I, I, eps, oriented), where I =
+        np.arange(num_faces).
+
+        '''
+        I = np.arange(self.num_faces)
+        return self.get_visibility(I, I, eps, oriented)
 
     def get_direct_irradiance(self, F0, Dsun, unit_Svec=False, basemesh=None, eps=None):
         '''Compute the insolation from the sun.
@@ -262,7 +301,6 @@ class TrimeshShapeModel(ShapeModel):
         if Dsun.ndim == 1:
             # Normalize Dsun
             distSunkm = np.sqrt(np.sum(Dsun ** 2))
-            # print(distSunkm)
             Dsun /= distSunkm
 
             ray = embree.Ray1M(n)
@@ -313,3 +351,16 @@ class TrimeshShapeModel(ShapeModel):
                 else:
                     E[I[i], i] = F0[i]*np.maximum(0, self.N[I[i]]@d)
         return E
+
+    def get_pyvista_unstructured_grid(self):
+        try:
+            import pyvista as pv
+        except:
+            raise ImportError('failed to import PyVista')
+
+        try:
+            import vtk as vtk
+        except:
+            raise ImportError('failed to import vtk')
+
+        return pv.UnstructuredGrid({vtk.VTK_TRIANGLE: self.F}, self.V)

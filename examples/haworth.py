@@ -37,7 +37,7 @@ import time
 
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
-from flux.form_factors import get_form_factor_block
+from flux.form_factors import get_form_factor_matrix
 from flux.model import compute_steady_state_temp
 from flux.plot import plot_blocks, tripcolor_vector
 from flux.shape import TrimeshShapeModel

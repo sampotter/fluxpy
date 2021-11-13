@@ -1,0 +1,50 @@
+import unittest
+
+import meshzoo
+import numpy as np
+
+import flux.shape
+
+np.seterr('raise')
+
+class TrimeshShapeModelTestCase(unittest.TestCase):
+    def test_get_visibility_matrix(self):
+        # approximate sphere with 252 faces
+        shape_model = flux.shape.TrimeshShapeModel(*meshzoo.icosa_sphere(5))
+
+        # first, test the sphere with the normals pointing outward
+        shape_model.N[(shape_model.N*shape_model.P).sum(1) < 0] *= -1
+
+        num_faces = shape_model.num_faces
+        shape = (num_faces, num_faces)
+
+        # if we compute the un-oriented visibility matrix, then all
+        # faces are mutually visible, the visibility matrix is all 1s
+        # except with 0s on the diagonal
+        vis = shape_model.get_visibility_matrix(oriented=False)
+        vis_gt = (np.ones(shape) - np.eye(num_faces)).astype(bool)
+        self.assertTrue((vis == vis_gt).all())
+
+        # for the oriented visibility matrix with all normals pointed
+        # out, we define the visibility matrix so that faces can't see
+        # themselves, in which case the oriented visibility matrix
+        # should be all zeros
+        vis = shape_model.get_visibility_matrix(oriented=True)
+        vis_gt = np.zeros(shape).astype(bool)
+        self.assertTrue((vis == vis_gt).all())
+
+        # second, test the sphere with normals pointing inward
+        shape_model.N *= -1
+
+        # visibility matrix should be all True in both cases
+
+        vis_gt = (np.ones(shape) - np.eye(num_faces)).astype(bool)
+
+        vis = shape_model.get_visibility_matrix(oriented=False)
+        self.assertTrue((vis == vis_gt).all())
+
+        vis = shape_model.get_visibility_matrix(oriented=True)
+        self.assertTrue((vis == vis_gt).all())
+
+if __name__ == '__main__':
+    unittest.main()
