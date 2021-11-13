@@ -1,32 +1,8 @@
 import numpy as np
 import scipy.sparse.linalg
 
-
-# from sparsesvd import sparsesvd
-from sklearn.utils.extmath import randomized_svd
-
 from flux.debug import DebugLinearOperator, IndentedPrinter
 from flux.util import nbytes
-
-
-# def sparse_svd(spmat, k):
-#     dtype, dtype_eps = spmat.dtype, np.finfo(spmat.dtype).eps
-
-#     Ut, S, Vt = sparsesvd(spmat.tocsc(), k)
-
-#     Ut = Ut.astype(dtype)
-#     Ut_abs = abs(Ut)
-#     Ut[Ut_abs < dtype_eps*Ut_abs.max()] = 0
-#     U = scipy.sparse.csr_matrix(Ut.T)
-
-#     S = S.astype(dtype)
-
-#     Vt = Vt.astype(dtype)
-#     Vt_abs = abs(Vt)
-#     Vt[Vt_abs < dtype_eps*Vt_abs.max()] = 0
-#     Vt = scipy.sparse.csr_matrix(Vt)
-
-#     return U, S, Vt
 
 
 def sparse_svd(spmat, k):

@@ -1,5 +1,3 @@
-# cython: embedsignature=True
-
 import logging
 import numpy as np
 
@@ -78,8 +76,14 @@ cdef class PccThermalModel1D:
         return np.asarray(self.Tsurfprev)
 
     def __cinit__(self, int nfaces, double[::1] z, double[:,:] T0, double
-                  ti, double rhoc, double emissivity=0.0, Fgeotherm=0.0, Qprev=0.0,
+                  ti, double rhoc, double emissivity, Fgeotherm=0.0, Qprev=0.0,
                   Tsurfprev=0.0, bcond='Q'):
+        if not 0 <= emissivity <= 1:
+            raise ValueError('emissivity should be in range [0, 1]')
+
+        if bcond not in {'Q', 'T'}:
+            raise ValueError('bcond should be "Q" or "T"')
+
         self.nfaces = nfaces
         self.nz = z.size
         self.t = 0
@@ -120,11 +124,6 @@ cdef class PccThermalModel1D:
         cdef int i
 
         if self.bcond == 'Q':
-            # security check on emissivity
-            if self.emissivity == 0.0:
-                logging.warning("*** Running conductionQ with emissivity=0")
-                exit()
-
             for i in range(self.nfaces):
                 conductionQ(
                     self.nz, # number of grid points
@@ -137,16 +136,17 @@ cdef class PccThermalModel1D:
                     &self.rhoc[0],
                     self.emissivity,
                     self.Fgeotherm[i],
-                    &self.Fsurf[i]
-                )
-                # TODO add check for positive Temperatures, else throw error and exit
-                if f"{X[i]}" == 'nan':
-                    print(f"*** Issue at face {i}, X[i]={X[i]}.\nCheck T and consider taking shorter time steps.")
-                    exit()
+                    &self.Fsurf[i])
+
+                if not np.isfinite(X[i]):
+                    raise RuntimeError(f'found non-finite temp: X[{i}] == {X[i]}')
+
+                if X[i] <= 0:
+                    raise RuntimeError(f'found non-positive temp: X[{i}] == {X[i]}')
 
             self.Qprev[...] = X[...]
 
-        elif self.bcond == 'T':
+        if self.bcond == 'T':
             for i in range(self.nfaces):
                 conductionT(
                     self.nz, # number of grid points
@@ -158,13 +158,10 @@ cdef class PccThermalModel1D:
                     &self.ti[0],
                     &self.rhoc[0],
                     self.Fgeotherm[i],
-                    &self.Fsurf[i]
-                )
+                    &self.Fsurf[i])
 
             self.Tsurfprev[...] = X[...]
 
-        else:
-            logging.error("** unknown bcond parameter value: it should be Q or T")
         self.t += dt
 
 def setgrid(nz,zfac,zmax):

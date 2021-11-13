@@ -52,15 +52,6 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	double arad, brad, ann, annp1, bn, buf, dz, beta;
 	double Told[nz+1];
 
-    double dT300, cp;
-    double rho[nz+1],Kc[nz+1];
-    const double Kd = 5.7E-3; // Wm^-1K^-1
-    const double Ks = 4.E-4; // Wm^-1K^-1
-    const double H = 0.06; // meters
-    const double rho_d = 1700.; // 1.7 g/cm3 = *10^6/10^3 kg/m3
-    const double rho_s = 1000.; // 1 g/cm3
-    const double B = 4.2E-11; // Wm^-1K^-4
-
 	/* set some constants */
 	for (i=1; i<=nz; i++) {
 		k[i] = ti[i] * ti[i] / rhoc[i];  // thermal conductivity
