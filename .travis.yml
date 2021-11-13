@@ -1,0 +1,8 @@
+language: python
+dist: bionic
+install:
+  - pip install --upgrade pip
+  - pip install python-flux
+  - pip install .
+script:
+  - python -m unittest discover tests
