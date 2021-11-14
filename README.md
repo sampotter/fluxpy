@@ -1,3 +1,5 @@
+[![Build Status](https://app.travis-ci.com/sampotter/python-flux.svg?branch=master)](https://app.travis-ci.com/sampotter/python-flux)
+
 # Fast radiosity in Python #
 
 ## Installation ##
