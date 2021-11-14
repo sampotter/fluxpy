@@ -1,9 +1,22 @@
 language: python
+
 dist: bionic
+
 install:
+  # upgrade pip (unnecessary?)
   - pip install --upgrade pip
+  - wget https://github.com/embree/embree/releases/download/v3.13.2/embree-3.13.2.x86_64.linux.tar.gz
+
+  # get embree and set up environment variables
+  - tar xvf embree-3.13.2.x86_64.linux.tar.gz
+  - pushd embree-3.13.2.x86_64.linux; source embree-vars.sh; popd
+
+  # install python-embree
   - git clone https://github.com/sampotter/python-embree
   - pushd python-embree; pip install .; popd
+
+  # install python-flux
   - pip install .
+
 script:
   - python -m unittest discover tests
