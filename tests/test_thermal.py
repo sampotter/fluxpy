@@ -8,7 +8,8 @@ from flux.thermal import *
 class ThermalTestCase(unittest.TestCase):
     def setUp(self):
         self.data_path = pathlib.Path(__file__).parent.absolute()/'data'
-        self.pcc_thermal_model_path = self.data_path/'thermal'/'pcc_thermal_model_1d'
+        self.pcc_thermal_model_1d_path = \
+            self.data_path/'thermal'/'pcc_thermal_model_1d'
 
         np.seterr('raise')
 
