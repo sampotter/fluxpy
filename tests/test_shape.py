@@ -1,13 +1,18 @@
+import numpy as np
 import unittest
 
-import flux.shape
-import numpy as np
+from pathlib import Path
 
-np.seterr('raise')
+import flux.shape
 
 class TrimeshShapeModelTestCase(unittest.TestCase):
+    def setUp(self):
+        self.data_path = Path(__file__).parent.absolute()/'data'
+
+        np.seterr('raise')
+
     def test_get_visibility_matrix(self):
-        npz_file = np.load('./data/icosa_sphere.npz')
+        npz_file = np.load(self.data_path/'icosa_sphere.npz')
         V, F = npz_file['V'], npz_file['F']
 
         # approximate sphere with 252 faces

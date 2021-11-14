@@ -1,22 +1,20 @@
 import csv
+import numpy as np
 import pathlib
 import unittest
 
-import numpy as np
 from flux.thermal import *
 
 class ThermalTestCase(unittest.TestCase):
-    def test_pcc_thermalQ_model_1d(self):
+    def setUp(self):
+        self.data_path = pathlib.Path(__file__).parent.absolute()/'data'
+        self.pcc_thermal_model_path = self.data_path/'thermal'/'pcc_thermal_model_1d'
 
-        # Get path to data for this test
-        path = pathlib.Path(__file__).parent.absolute()
-        path /= 'data'
-        path /= 'thermal'
-        path /= 'pcc_thermal_model_1d'
-        path1 = path
-        # get both Tprofile (at last step) and Tsurface ("time/Period,T[0],T[nz]" at all steps)
-        path /= 'Tprofile_conductionQ'
-        path1 /= 'Tsurface_conductionQ'
+        np.seterr('raise')
+
+    def test_pcc_thermalQ_model_1d(self):
+        path = self.pcc_thermal_model_1d_path/'Tprofile_conductionQ'
+        path1 = self.pcc_thermal_model_1d_path/'Tsurface_conductionQ'
 
         # import template output from pcc/Python
         profile = []
