@@ -8,9 +8,12 @@ dist: bionic
 install:
   # upgrade pip (unnecessary?)
   - pip install --upgrade pip
-  - wget https://github.com/embree/embree/releases/download/v3.13.2/embree-3.13.2.x86_64.linux.tar.gz
+
+  # get packages
+  - pip install cython
 
   # get embree and set up environment variables
+  - wget https://github.com/embree/embree/releases/download/v3.13.2/embree-3.13.2.x86_64.linux.tar.gz
   - tar xvf embree-3.13.2.x86_64.linux.tar.gz
   - pushd embree-3.13.2.x86_64.linux; source embree-vars.sh; popd
 
