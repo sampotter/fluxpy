@@ -19,7 +19,7 @@ install:
   - pushd python-embree; pip install .; popd
 
   # install python-flux
-  - pip install .
+  - python setup.py build_ext -i
 
 script:
   - python -m unittest discover tests
