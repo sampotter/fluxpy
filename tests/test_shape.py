@@ -1,16 +1,22 @@
+import numpy as np
 import unittest
 
-import meshzoo
-import numpy as np
+from pathlib import Path
 
 import flux.shape
 
-np.seterr('raise')
-
 class TrimeshShapeModelTestCase(unittest.TestCase):
+    def setUp(self):
+        self.data_path = Path(__file__).parent.absolute()/'data'
+
+        np.seterr('raise')
+
     def test_get_visibility_matrix(self):
+        npz_file = np.load(self.data_path/'icosa_sphere.npz')
+        V, F = npz_file['V'], npz_file['F']
+
         # approximate sphere with 252 faces
-        shape_model = flux.shape.TrimeshShapeModel(*meshzoo.icosa_sphere(5))
+        shape_model = flux.shape.TrimeshShapeModel(V, F)
 
         # first, test the sphere with the normals pointing outward
         shape_model.N[(shape_model.N*shape_model.P).sum(1) < 0] *= -1
