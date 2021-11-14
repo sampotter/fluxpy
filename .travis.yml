@@ -18,5 +18,8 @@ install:
   # install python-flux
   - pip install .
 
+  # install test requirements
+  - pip install -r test-requirements.txt
+
 script:
   - python -m unittest discover tests
