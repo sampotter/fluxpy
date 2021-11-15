@@ -1,3 +1,4 @@
+import itertools as it
 import matplotlib.pyplot as plt
 import meshzoo
 import numpy as np
@@ -61,16 +62,19 @@ print(f'FF gt size: {nbytes(FF_gt)/1024**2} MB')
 ########################################################################
 # testing a block
 
-I = FF._root._row_block_inds[i]
-J = FF._root._col_block_inds[j]
+for i, j in it.product(range(8), repeat=2):
+    I = FF._root._row_block_inds[i]
+    J = FF._root._col_block_inds[j]
 
-block_gt = FF_gt[I, :][:, J].toarray()
-block = FF._root._blocks[i, j].toarray()
+    block_gt = FF_gt[I, :][:, J].toarray()
+    block = FF._root._blocks[i, j].toarray()
 
-I_bad, J_bad = np.where(block - block_gt)
+    I_bad, J_bad = np.where(block - block_gt)
 
-print(block_gt[I_bad, J_bad])
-print(block[I_bad, J_bad])
+    print(f'i = {i}, j = {j}, I bad: {I_bad}, J bad: {J_bad}')
+
+    if len(I_bad) > 0:
+        break
 
 ########################################################################
 # vtk test
