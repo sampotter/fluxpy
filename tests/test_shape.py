@@ -51,5 +51,23 @@ class TrimeshShapeModelTestCase(unittest.TestCase):
         vis = shape_model.get_visibility_matrix(oriented=True)
         self.assertTrue((vis == vis_gt).all())
 
+    def test_get_visibility_and_get_visibility_1_to_N_are_equivalent(self):
+        npz_file = np.load(self.data_path/'icosa_sphere_5.npz')
+        shape_model = flux.shape.TrimeshShapeModel(npz_file['V'], npz_file['F'])
+
+        # make sure all surface normals point inward
+        shape_model.N[(shape_model.N*shape_model.P).sum(1) > 0] *= -1
+
+        oriented = False
+
+        I = np.arange(shape_model.num_faces)
+        vis = shape_model.get_visibility(I, I, oriented=oriented)
+
+        for i in I:
+            vis_i = shape_model.get_visibility_1_to_N(i, I, oriented=oriented)
+            J_bad = np.where(vis[i] != vis_i)[0]
+            J_bad_str = ', '.join(str(j) for j in J_bad)
+            self.assertEqual(J_bad.size, 0, f'i = {i}, bad j: {J_bad_str}')
+
 if __name__ == '__main__':
     unittest.main()
