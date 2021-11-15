@@ -15,7 +15,6 @@ class TrimeshShapeModelTestCase(unittest.TestCase):
         npz_file = np.load(self.data_path/'icosa_sphere.npz')
         V, F = npz_file['V'], npz_file['F']
 
-        # approximate sphere with 252 faces
         shape_model = flux.shape.TrimeshShapeModel(V, F)
 
         # first, test the sphere with the normals pointing outward
