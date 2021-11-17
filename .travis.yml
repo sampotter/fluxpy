@@ -5,6 +5,13 @@ python:
 
 dist: bionic
 
+addons:
+  apt:
+    update: true
+
+before_install:
+  - sudo apt-get -y install libcgal-dev
+
 install:
   # upgrade pip (unnecessary?)
   - pip install --upgrade pip

@@ -10,12 +10,12 @@ plt.ion()
 
 np.seterr('raise')
 
-import flux.form_factors as ff
 import flux.compressed_form_factors as cff
 import flux.config
+import flux.form_factors as ff
+import flux.shape
 
 from flux.linalg import nbytes
-from flux.shape import TrimeshShapeModel
 
 flux.config.DEBUG = True
 
@@ -31,7 +31,8 @@ V[:, 0] *= 1
 V[:, 1] *= 1
 V[:, 2] *= 1
 
-shape_model = TrimeshShapeModel(V, F)
+shape_model = flux.shape.CgalTrimeshShapeModel(V, F)
+# shape_model = flux.shape.EmbreeTrimeshShapeModel(V, F)
 
 # make surface normals inward facing
 outward = (shape_model.P*shape_model.N).sum(1) > 0
@@ -49,15 +50,24 @@ FF = cff.CompressedFormFactorMatrix(shape_model, tol=1e-2,
 
 B1 = FF@E
 
-grid = shape_model.get_pyvista_unstructured_grid()
-grid['B1 - B1_gt'] = B1 - B1_gt
-plotter = pvqt.BackgroundPlotter()
-plotter.add_mesh(grid, scalars='B1 - B1_gt')
+# grid = shape_model.get_pyvista_unstructured_grid()
+# grid['B1 - B1_gt'] = B1 - B1_gt
+# plotter = pvqt.BackgroundPlotter()
+# plotter.add_mesh(grid, scalars='B1 - B1_gt')
 
 print(f'depth: {FF.depth}')
 print(f'error: ({(B1 - B1_gt).min()}, {(B1 - B1_gt).max()})')
 print(f'FF size: {FF.nbytes/1024**2} MB')
 print(f'FF gt size: {nbytes(FF_gt)/1024**2} MB')
+
+########################################################################
+
+# grid['inds'] = np.zeros(shape_model.num_faces)
+# grid['inds'][291] = 1
+# grid['inds'][[36, 38, 39]] = 2
+
+# plotter = pvqt.BackgroundPlotter()
+# plotter.add_mesh(grid, scalars='inds')
 
 ########################################################################
 # testing a block

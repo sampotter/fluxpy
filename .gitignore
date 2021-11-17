@@ -21,5 +21,6 @@ GTAGS
 __pycache__
 build
 dist
-flux/thermal.c
+src/flux/thermal.c
+src/flux/cgal/aabb.cpp
 stats

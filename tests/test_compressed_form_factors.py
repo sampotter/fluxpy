@@ -16,7 +16,7 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
 
     def test_icosa_sphere(self):
         npz_file = np.load(self.data_path/'icosa_sphere.npz')
-        shape_model = flux.shape.TrimeshShapeModel(npz_file['V'], npz_file['F'])
+        shape_model = flux.shape.EmbreeTrimeshShapeModel(npz_file['V'], npz_file['F'])
 
         FF = CompressedFormFactorMatrix(
             shape_model,

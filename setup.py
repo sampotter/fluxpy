@@ -8,13 +8,29 @@ DISTNAME = 'python-flux'
 ext_modules = [
     Extension(
         name='flux.thermal',
-        sources=['flux/pcc/conductionQ.c', 'flux/pcc/conductionT.c', 'flux/pcc/tridag.c',
-                 'flux/thermal.pyx']
+        sources=['src/flux/thermal.pyx',
+                 'src/flux/pcc/conductionQ.c',
+                 'src/flux/pcc/conductionT.c',
+                 'src/flux/pcc/tridag.c'],
+        include_dirs=['.'],
+        language='c'
     ),
+    Extension(
+        name='flux.cgal.aabb',
+        sources=['src/flux/cgal/aabb.pyx',
+                 'src/flux/cgal/aabb_wrapper.cpp'],
+        include_dirs=['.'],
+        language='c++'
+    )
 ]
 
 setup(
     name=DISTNAME,
     packages=['flux'],
-    ext_modules=cythonize(ext_modules, language_level=3)
+    package_dir={'': 'src'},
+    ext_modules=cythonize(
+        ext_modules,
+        language_level=3,
+        compiler_directives={'embedsignature': True}
+    )
 )

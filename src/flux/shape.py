@@ -1,8 +1,13 @@
 import embree
+import itertools as it
 import numpy as np
 
 
 from abc import ABC
+
+
+from flux.cgal.aabb import AABB
+
 
 use1M = True
 
@@ -74,6 +79,8 @@ class TrimeshShapeModel(ShapeModel):
             be optionally passed to avoid recomputing.
 
         """
+        if type(self) == TrimeshShapeModel:
+            raise RuntimeError("tried to instantiate TrimeshShapeModel directly")
 
         self.dtype = V.dtype
 
@@ -102,43 +109,6 @@ class TrimeshShapeModel(ShapeModel):
 
         self._make_scene()
 
-    def _make_scene(self):
-        '''Set up an Embree scene. This function allocates some memory that
-        Embree manages, and loads vertices and index lists for the
-        faces. In Embree parlance, this function creates a "device",
-        which manages a "scene", which has one "geometry" in it, which
-        is our mesh.
-
-        '''
-        device = embree.Device()
-        geometry = device.make_geometry(embree.GeometryType.Triangle)
-        scene = device.make_scene()
-        scene.set_flags(embree.SceneFlags.ROBUST)
-        vertex_buffer = geometry.set_new_buffer(
-            embree.BufferType.Vertex, # buf_type
-            0, # slot
-            embree.Format.Float3, # fmt
-            3*np.dtype('float32').itemsize, # byte_stride
-            self.V.shape[0], # item_count
-        )
-        vertex_buffer[:] = self.V[:]
-        index_buffer = geometry.set_new_buffer(
-            embree.BufferType.Index, # buf_type
-            0, # slot
-            embree.Format.Uint3, # fmt
-            3*np.dtype('uint32').itemsize, # byte_stride,
-            self.F.shape[0]
-        )
-        index_buffer[:] = self.F[:]
-        geometry.commit()
-        scene.attach_geometry(geometry)
-        geometry.release()
-        scene.commit()
-
-        # This is the only variable we need to retain a reference to
-        # (I think)
-        self.scene = scene
-
     def __reduce__(self):
         return (self.__class__, (self.V, self.F, self.N, self.P, self.A))
 
@@ -154,19 +124,12 @@ class TrimeshShapeModel(ShapeModel):
     def num_verts(self):
         return self.V.shape[0]
 
-    def get_visibility(self, I, J, eps=None, oriented=False):
+    def get_visibility(self, I, J, oriented=False):
         '''Compute the visibility mask for pairs of indices (i, j) taken from
         index arrays I and J. If m = len(I) and N = len(J), the
         resulting array is an m x N binary matrix V, where V[i, j] ==
         1 if a ray traced from the centroid of facet i to the centroid
         of facet j is unoccluded.
-
-        The parameter eps is used to perturb the start of each ray
-        away from the facet centroid. This is because Embree (by
-        default) doesn't know to check for self-intersection. A
-        "filter function" should be set up to support this, but this
-        hasn't been implemented. For now, we use the eps parameter,
-        which is a bit of a hack.
 
         If oriented is True, then this will use the surface normal to
         check whether both triangles have the correct orientation (the
@@ -175,11 +138,198 @@ class TrimeshShapeModel(ShapeModel):
         triangles are facing one another).
 
         '''
-        # TODO: make it possible to have eps automatically set by
-        # triangle area (but better to use a filter function, as
-        # described above...)
-        if eps is None:
-            eps = 1e3*np.finfo(np.float32).resolution
+        vis = self._get_visibility(I, J, oriented).ravel()
+
+        m, n = len(I), len(J)
+
+        # set vis for any pairs of faces with unoccluded LOS which
+        # aren't oriented towards each other to False
+        if oriented:
+            PJ = self.P[J]
+            for q, i in enumerate(I):
+                vis[q*n:(q + 1)*n] *= (PJ - self.P[i])@self.N[i] > 0
+
+        # faces can't see themselves
+        for q, i in enumerate(I):
+            vis[q*n:(q + 1)*n][J == i] = False
+
+        return vis.reshape(m, n)
+
+    def get_visibility_1_to_N(self, i, J, oriented=False):
+        '''Convenience function for calling get_visibility with a single
+        source triangle.
+
+        '''
+        return self.get_visibility([i], J, oriented).ravel()
+
+    def get_visibility_matrix(self, oriented=False):
+        '''Convenience function for computing the visibility matrix. This just
+        calls get_visibility(I, I, eps, oriented), where I =
+        np.arange(num_faces).
+
+        '''
+        I = np.arange(self.num_faces)
+        return self.get_visibility(I, I, oriented)
+
+    def is_occluded(self, I, D):
+        '''Check whether a ray shot from the centroid of the triangles indexed
+        by I is occluded by any other part of the mesh, where the ray
+        direction is specified by D. If D is a single vector, then
+        each face will use the same ray direction.
+
+        '''
+        return self._is_occluded(I, D)
+
+    def get_direct_irradiance(self, F0, Dsun, unit_Svec=False, basemesh=None, eps=None):
+        '''Compute the insolation from the sun.
+
+        Parameters
+        ----------
+        F0: float
+            The solar constant. [W/m^2]
+
+        Dsun: numpy.ndarray
+            An length 3 vector or Mx3 array of sun directions: vectors
+            indicating the direction of the sun in world coordinates.
+
+        basemesh: same as self, optional
+            mesh used to check (Sun, light source) visibility at "self.cells";
+            it would usually cover a larger area than "self".
+
+        unit_Svec: bool
+            defines if Dsun is a unit vector (Sun direction) or
+            the actual Sun-origin vector (check AU units below)
+
+        Returns
+        -------
+        E: numpy.ndarray
+            A vector of length self.num_faces or an array of size
+            M x self.num_faces, where M is the number of sun
+            directions.
+
+        '''
+        if base_mesh == None:
+            base_mesh = self
+
+        # Determine which rays escaped (i.e., can see the sun)
+        if basemesh is None:
+            I = self.is_occluded(np.arange(self.num_faces), Dsun)
+        else:
+            I = basemesh.is_occluded(np.arange(self.num_faces), Dsun)
+
+        # rescale solar flux depending on distance
+        if not unit_Svec:
+            AU_km = 149597900.
+            F0 *= (AU_km / distSunkm) ** 2
+
+        # Compute the direct irradiance
+        if Dsun.ndim == 1:
+            E = np.zeros(n, dtype=self.dtype)
+            E[I] = F0*np.maximum(0, self.N[I]@Dsun)
+        else:
+            E = np.zeros((n, m), dtype=self.dtype)
+            I = I.reshape(m, n)
+            # TODO check if this can be vectorized
+            for i, d in enumerate(Dsun):
+                if unit_Svec:
+                    E[I[i], i] = F0*np.maximum(0, self.N[I[i]]@d)
+                else:
+                    E[I[i], i] = F0[i]*np.maximum(0, self.N[I[i]]@d)
+        return E
+
+
+    def get_pyvista_unstructured_grid(self):
+        try:
+            import pyvista as pv
+        except:
+            raise ImportError('failed to import PyVista')
+
+        try:
+            import vtk as vtk
+        except:
+            raise ImportError('failed to import vtk')
+
+        return pv.UnstructuredGrid({vtk.VTK_TRIANGLE: self.F}, self.V)
+
+
+class CgalTrimeshShapeModel(TrimeshShapeModel):
+    def _make_scene(self):
+        self.aabb = AABB.from_trimesh(
+            self.V.astype(np.float64), self.F.astype(np.uintp))
+
+    def _get_visibility(self, I, J, oriented=False):
+        m, n = len(I), len(J)
+        vis = np.empty((m, n), dtype=np.bool_)
+        for (p, i), (q, j) in it.product(enumerate(I), enumerate(J)):
+            if i == j:
+                vis[p, q] = False
+            else:
+                vis[p, q] = self.aabb.test_face_to_face_vis(i, j)
+        return vis
+
+    def _is_occluded(self, I, D):
+        m = len(I)
+        occluded = np.empty(m, dtype=np.bool_)
+        if D.ndim == 1:
+            for p, i in enumerate(I):
+                occluded[p] = self.aabb.ray_from_centroid_is_occluded(i, D)
+        elif D.ndim == 2:
+            for p, i in enumerate(I):
+                occluded[p] = self.aabb.ray_from_centroid_is_occluded(i, D[i])
+        return occluded
+
+
+class EmbreeTrimeshShapeModel(TrimeshShapeModel):
+    def _make_scene(self):
+        '''Set up an Embree scene. This function allocates some memory that
+        Embree manages, and loads vertices and index lists for the
+        faces. In Embree parlance, this function creates a "device",
+        which manages a "scene", which has one "geometry" in it, which
+        is our mesh.
+
+        '''
+        device = embree.Device()
+
+        geometry = device.make_geometry(embree.GeometryType.Triangle)
+        # geometry.set_build_quality(embree.BuildQuality.High)
+
+        scene = device.make_scene()
+        # scene.set_build_quality(embree.BuildQuality.High)
+        scene.set_flags(embree.SceneFlags.Robust)
+
+        vertex_buffer = geometry.set_new_buffer(
+            embree.BufferType.Vertex, # buf_type
+            0, # slot
+            embree.Format.Float3, # fmt
+            3*np.dtype('float32').itemsize, # byte_stride
+            self.V.shape[0], # item_count
+        )
+        vertex_buffer[:] = self.V[:]
+
+        index_buffer = geometry.set_new_buffer(
+            embree.BufferType.Index, # buf_type
+            0, # slot
+            embree.Format.Uint3, # fmt
+            3*np.dtype('uint32').itemsize, # byte_stride,
+            self.F.shape[0]
+        )
+        index_buffer[:] = self.F[:]
+
+        geometry.commit()
+
+        scene.attach_geometry(geometry)
+
+        geometry.release()
+
+        scene.commit()
+
+        # This is the only variable we need to retain a reference to
+        # (I think)
+        self.scene = scene
+
+    def _get_visibility(self, I, J, oriented=False):
+        # TODO: desperately need a better way to set this.
+        eps = 1e3*np.finfo(np.float32).resolution
 
         m, n = len(I), len(J)
 
@@ -226,141 +376,33 @@ class TrimeshShapeModel(ShapeModel):
             rayhit.prim_id == J_extended
         )
 
-        # set vis for any pairs of faces with unoccluded LOS which
-        # aren't oriented towards each other to False
-        if oriented:
-            for q, i in enumerate(I):
-                vis[q*n:(q + 1)*n] *= (PJ - self.P[i])@self.N[i] > 0
-
-        # faces can't see themselves
-        for q, i in enumerate(I):
-            vis[q*n:(q + 1)*n][J == i] = False
-
         return vis.reshape(m, n)
 
-    def get_visibility_1_to_N(self, i, J, eps=None, oriented=False):
-        '''Convenience function for calling get_visibility with a single
-        source triangle.
+    def _is_occluded(self, I, D):
+        if D.ndim != 1 and D.ndim != 2:
+            raise ValueError('D.ndim should be 1 or 2')
 
-        '''
-        return self.get_visibility([i], J, eps, oriented).ravel()
+        # TODO: see comment in _get_visibility
+        eps = 1e3*np.finfo(np.float32).resolution
 
-    def get_visibility_matrix(self, eps=None, oriented=False):
-        '''Convenience function for computing the visibility matrix. This just
-        calls get_visibility(I, I, eps, oriented), where I =
-        np.arange(num_faces).
+        m = len(I)
 
-        '''
-        I = np.arange(self.num_faces)
-        return self.get_visibility(I, I, eps, oriented)
-
-    def get_direct_irradiance(self, F0, Dsun, unit_Svec=False, basemesh=None, eps=None):
-        '''Compute the insolation from the sun.
-
-        Parameters
-        ----------
-        F0: float
-            The solar constant. [W/m^2]
-
-        Dsun: numpy.ndarray
-            An length 3 vector or Mx3 array of sun directions: vectors
-            indicating the direction of the sun in world coordinates.
-
-        basemesh: same as self, optional
-            mesh used to check (Sun, light source) visibility at "self.cells";
-            it would usually cover a larger area than "self".
-
-        eps: float
-            How far to perturb the start of the ray away from each
-            face. Default is 1e3*np.finfo(np.float32).resolution. This
-            is to overcome precision issues with Embree.
-
-        unit_Svec: bool
-            defines if Dsun is a unit vector (Sun direction) or
-            the actual Sun-origin vector (check AU units below)
-
-        Returns
-        -------
-        E: numpy.ndarray
-            A vector of length self.num_faces or an array of size
-            M x self.num_faces, where M is the number of sun
-            directions.
-
-        '''
-        if eps is None:
-            eps = 1e3*np.finfo(np.float32).resolution
-
-        if basemesh == None:
-            basemesh = self
-
-        # Here, we use Embree directly to find the indices of triangles
-        # which are directly illuminated (I_sun) or not (I_shadow).
-
-        n = self.num_faces
-
-        if Dsun.ndim == 1:
-            # Normalize Dsun
-            distSunkm = np.sqrt(np.sum(Dsun ** 2))
-            Dsun /= distSunkm
-
-            ray = embree.Ray1M(n)
-            if eps.ndim==0:
-                ray.org[:] = self.P + eps*self.N
-            else:
-                ray.org[:] = self.P + eps[:,np.newaxis]*self.N
-            ray.dir[:] = Dsun
-            ray.tnear[:] = 0
-            ray.tfar[:] = np.inf
-            ray.flags[:] = 0
-        elif Dsun.ndim == 2:
-            # Normalize Dsun
-            distSunkm = np.linalg.norm(Dsun,axis=1)[:,np.newaxis]
-            Dsun /= distSunkm
-
-            m = Dsun.size//3
-            ray = embree.Ray1M(m*n)
-            for i in range(m):
-                ray.org[i*n:(i + 1)*n, :] = self.P + eps[:,np.newaxis]*self.N
-            for i, d in enumerate(Dsun):
-                ray.dir[i*n:(i + 1)*n, :] = d
-            ray.tnear[:] = 0
-            ray.tfar[:] = np.inf
-            ray.flags[:] = 0
+        ray = embree.Ray1M(m)
+        ray.org[:] = self.P[I] + eps*self.N[I]
+        ray.dir[:] = D
+        ray.tnear[:] = 0
+        ray.tfar = np.inf
+        ray.flags[:] = 0
 
         context = embree.IntersectContext()
-        basemesh.scene.occluded1M(context, ray)
-        # Determine which rays escaped (i.e., can see the sun)
-        I = np.isposinf(ray.tfar)
+        context.flags = embree.IntersectContextFlags.COHERENT
 
-        # rescale solar flux depending on distance
-        if not unit_Svec:
-            AU_km = 149597900.
-            F0 *= (AU_km / distSunkm) ** 2
+        self.occluded1M(context, ray)
 
-        # Compute the direct irradiance
-        if Dsun.ndim == 1:
-            E = np.zeros(n, dtype=self.dtype)
-            E[I] = F0*np.maximum(0, self.N[I]@Dsun)
-        else:
-            E = np.zeros((n, m), dtype=self.dtype)
-            I = I.reshape(m, n)
-            # TODO check if this can be vectorized
-            for i, d in enumerate(Dsun):
-                if unit_Svec:
-                    E[I[i], i] = F0*np.maximum(0, self.N[I[i]]@d)
-                else:
-                    E[I[i], i] = F0[i]*np.maximum(0, self.N[I[i]]@d)
-        return E
+        return np.logical_not(np.isposinf(ray.tfar))
 
-    def get_pyvista_unstructured_grid(self):
-        try:
-            import pyvista as pv
-        except:
-            raise ImportError('failed to import PyVista')
 
-        try:
-            import vtk as vtk
-        except:
-            raise ImportError('failed to import vtk')
-
-        return pv.UnstructuredGrid({vtk.VTK_TRIANGLE: self.F}, self.V)
+trimesh_shape_models = [
+    CgalTrimeshShapeModel,
+    EmbreeTrimeshShapeModel
+]
