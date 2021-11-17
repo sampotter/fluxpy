@@ -11,3 +11,4 @@ void cgal_aabb_init_from_trimesh(cgal_aabb *aabb,
 								 size_t num_faces, size_t (*faces)[3]);
 void cgal_aabb_dealloc(cgal_aabb **aabb);
 bool cgal_aabb_test_face_to_face_vis(cgal_aabb const *aabb, size_t i, size_t j);
+bool cgal_aabb_ray_from_centroid_is_occluded(cgal_aabb const *aabb, size_t i, double d[3]);

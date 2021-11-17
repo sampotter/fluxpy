@@ -1,3 +1,5 @@
+from libcpp cimport bool
+
 cdef extern from "aabb_wrapper.h":
     cdef struct cgal_aabb:
         pass
@@ -7,8 +9,10 @@ cdef extern from "aabb_wrapper.h":
 				     size_t num_faces, size_t (*faces)[3]) except +
     void cgal_aabb_deinit(cgal_aabb *aabb) except +
     void cgal_aabb_dealloc(cgal_aabb **aabb) except +
-    bint cgal_aabb_test_face_to_face_vis(const cgal_aabb *aabb,
+    bool cgal_aabb_test_face_to_face_vis(const cgal_aabb *aabb,
                                          size_t i, size_t j) except +
+    bool cgal_aabb_ray_from_centroid_is_occluded(const cgal_aabb *aabb,
+                                                 size_t i, double d[3]) except +
 
 cdef class AABB:
     cdef cgal_aabb *aabb
@@ -36,3 +40,6 @@ cdef class AABB:
 
     def test_face_to_face_vis(self, size_t i, size_t j):
         return cgal_aabb_test_face_to_face_vis(self.aabb, i, j)
+
+    def ray_from_centroid_is_occluded(self, size_t i, double[::1] d):
+        return cgal_aabb_ray_from_centroid_is_occluded(self.aabb, i, &d[0])

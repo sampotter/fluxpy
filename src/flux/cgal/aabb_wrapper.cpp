@@ -99,3 +99,18 @@ bool cgal_aabb_test_face_to_face_vis(cgal_aabb const *aabb, size_t i, size_t j) 
 
 	return hit_face_index == target_face_index;
 }
+
+bool cgal_aabb_ray_from_centroid_is_occluded(cgal_aabb const *aabb, size_t i, double d[3]) {
+	auto const & mesh = aabb->mesh;
+
+    halfedge_descriptor hd = halfedge(Mesh::Face_index(i), mesh);
+
+    Point p_i = CGAL::centroid(mesh.point(source(hd, mesh)),
+							   mesh.point(target(hd, mesh)),
+							   mesh.point(target(next(hd, mesh), mesh)));
+
+	Ray ray(p_i, Vector(d[0], d[1], d[2]));
+	auto const skip = [i] (size_t k) { return k == i; };
+
+	return static_cast<bool>(aabb->tree.first_intersection(ray, skip));
+}
