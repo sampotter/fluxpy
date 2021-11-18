@@ -66,6 +66,12 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
                     block_gt = FF_gt[I, :][:, J]
                     self.assertTrue((block._mat == block_gt).all())
 
+                # compare matrix-vector products, which should agree
+                # up to numerical round-off
+                E = np.random.randn(shape_model.num_faces)
+                B, B_gt = FF@E, FF_gt@E
+                mvp_rel_error = abs(B - B_gt).max()/abs(B_gt).max()
+                self.assertTrue(mvp_rel_error < 1e-14)
 
     def test_max_depth_2_for_stretched_sphere(self):
         for TrimeshShapeModel, npz_filename in it.product(
@@ -74,8 +80,6 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
             with self.subTest(
                     trimesh_shape_model=TrimeshShapeModel.__name__,
                     npz_filename=npz_filename):
-                print(TrimeshShapeModel, npz_filename)
-
                 npz_file = np.load(self.data_path/npz_filename)
                 V, F = npz_file['V'], npz_file['F']
 
@@ -135,3 +139,10 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
                         diff = FF_gt[I, :][:, J] - block._mat
                         if diff.shape[0] != 0 and diff.shape[1] != 0:
                             self.assertEqual(abs(diff).max(), 0)
+
+                # compare matrix-vector products, which should agree
+                # up to numerical round-off
+                E = np.random.randn(shape_model.num_faces)
+                B, B_gt = FF@E, FF_gt@E
+                mvp_rel_error = abs(B - B_gt).max()/abs(B_gt).max()
+                self.assertTrue(mvp_rel_error < 1e-14)
