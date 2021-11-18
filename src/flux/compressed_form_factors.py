@@ -85,11 +85,27 @@ class FormFactorLeafBlock(CompressedFormFactorBlock):
 class FormFactorNullBlock(FormFactorLeafBlock,
                           scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root):
-        super().__init__(root, (0, 0))
+    def __init__(self, root, shape):
+        if shape[0] != 0 and shape[1] != 0:
+            raise RuntimeError('a null block must have a degenerate shape')
+        super().__init__(root, shape)
 
     def _matmat(self, x):
-        return np.array([], dtype=self.dtype)
+        if self.shape[1] != x.shape[0]:
+            raise ValueError(
+                'multiplying null block with matrix with wrong shape')
+        new_shape = (self.shape[0], x.shape[1])
+        return np.empty(new_shape, dtype=self.dtype)
+
+    def is_dense(self):
+        return True
+
+    def is_sparse(self):
+        return True
+
+    @property
+    def _mat(self):
+        return np.empty(self.shape, dtype=self.dtype)
 
     @property
     def nbytes(self):
@@ -102,7 +118,6 @@ class FormFactorNullBlock(FormFactorLeafBlock,
 
 class FormFactorZeroBlock(FormFactorLeafBlock,
                           scipy.sparse.linalg.LinearOperator):
-
     def __init__(self, root, shape):
         super().__init__(root, shape)
 
@@ -110,6 +125,16 @@ class FormFactorZeroBlock(FormFactorLeafBlock,
         m = self.shape[0]
         y_shape = (m,) if x.ndim == 1 else (m, x.shape[1])
         return np.zeros(y_shape, dtype=self.dtype)
+
+    def is_dense(self):
+        return False
+
+    def is_sparse(self):
+        return True
+
+    @property
+    def _mat(self):
+        return np.zeros(self.shape, self.dtype)
 
     @property
     def nbytes(self):
@@ -125,7 +150,6 @@ class FormFactorZeroBlock(FormFactorLeafBlock,
 
 class FormFactorDenseBlock(FormFactorLeafBlock,
                           scipy.sparse.linalg.LinearOperator):
-
     def __init__(self, root, mat):
         if isinstance(mat, scipy.sparse.spmatrix):
             mat = mat.toarray()
@@ -142,6 +166,12 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
     def toarray(self):
         return self._mat
 
+    def is_dense(self):
+        return True
+
+    def is_sparse(self):
+        return False
+
     def _matmat(self, x):
         return self._mat@x
 
@@ -156,13 +186,18 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
 
 
 class FormFactorSparseBlock(FormFactorLeafBlock,
-                          scipy.sparse.linalg.LinearOperator):
-
+                            scipy.sparse.linalg.LinearOperator):
     def __init__(self, *args):
         super().__init__(*args)
 
     def _matmat(self, x):
         return np.array(self._spmat@x)
+
+    def is_dense(self):
+        return False
+
+    def is_sparse(self):
+        return True
 
     @property
     def is_empty_leaf(self):
@@ -188,6 +223,10 @@ class FormFactorCsrBlock(FormFactorSparseBlock):
     def tocsr(self):
         return self._spmat
 
+    @property
+    def _mat(self):
+        return self._spmat.toarray()
+
 
 class FormFactorSvdBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
@@ -204,8 +243,6 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
         y = self._vt@x
         y = (y.T*self._s).T
         y = self._u@y
-        # TODO OK? Shouldn't be necessary, but is it ok?
-        y[y<0.] = 0.
         return y
 
     @property
@@ -229,8 +266,8 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
     def __init__(self, root, shape):
         super().__init__(root, shape)
 
-    def make_block(self, shape_model, I, J, is_diag=False, spmat=None,
-                   max_depth=None):
+    def make_block(self, shape_model, I, J, spmat, is_diag=False,
+                   max_depth=None, force_max_depth=False):
         if max_depth is not None and not isinstance(max_depth, int):
             raise RuntimeError(
                 'invalid max_depth type: %s' % str(type(max_depth)))
@@ -238,16 +275,34 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         if isinstance(max_depth, int) and max_depth <= 0:
             raise RuntimeError('invalid max_depth value: %d' % max_depth)
 
-        nnz, shape = spmat.nnz, spmat.shape
-        size = np.product(shape)
-        try:
-            sparsity = nnz/size
-        except:
-            import pdb; pdb.set_trace()
-            pass
+        if force_max_depth and max_depth is None:
+            raise RuntimeError(
+                'force_max_depth is True, but max_depth not specified')
 
-        if shape[0] == 0 and shape[1] == 0:
-            return self.root.make_null_block()
+        # If force_max_depth is True, we use the following simple
+        # recursion when building the hierarchical block matrix
+        if force_max_depth and max_depth > 1:
+            if is_diag:
+                block = self.make_child_block(
+                    shape_model, spmat, I, J, max_depth - 1, force_max_depth)
+                if block.is_dense():
+                    block = self.root.make_dense_block(block.toarray())
+                elif block.is_sparse():
+                    block = self.root.make_sparse_block(block.tocsr())
+                return block
+            else:
+                return self.make_compressed_sparse_block(spmat)
+
+        # On the other hand, if force_max_depth is False we "try" to
+        # be "smart"... not sure how good of an idea this really is...
+
+        nnz, shape = spmat.nnz, spmat.shape
+
+        if shape[0] == 0 or shape[1] == 0:
+            return self.root.make_null_block(shape)
+
+        size = np.product(shape)
+        sparsity = nnz/size
 
         if nnz == 0:
             return self.root.make_zero_block(shape)
@@ -389,7 +444,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 class FormFactor2dTreeBlock(FormFactorBlockMatrix):
 
     def __init__(self, root, shape_model, spmat_par=None, I_par=None,
-                 J_par=None, max_depth=None):
+                 J_par=None, max_depth=None, force_max_depth=False):
         """Initializes a 2d-tree block.
 
         Parameters
@@ -412,6 +467,9 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
             will be at most max_depth). If max_depth is None, then the
             recursion will terminate naturally when one of the other
             conditions are met.
+        force_max_depth : boolean
+            Whether to build the tree to the maximum depth level. If True,
+            each leaf node will have the same height. Defaullt: False.
 
         """
 
@@ -435,8 +493,8 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
                 else:
                     spmat = spmat_par[row_inds, :][:, col_inds]
                 is_diag = i == j
-                block = self.make_block(shape_model, I, J, is_diag,
-                                        spmat, max_depth)
+                block = self.make_block(shape_model, I, J, spmat, is_diag,
+                                        max_depth, force_max_depth)
                 row.append(block)
             blocks.append(row)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
@@ -509,16 +567,10 @@ class FormFactorQuadtreeBlock(FormFactor2dTreeBlock):
         P = shape_model.P
 
         PI = P[:, :2] if I is None else P[I, :2]
-        self._row_block_inds = [
-            I for I in get_quadrant_order(PI)
-            if I.size > 0
-        ]
+        self._row_block_inds = [I for I in get_quadrant_order(PI)]
 
         PJ = P[:, :2] if J is None else P[J, :2]
-        self._col_block_inds = [
-            J for J in get_quadrant_order(PJ)
-            if J.size > 0
-        ]
+        self._col_block_inds = [J for J in get_quadrant_order(PJ)]
 
 class FormFactorOctreeBlock(FormFactor2dTreeBlock):
 
@@ -532,16 +584,10 @@ class FormFactorOctreeBlock(FormFactor2dTreeBlock):
         P = shape_model.P
 
         PI = P[:] if I is None else P[I]
-        self._row_block_inds = [
-            I for I in get_octant_order(PI)
-            if I.size > 0
-        ]
+        self._row_block_inds = [I for I in get_octant_order(PI)]
 
         PJ = P[:] if J is None else P[J]
-        self._col_block_inds = [
-            J for J in get_octant_order(PJ)
-            if J.size > 0
-        ]
+        self._col_block_inds = [J for J in get_octant_order(PJ)]
 
 class FormFactorPartitionBlock(FormFactorBlockMatrix):
 
@@ -566,7 +612,7 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
             for j, J in enumerate(parts):
                 is_diag = i == j
                 spmat = get_form_factor_matrix(shape_model, I, J)
-                block = self.make_block(shape_model, I, J, is_diag, spmat)
+                block = self.make_block(shape_model, I, J, spmat, is_diag)
                 row_blocks.append(block)
             blocks.append(row_blocks)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
@@ -589,7 +635,7 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
     """
 
     def __init__(self, shape_model, tol=1e-5,
-                 min_size=16384, max_depth=None,
+                 min_size=16384, max_depth=None, force_max_depth=False,
                  RootBlock=FormFactorQuadtreeBlock, **kwargs):
         """Create a new CompressedFormFactorMatrix.
 
@@ -607,6 +653,10 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         max_depth : None or positive integer
             The maximum depth of the hierarchical matrix. If None is passed,
             then there is no maximum depth.
+        force_max_depth : boolean
+            Whether to enforce the maximum depth of the hierarchical matrix.
+            If True is passed, then each leaf node in the tree will have the
+            same height. This is mostly useful for debugging. Default: False.
         RootBlock : class
             The class to use for the root node the hierarchical matrix.
 
@@ -618,39 +668,14 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         self._tol = tol
         self._min_size = min_size
         self._max_depth = max_depth
-        self._root = RootBlock(self, shape_model, max_depth=max_depth, **kwargs)
+        self._force_max_depth = force_max_depth
+        self._root = RootBlock(self, shape_model, max_depth=max_depth,
+                               force_max_depth=force_max_depth, **kwargs)
 
     @staticmethod
     def from_file(path):
         with open(path, 'rb') as f:
             return pickle.load(f)
-
-    # @classmethod
-    # def assemble(cls, **kwargs):
-    #     assert "tree_kind" in kwargs
-    #     tree_kind = kwargs['tree_kind']
-    #     del kwargs['tree_kind']
-    #     if tree_kind == 'quad':
-    #         return CompressedFormFactorMatrix(
-    #             **kwargs, RootBlock=FormFactorQuadtreeBlock)
-    #     elif tree_kind == 'oct':
-    #         return CompressedFormFactorMatrix(
-    #             **kwargs, RootBlock=FormFactorOctreeBlock)
-
-    # @classmethod
-    # def assemble_using_quadtree(cls, **kwargs):
-    #     return CompressedFormFactorMatrix(
-    #         **kwargs, RootBlock=FormFactorQuadtreeBlock)
-
-    # @classmethod
-    # def assemble_using_octree(cls, **kwargs):
-    #     return CompressedFormFactorMatrix(
-    #         **kwargs, RootBlock=FormFactorOctreeBlock)
-
-    # @classmethod
-    # def assemble_using_partition(cls, **kwargs):
-    #     return CompressedFormFactorMatrix(
-    #         **kwargs, RootBlock=FormFactorPartitionBlock)
 
     @property
     def dtype(self):
@@ -676,8 +701,8 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
     def sparsity_threshold(self):
         return 2.0/3.0
 
-    def make_null_block(self):
-        return FormFactorNullBlock(self)
+    def make_null_block(self, *args):
+        return FormFactorNullBlock(self, *args)
 
     def make_zero_block(self, *args):
         return FormFactorZeroBlock(self, *args)

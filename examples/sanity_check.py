@@ -39,7 +39,7 @@ outward = (shape_model.P*shape_model.N).sum(1) > 0
 shape_model.N[outward] *= -1
 
 # make surface normals outward facing
-shape_model.N *= -1
+# shape_model.N *= -1
 
 E = np.ones(shape_model.num_faces)
 
@@ -47,9 +47,12 @@ FF_gt = ff.get_form_factor_matrix(shape_model)
 B1_gt = FF_gt@E # compute first order of scattered radiance
 
 # import ipdb; ipdb.set_trace()
-FF = cff.CompressedFormFactorMatrix(shape_model, tol=1e-2,
-                                    min_size=400, max_depth=1,
-                                    RootBlock=cff.FormFactorOctreeBlock)
+FF = cff.CompressedFormFactorMatrix(
+    shape_model,
+    tol=0,
+    max_depth=2,
+    force_max_depth=True,
+    RootBlock=cff.FormFactorOctreeBlock)
 
 B1 = FF@E
 
@@ -102,3 +105,13 @@ grid['occluded'] = occluded
 
 plotter = pvqt.BackgroundPlotter()
 plotter.add_mesh(grid, scalars='occluded')
+
+########################################################################
+# testing indices of 2nd level blocks...
+
+i, j = 3, 3
+I, J = FF._root._row_block_inds[i], FF._root._col_block_inds[j]
+block = FF._root._blocks[i, j]
+ii, jj = 2, 5
+II, JJ = block._row_block_inds[ii], block._col_block_inds[jj]
+subblock = block._blocks[ii, jj]
