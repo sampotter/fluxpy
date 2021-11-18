@@ -4,6 +4,7 @@ import unittest
 
 from pathlib import Path
 
+import common
 import flux.shape
 
 class TrimeshShapeModelTestCase(unittest.TestCase):
@@ -12,14 +13,14 @@ class TrimeshShapeModelTestCase(unittest.TestCase):
 
         np.seterr('raise')
 
-    def test_get_visibility_matrix_for_sphere_trimesh(self):
+    def test_get_visibility_matrix_for_sphere(self):
         for TrimeshShapeModel, npz_filename in it.product(
                 flux.shape.trimesh_shape_models,
-                ['icosa_sphere.npz', 'icosa_sphere_5.npz']):
+                common.sphere_npz_filenames):
             with self.subTest(
                     trimesh_shape_model=TrimeshShapeModel.__name__,
                     npz_filename=npz_filename):
-                npz_file = np.load(self.data_path/'icosa_sphere.npz')
+                npz_file = np.load(self.data_path/npz_filename)
                 V, F = npz_file['V'], npz_file['F']
 
                 shape_model = TrimeshShapeModel(V, F)
@@ -58,10 +59,34 @@ class TrimeshShapeModelTestCase(unittest.TestCase):
                 vis = shape_model.get_visibility_matrix(oriented=True)
                 self.assertTrue((vis == vis_gt).all())
 
+    def test_is_occluded_for_sphere(self):
+        for TrimeshShapeModel, npz_filename in it.product(
+                flux.shape.trimesh_shape_models,
+                common.sphere_npz_filenames):
+            with self.subTest(
+                    trimesh_shape_model=TrimeshShapeModel.__name__,
+                    npz_filename=npz_filename):
+                npz_file = np.load(self.data_path/npz_filename)
+                V, F = npz_file['V'], npz_file['F']
+
+                shape_model = TrimeshShapeModel(V, F)
+
+                # make sure all surface normals point outward
+                shape_model.N[(shape_model.N*shape_model.P).sum(1) < 0] *= -1
+
+                D = np.random.randn(3)
+                D /= np.linalg.norm(D)
+
+                face_inds = np.arange(shape_model.num_faces)
+                occluded = shape_model.is_occluded(face_inds, D)
+                occluded_gt = shape_model.N@D < 0
+
+                self.assertTrue((occluded == occluded_gt).all())
+
     def test_get_visibility_and_get_visibility_1_to_N_are_equivalent(self):
         for TrimeshShapeModel, npz_filename in it.product(
                 flux.shape.trimesh_shape_models,
-                ['icosa_sphere.npz', 'icosa_sphere_5.npz']):
+                common.sphere_npz_filenames):
             with self.subTest(
                     trimesh_shape_model=TrimeshShapeModel.__name__,
                     npz_filename=npz_filename):
@@ -79,10 +104,12 @@ class TrimeshShapeModelTestCase(unittest.TestCase):
                 vis = shape_model.get_visibility(I, I, oriented=oriented)
 
                 for i in I:
-                    vis_i = shape_model.get_visibility_1_to_N(i, I, oriented=oriented)
+                    vis_i = shape_model.get_visibility_1_to_N(
+                        i, I, oriented=oriented)
                     J_bad = np.where(vis[i] != vis_i)[0]
                     J_bad_str = ', '.join(str(j) for j in J_bad)
-                    self.assertEqual(J_bad.size, 0, f'i = {i}, bad j: {J_bad_str}')
+                    self.assertEqual(
+                        J_bad.size, 0, f'i = {i}, bad j: {J_bad_str}')
 
 if __name__ == '__main__':
     unittest.main()

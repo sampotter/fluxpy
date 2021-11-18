@@ -38,6 +38,9 @@ shape_model = flux.shape.CgalTrimeshShapeModel(V, F)
 outward = (shape_model.P*shape_model.N).sum(1) > 0
 shape_model.N[outward] *= -1
 
+# make surface normals outward facing
+shape_model.N *= -1
+
 E = np.ones(shape_model.num_faces)
 
 FF_gt = ff.get_form_factor_matrix(shape_model)
@@ -87,21 +90,15 @@ for i, j in it.product(range(8), repeat=2):
         break
 
 ########################################################################
-# vtk test
+# test occlusion
 
-# import vtk
+D = np.random.randn(3)
+D /= np.linalg.norm(D)
 
-# verts = vtk.vtkPoints()
-# verts.SetData(vtk.util.numpy_support.numpy_to_vtk(shape_model.V))
+occluded = shape_model.is_occluded(np.arange(shape_model.num_faces), D)
 
-# faces = vtk.vtkCellArray()
-# faces.SetCells(shape_model.num_faces,
-#                vtk.util.numpy_support.numpy_to_vtkIdTypeArray(shape_model.F))
+grid = shape_model.get_pyvista_unstructured_grid()
+grid['occluded'] = occluded
 
-# poly_data = vtk.vtkPolyData()
-# poly_data.SetPoints(verts)
-# poly_data.SetPolys(faces)
-
-# obb_tree = vtk.vtkOBBTree()
-# obb_tree.SetDataSet(poly_data)
-# obb_tree.BuildLocator()
+plotter = pvqt.BackgroundPlotter()
+plotter.add_mesh(grid, scalars='occluded')

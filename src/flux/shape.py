@@ -391,13 +391,13 @@ class EmbreeTrimeshShapeModel(TrimeshShapeModel):
         ray.org[:] = self.P[I] + eps*self.N[I]
         ray.dir[:] = D
         ray.tnear[:] = 0
-        ray.tfar = np.inf
+        ray.tfar[:] = np.inf
         ray.flags[:] = 0
 
         context = embree.IntersectContext()
         context.flags = embree.IntersectContextFlags.COHERENT
 
-        self.occluded1M(context, ray)
+        self.scene.occluded1M(context, ray)
 
         return np.logical_not(np.isposinf(ray.tfar))
 
