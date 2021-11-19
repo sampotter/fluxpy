@@ -73,7 +73,7 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
                 E = np.random.randn(shape_model.num_faces)
                 B, B_gt = FF@E, FF_gt@E
                 mvp_rel_error = abs(B - B_gt).max()/abs(B_gt).max()
-                self.assertTrue(mvp_rel_error < 1e-14)
+                self.assertLess(mvp_rel_error, 1e-14)
 
     def test_max_depth_2_for_stretched_sphere(self):
         for TrimeshShapeModel, npz_filename in it.product(
@@ -147,7 +147,7 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
                 E = np.random.randn(shape_model.num_faces)
                 B, B_gt = FF@E, FF_gt@E
                 mvp_rel_error = abs(B - B_gt).max()/abs(B_gt).max()
-                self.assertTrue(mvp_rel_error < 1e-14)
+                self.assertLess(mvp_rel_error, 1e-14)
 
     def test_ingersoll_crater(self):
         beta = np.deg2rad(25)
@@ -161,8 +161,12 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
 
         V, F = crater.make_trimesh(0.1, return_parts=False)
 
-        for TrimeshShapeModel in flux.shape.trimesh_shape_models:
-            with self.subTest(trimesh_shape_model=TrimeshShapeModel.__name__):
+        for TrimeshShapeModel, max_depth in it.product(
+                flux.shape.trimesh_shape_models,
+                range(1, 4)):
+            with self.subTest(
+                    trimesh_shape_model=TrimeshShapeModel.__name__,
+                    max_depth=max_depth):
                 shape_model = TrimeshShapeModel(V, F)
 
                 # make sure normals are pointing up
@@ -172,7 +176,7 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
                 FF = CompressedFormFactorMatrix(
                     shape_model,
                     tol=0,
-                    max_depth=2,
+                    max_depth=max_depth,
                     force_max_depth=True,
                     RootBlock=FormFactorQuadtreeBlock)
 
@@ -183,4 +187,4 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
 
                 B, B_gt = FF@E, FF_gt@E
                 mvp_rel_error = abs(B - B_gt).max()/abs(B_gt).max()
-                self.assertTrue(mvp_rel_error < np.finfo(V.dtype).resolution)
+                self.assertLess(mvp_rel_error, np.finfo(V.dtype).resolution)
