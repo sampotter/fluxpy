@@ -208,8 +208,8 @@ class TrimeshShapeModel(ShapeModel):
             directions.
 
         '''
-        if base_mesh == None:
-            base_mesh = self
+        if basemesh == None:
+            basemesh = self
 
         # Determine which rays escaped (i.e., can see the sun)
         if basemesh is None:
@@ -224,7 +224,7 @@ class TrimeshShapeModel(ShapeModel):
 
         # Compute the direct irradiance
         if Dsun.ndim == 1:
-            E = np.zeros(n, dtype=self.dtype)
+            E = np.zeros(self.num_faces, dtype=self.dtype)
             E[I] = F0*np.maximum(0, self.N[I]@Dsun)
         else:
             E = np.zeros((n, m), dtype=self.dtype)
