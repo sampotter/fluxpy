@@ -372,23 +372,30 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
     def is_sparse(self):
         return _is_sparse(self._blocks).all()
 
-    def toarray(self):
-        row = []
-        for row_blocks in self._blocks:
-            col = []
-            for block in row_blocks:
-                col.append(block.toarray())
-            row.append(np.hstack(col))
-        return np.vstack(row)
+    # TODO: disabling toarray and tocsr for now. These can cause
+    # confusion because there are two pays of concatenating the
+    # subblocks together: either we undo the row and column
+    # permutations before concatenating, or we don't. The user needs
+    # to choose, and it's probably best that they just do this sort of
+    # thing manually.
 
-    def tocsr(self):
-        row = []
-        for row_blocks in self._blocks:
-            col = []
-            for block in row_blocks:
-                col.append(block.tocsr())
-            row.append(scipy.sparse.hstack(col))
-        return scipy.sparse.vstack(row)
+    # def toarray(self):
+    #     row = []
+    #     for row_blocks in self._blocks:
+    #         col = []
+    #         for block in row_blocks:
+    #             col.append(block.toarray())
+    #         row.append(np.hstack(col))
+    #     return np.vstack(row)
+
+    # def tocsr(self):
+    #     row = []
+    #     for row_blocks in self._blocks:
+    #         col = []
+    #         for block in row_blocks:
+    #             col.append(block.tocsr())
+    #         row.append(scipy.sparse.hstack(col))
+    #     return scipy.sparse.vstack(row)
 
     def _get_blocks_at_depth(self, depth):
         if depth == 0:
