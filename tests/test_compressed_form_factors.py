@@ -4,6 +4,7 @@ import unittest
 
 from pathlib import Path
 
+import flux.ingersoll
 import flux.shape
 import tests.common
 
@@ -11,6 +12,7 @@ from flux.compressed_form_factors import \
     CompressedFormFactorMatrix, \
     FormFactorDenseBlock, \
     FormFactorOctreeBlock, \
+    FormFactorQuadtreeBlock, \
     FormFactorZeroBlock
 from flux.form_factors import get_form_factor_matrix
 
@@ -146,3 +148,39 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
                 B, B_gt = FF@E, FF_gt@E
                 mvp_rel_error = abs(B - B_gt).max()/abs(B_gt).max()
                 self.assertTrue(mvp_rel_error < 1e-14)
+
+    def test_ingersoll_crater(self):
+        beta = np.deg2rad(25)
+        rc = 0.75
+        e0 = np.deg2rad(10)
+        F0 = 1000
+        rho = 0.3
+        emiss = 0.99
+
+        crater = flux.ingersoll.HemisphericalCrater(beta, rc, e0, F0, rho, emiss)
+
+        V, F = crater.make_trimesh(0.1, return_parts=False)
+
+        for TrimeshShapeModel in flux.shape.trimesh_shape_models:
+            with self.subTest(trimesh_shape_model=TrimeshShapeModel.__name__):
+                shape_model = TrimeshShapeModel(V, F)
+
+                # make sure normals are pointing up
+                shape_model.N[shape_model.N[:, 2] < 0] *= -1
+
+
+                FF = CompressedFormFactorMatrix(
+                    shape_model,
+                    tol=0,
+                    max_depth=2,
+                    force_max_depth=True,
+                    RootBlock=FormFactorQuadtreeBlock)
+
+                FF_gt = get_form_factor_matrix(shape_model).toarray()
+
+                dir_sun = np.array([np.cos(e0), 0, np.sin(e0)])
+                E = shape_model.get_direct_irradiance(F0, dir_sun, unit_Svec=True)
+
+                B, B_gt = FF@E, FF_gt@E
+                mvp_rel_error = abs(B - B_gt).max()/abs(B_gt).max()
+                self.assertTrue(mvp_rel_error < np.finfo(V.dtype).resolution)
