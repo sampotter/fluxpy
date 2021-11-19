@@ -7,7 +7,7 @@ import numpy as np
 import flux.compressed_form_factors as cff
 
 from flux.form_factors import get_form_factor_matrix
-from flux.shape import TrimeshShapeModel
+from flux.shape import TrimeshShapeModel, CgalTrimeshShapeModel
 
 
 def setup_form_factor_matrix(compress=True, tol=1e-2, min_size=1.e4):
@@ -23,7 +23,7 @@ def setup_form_factor_matrix(compress=True, tol=1e-2, min_size=1.e4):
     N = np.load('lsp_N.npy')
 
     # Set up shape model and build form factor matrix
-    shape_model = TrimeshShapeModel(V, F, N)
+    shape_model = CgalTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'), N.copy(order='C'))
 
     if compress:
         FF = cff.CompressedFormFactorMatrix(

@@ -10,7 +10,9 @@ import scipy.interpolate
 import scipy.ndimage
 import scipy.spatial
 
-from flux.shape import get_centroids, get_surface_normals, TrimeshShapeModel
+from flux.shape import get_centroids, get_surface_normals, TrimeshShapeModel, CgalTrimeshShapeModel, \
+    EmbreeTrimeshShapeModel
+
 
 def make_shape_model(grdpath, verbose=False):
 
@@ -82,7 +84,7 @@ def make_shape_model(grdpath, verbose=False):
     N = get_surface_normals(V, F)
     N[(N*P).sum(1) < 0] *= -1
 
-    shape_model = TrimeshShapeModel(V, F, N, P)
+    shape_model = CgalTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'), N.copy(order='C'), P.copy(order='C')) #TrimeshShapeModel(V, F, N, P)
 
     print('- created shape model with %d faces and %d vertices' % (F.shape[0], V.shape[0]))
 

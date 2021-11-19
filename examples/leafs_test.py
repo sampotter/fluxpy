@@ -20,10 +20,16 @@ recompute_FF = True
 path = os.path.join('.', 'LDEM_80S_150M_adjusted.grd')
 shape_model = make_shape_model(grdpath=path, verbose=True)
 
-# compute both full FF
+np.save('lsp_V.npy', shape_model.V)
+print('- wrote lsp_V.npy')
 
+np.save('lsp_F.npy', shape_model.F)
+print('- wrote lsp_F.npy')
 
+np.save('lsp_N.npy', shape_model.N)
+print('- wrote lsp_N.npy')
 
+# compute both full FF and compressed one
 for compressed,v in enumerate(["full", "compressed"]): #
     print(compressed,v)
     # only compute new FF if it doesn't exist (possibly an option
@@ -32,7 +38,7 @@ for compressed,v in enumerate(["full", "compressed"]): #
         logging.warning(f"Generating a new {f'lsp_{v}_form_factors.bin'}")
         setup_form_factor_matrix(compress=compressed, tol=0., min_size=1.e9)
 
-assert False
+# assert False
 
 
 cFF = CompressedFormFactorMatrix.from_file('lsp_compressed_form_factors.bin')
