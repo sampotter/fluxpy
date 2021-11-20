@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import logging
 
 import colorcet as cc
 import dmsh
@@ -14,7 +15,7 @@ from flux.shape import get_centroids, get_surface_normals, TrimeshShapeModel, Cg
     EmbreeTrimeshShapeModel
 
 
-def make_shape_model(grdpath, verbose=False):
+def make_shape_model(grdpath, verbose=False, engine='cgal'):
 
     # Read GRD file
 
@@ -84,7 +85,13 @@ def make_shape_model(grdpath, verbose=False):
     N = get_surface_normals(V, F)
     N[(N*P).sum(1) < 0] *= -1
 
-    shape_model = CgalTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'), N.copy(order='C'), P.copy(order='C')) #TrimeshShapeModel(V, F, N, P)
+    if engine == 'cgal':
+        shape_model = CgalTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'), N.copy(order='C'), P.copy(order='C')) #TrimeshShapeModel(V, F, N, P)
+    elif engine == 'embree':
+        shape_model = EmbreeTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'), N.copy(order='C'),
+                                            P.copy(order='C'))  # TrimeshShapeModel(V, F, N, P)
+    else:
+        logging.error("Please specify which ray tracing engine to use: cgal or embree.")
 
     print('- created shape model with %d faces and %d vertices' % (F.shape[0], V.shape[0]))
 

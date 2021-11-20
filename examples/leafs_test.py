@@ -15,10 +15,11 @@ from examples.lsp_form_factor_matrix import setup_form_factor_matrix
 from examples.lsp_make_shape_model import make_shape_model
 
 recompute_FF = True
+rt_engine = 'embree'
 
 # compute shape_model from input grd
 path = os.path.join('.', 'LDEM_80S_150M_adjusted.grd')
-shape_model = make_shape_model(grdpath=path, verbose=True)
+shape_model = make_shape_model(grdpath=path, verbose=True, engine=rt_engine)
 
 np.save('lsp_V.npy', shape_model.V)
 print('- wrote lsp_V.npy')
@@ -36,7 +37,7 @@ for compressed,v in enumerate(["full", "compressed"]): #
     # would be better?)
     if not os.path.exists(f'lsp_{v}_form_factors.bin') or recompute_FF:
         logging.warning(f"Generating a new {f'lsp_{v}_form_factors.bin'}")
-        setup_form_factor_matrix(compress=compressed, tol=0., min_size=1.e9)
+        setup_form_factor_matrix(compress=compressed, tol=0., min_size=1.e9, engine=rt_engine)
 
 # assert False
 

@@ -213,9 +213,9 @@ class TrimeshShapeModel(ShapeModel):
 
         # Determine which rays escaped (i.e., can see the sun)
         if basemesh is None:
-            I = self.is_occluded(np.arange(self.num_faces), Dsun)
+            I = self.is_occluded(np.arange(self.num_faces), Dsun.copy(order='C'))
         else:
-            I = basemesh.is_occluded(np.arange(self.num_faces), Dsun)
+            I = basemesh.is_occluded(np.arange(self.num_faces), Dsun.copy(order='C'))
 
         # rescale solar flux depending on distance
         if not unit_Svec:
@@ -295,7 +295,7 @@ class EmbreeTrimeshShapeModel(TrimeshShapeModel):
 
         scene = device.make_scene()
         # scene.set_build_quality(embree.BuildQuality.High)
-        scene.set_flags(embree.SceneFlags.Robust)
+        # scene.set_flags(embree.SceneFlags.Robust)
 
         vertex_buffer = geometry.set_new_buffer(
             embree.BufferType.Vertex, # buf_type
