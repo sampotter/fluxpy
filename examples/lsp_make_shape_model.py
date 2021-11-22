@@ -10,7 +10,7 @@ import scipy.interpolate
 import scipy.ndimage
 import scipy.spatial
 
-from flux.shape import get_centroids, get_surface_normals, TrimeshShapeModel
+from flux.shape import get_centroids, get_surface_normals, CgalTrimeshShapeModel
 
 def make_shape_model(grdpath, verbose=False):
 
@@ -73,16 +73,11 @@ def make_shape_model(grdpath, verbose=False):
     J = np.arange(j0, j1)
     IJ = np.array([_.flatten() for _ in np.meshgrid(I, J, indexing='ij')]).T
 
-    V = np.array([x.ravel(), y.ravel(), z.ravel()]).T
+    V = np.array([x.ravel(), y.ravel(), z.ravel()]).T.copy(order='C')
     F = scipy.spatial.Delaunay(IJ).simplices
 
-    # Compute face normals by computing
-
-    P = get_centroids(V, F)
-    N = get_surface_normals(V, F)
-    N[(N*P).sum(1) < 0] *= -1
-
-    shape_model = TrimeshShapeModel(V, F, N, P)
+    shape_model = CgalTrimeshShapeModel(V, F)
+    shape_model.N[(shape_model.N*shape_model.P).sum(1) < 0] *= -1
 
     print('- created shape model with %d faces and %d vertices' % (F.shape[0], V.shape[0]))
 

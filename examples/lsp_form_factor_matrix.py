@@ -7,10 +7,10 @@ import numpy as np
 import flux.compressed_form_factors as cff
 
 from flux.form_factors import get_form_factor_matrix
-from flux.shape import TrimeshShapeModel
+from flux.shape import CgalTrimeshShapeModel
 
 
-def setup_form_factor_matrix(compress=True, tol=1e-2, min_size=1.e4):
+def setup_form_factor_matrix(compress=True, tol=1e-2, min_size=256):
     """
     Loads facets and produces FF
     Args:
@@ -23,7 +23,7 @@ def setup_form_factor_matrix(compress=True, tol=1e-2, min_size=1.e4):
     N = np.load('lsp_N.npy')
 
     # Set up shape model and build form factor matrix
-    shape_model = TrimeshShapeModel(V, F, N)
+    shape_model = CgalTrimeshShapeModel(V, F, N)
 
     if compress:
         FF = cff.CompressedFormFactorMatrix(
@@ -31,7 +31,11 @@ def setup_form_factor_matrix(compress=True, tol=1e-2, min_size=1.e4):
             tol=tol,
             min_size=min_size,
             RootBlock=cff.FormFactorQuadtreeBlock)
+
+        print(f'- assembled FF [depth={FF.depth}]')
+
         FF.save('lsp_compressed_form_factors.bin')
+        print('- wrote FF matrix to lsp_compressed_form_factors.bin')
     else:
         FF = get_form_factor_matrix(shape_model)
         with open('lsp_full_form_factors.bin', 'wb') as f:
