@@ -11,9 +11,7 @@ import scipy.interpolate
 import scipy.ndimage
 import scipy.spatial
 
-from flux.shape import get_centroids, get_surface_normals, TrimeshShapeModel, CgalTrimeshShapeModel, \
-    EmbreeTrimeshShapeModel
-
+from flux.shape import get_centroids, get_surface_normals, EmbreeTrimeshShapeModel, CgalTrimeshShapeModel, \
 
 def make_shape_model(grdpath, verbose=False, engine='cgal'):
 
@@ -76,11 +74,10 @@ def make_shape_model(grdpath, verbose=False, engine='cgal'):
     J = np.arange(j0, j1)
     IJ = np.array([_.flatten() for _ in np.meshgrid(I, J, indexing='ij')]).T
 
-    V = np.array([x.ravel(), y.ravel(), z.ravel()]).T
+    V = np.array([x.ravel(), y.ravel(), z.ravel()]).T.copy(order='C')
     F = scipy.spatial.Delaunay(IJ).simplices
 
     # Compute face normals by computing
-
     P = get_centroids(V, F)
     N = get_surface_normals(V, F)
     N[(N*P).sum(1) < 0] *= -1
@@ -92,6 +89,11 @@ def make_shape_model(grdpath, verbose=False, engine='cgal'):
                                             P.copy(order='C'))  # TrimeshShapeModel(V, F, N, P)
     else:
         logging.error("Please specify which ray tracing engine to use: cgal or embree.")
+
+    # really sure that this is fully equivalent? I got a lot of trouble because of normals...
+    shape_model = CgalTrimeshShapeModel(V, F)
+    shape_model.N[(shape_model.N*shape_model.P).sum(1) < 0] *= -1
+
 
     print('- created shape model with %d faces and %d vertices' % (F.shape[0], V.shape[0]))
 

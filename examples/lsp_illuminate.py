@@ -71,14 +71,14 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
         np.cos(lonsun)*np.cos(latsun),
         np.sin(lonsun)*np.cos(latsun),
         np.sin(latsun)
-    ]).T
+    ]).T.copy(order='C')
 
     # Load compressed form factor matrix, including shape model, from disk
     if use_svd:
         V = np.load('lsp_V.npy')
         F = np.load('lsp_F.npy')
         N = np.load('lsp_N.npy')
-        shape_model = TrimeshShapeModel(V, F, N)
+        shape_model = CgalTrimeshShapeModel(V, F, N)
     elif compressed:
         logging.warning("Retrieving compressed FF block and shape_model...")
         FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
@@ -202,4 +202,4 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
 
 if __name__ == '__main__':
 
-    illuminate_form_factor()
+    illuminate_form_factor(plot_fluxes=True)

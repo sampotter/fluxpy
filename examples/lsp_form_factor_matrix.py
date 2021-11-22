@@ -7,10 +7,9 @@ import numpy as np
 import flux.compressed_form_factors as cff
 
 from flux.form_factors import get_form_factor_matrix
-from flux.shape import TrimeshShapeModel, CgalTrimeshShapeModel, EmbreeTrimeshShapeModel
+from flux.shape import CgalTrimeshShapeModel, EmbreeTrimeshShapeModel
 
-
-def setup_form_factor_matrix(compress=True, tol=1e-2, min_size=1.e4, engine='cgal'):
+def setup_form_factor_matrix(compress=True, tol=1e-2, min_size=256, engine='cgal'):
     """
     Loads facets and produces FF
     Args:
@@ -36,7 +35,11 @@ def setup_form_factor_matrix(compress=True, tol=1e-2, min_size=1.e4, engine='cga
             tol=tol,
             min_size=min_size,
             RootBlock=cff.FormFactorQuadtreeBlock)
+
+        print(f'- assembled FF [depth={FF.depth}]')
+
         FF.save('lsp_compressed_form_factors.bin')
+        print('- wrote FF matrix to lsp_compressed_form_factors.bin')
     else:
         FF = get_form_factor_matrix(shape_model)
         with open('lsp_full_form_factors.bin', 'wb') as f:

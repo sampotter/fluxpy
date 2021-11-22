@@ -32,19 +32,19 @@ from scipy.constants import Stefan_Boltzmann as sigSB
 
 import flux.form_factors as ff
 
-    
+
 def exact_solution_ingersoll(F0, e0, albedo, emiss, D2d, P, N, E, dir_sun):
     # calculate analytical solution for bowl-shaped crater
     # F0 ... solar constant [W/m^2]
     # e0 ... elevation of sun above horizontal surface [radians]
     # albedo ... (visible) albedo
-    # emiss ... (infrared) emissivity 
+    # emiss ... (infrared) emissivity
     # D2d ... diameter-to-depth ratio
     # P ... coordinates of triangle centers
     # N ... surface normals of length 1
     # E ... direct solar irradiance
     # dir_sun ... vector pointing toward sun
-    
+
     f = 1 / (1 + 0.25*D2d**2)
     b = f*(emiss + albedo*(1-f)) / (1 - albedo*f)
     T = np.empty(P.shape[0])
@@ -54,16 +54,16 @@ def exact_solution_ingersoll(F0, e0, albedo, emiss, D2d, P, N, E, dir_sun):
 
     # plain around crater
     k = np.where( P[:,2]==0 )
-    Eexact[k] = F0 * np.sin(e0) 
+    Eexact[k] = F0 * np.sin(e0)
     Q = (1-albedo) * F0 * np.sin(e0)
-    T[k] = ( Q/(emiss*sigSB) )**0.25 
-    
+    T[k] = ( Q/(emiss*sigSB) )**0.25
+
     # shadowed portion of crater
     k = np.where( E==0 )
     Eexact[k] = 0.
     Q = (1-albedo) * F0 * b*np.sin(e0)
     T[k] = ( Q/(emiss*sigSB) )**0.25
-    
+
     # sunlit portion of crater
     k = np.where( np.logical_and(E>0,  P[:,2]<0) )
     e = np.pi/2 - np.arccos( np.dot(N[k], dir_sun) )
@@ -72,10 +72,10 @@ def exact_solution_ingersoll(F0, e0, albedo, emiss, D2d, P, N, E, dir_sun):
     T[k] = ( Q/(emiss*sigSB) )**0.25
 
     return T
-    
 
 
-compress = False
+
+compress = True
 
 
 if __name__ == '__main__':
@@ -85,7 +85,7 @@ if __name__ == '__main__':
             shape_model = pickle.load(f)
 
         FF = ff.FormFactorMatrix.from_file('FF.bin')
-    
+
     else:
         # load FF.bin previously generated
         FF = CompressedFormFactorMatrix.from_file('FF.bin')
@@ -97,22 +97,22 @@ if __name__ == '__main__':
     N = shape_model.N
     P = shape_model.P
     print('- Number of vertices',V.shape[0],'Number of facets',F.shape[0])
-    
+
     # Define constants used in the simulation:
     e0 = np.deg2rad(10) # Solar elevation angle
     F0 = 1365 # Solar constant
     albedo = 0.3
     emiss = 0.95
-    
+
     dir_sun = np.array([0, -np.cos(e0), np.sin(e0)]) # Direction of sun
-    
+
     # Compute the direct irradiance and find the elements which are in shadow.
     tic()
-    E = shape_model.get_direct_irradiance(F0, dir_sun)
+    E = shape_model.get_direct_irradiance(F0, dir_sun, unit_Svec=True)
     t_E = toc()
     I_shadow = E == 0
     print('Number of elements in E =',E.shape[0])
-    
+
     # Make plot of direct irradiance
     fig, ax = tripcolor_vector(V, F, E, cmap=cmap['gray'])
     fig.savefig('E.png')
@@ -153,15 +153,15 @@ if __name__ == '__main__':
     with open('stats.json', 'w') as f:
         json.dump(stats, f)
     print('- wrote stats.json')
-    
+
     # IF the input was a bowl-shape crater, the solution can be compared with
     # the exact analytical solution. Otherwise
     # exit()
-    
+
     # calculate analytical solution
     Texact = exact_solution_ingersoll( F0, e0, albedo, emiss, 5., \
                                               P, N, E, dir_sun)
-    
+
     fig, ax = tripcolor_vector(V, F, Texact, cmap=cc.cm.fire)
     fig.savefig('Texact.png')
     plt.close(fig)
@@ -177,10 +177,8 @@ if __name__ == '__main__':
     fig.savefig('error.png')
     plt.close(fig)
     print('- wrote error.png')
-    
+
     print('num_faces',F.shape[0],
         'max_error',float(max_error),
         'abs_error',float(abs_error),
         'rms_error',float(rms_error) )
-
-
