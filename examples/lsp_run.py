@@ -16,8 +16,10 @@ recompute_FF = True
 test_svd = False
 
 # compute shape_model from input grd
-path = os.path.join('.', 'LDEM_80S_150M_adjusted.grd')
-make_shape_model(grdpath=path)
+# path = os.path.join('.', 'LDEM_80S_150M_adjusted.grd')
+path = os.path.join('.', 'lunar_south_pole_80mpp_curvature.grd')
+# make_shape_model(grdpath=path, ij=[1350, 1410,920, 1010])
+make_shape_model(grdpath=path, ij=[929, 1831,500, 1435])
 
 # compute both full and compressed FF
 d = {}
@@ -40,27 +42,22 @@ if test_svd:
 V = d['full']['V']
 F = d['full']['F']
 if test_svd:
-    residuals = np.abs(d['full']['Qrefl']-d['svd']['Qrefl']) #  #
+    residuals = np.abs(d['full']['T']-d['svd']['T']) #  #
 else:
-    residuals = np.abs(d['full']['Qrefl']-d['compressed']['Qrefl']) #  #
-
-print(len(residuals))
-step2_res = residuals[:,8]
-print(np.where(step2_res>1.e14))
-# exit()
+    residuals = np.abs(d['full']['T']-d['compressed']['T']) #  #
 
 # plot residuals
 for i in range(residuals.shape[1]):
     # print('frame = %d' % i)
-    fig, ax = tripcolor_vector(V, F, residuals[:, i], vmax=1.e14)
+    fig, ax = tripcolor_vector(V, F, residuals[:, i], cmap='inferno')
     fig.savefig(f"./frames/lsp_dfc32_%03d.png" % i)
     plt.close(fig)
 
-    fig, ax = tripcolor_vector(V, F, d['full']['Qrefl'][:, i], vmax=1.e16)
+    fig, ax = tripcolor_vector(V, F, d['full']['T'][:, i], cmap='inferno')
     fig.savefig(f"./frames/lsp_fd32_%03d.png" % i)
     plt.close(fig)
 
-    fig, ax = tripcolor_vector(V, F, d['compressed']['Qrefl'][:, i], vmax=1.e16)
+    fig, ax = tripcolor_vector(V, F, d['compressed']['T'][:, i], cmap='inferno')
     fig.savefig(f"./frames/lsp_cd32_%03d.png" % i)
     plt.close(fig)
 
