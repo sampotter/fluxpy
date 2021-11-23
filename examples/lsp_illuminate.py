@@ -28,7 +28,7 @@ from flux.thermal import PccThermalModel1D, setgrid
 from scipy.constants import sigma as sigSB
 
 # Use these temporary parameters...
-from flux.shape import CgalTrimeshShapeModel
+from flux.shape import CgalTrimeshShapeModel, EmbreeTrimeshShapeModel
 
 F0 = 1365  # Solar constant
 emiss = 0.95  # Emissitivity
@@ -36,7 +36,8 @@ albedo = 0.12  # Visual (?) albedo
 Fgeoth = 0.2
 steady_state = False  # True
 
-def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compressed=True, plot_fluxes=False, use_svd=False):
+def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compressed=True, plot_fluxes=False,
+                           use_svd=False, engine='cgal'):
     """
     Compute Sun position, illuminate FF and compute irradiance and temperature
     Args:
@@ -90,7 +91,14 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
         V = np.load('lsp_V.npy')
         F = np.load('lsp_F.npy')
         N = np.load('lsp_N.npy')
-        shape_model = CgalTrimeshShapeModel(V, F, N)
+        if engine == 'cgal':
+            shape_model = CgalTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'),
+                                                N.copy(order='C'))  # TrimeshShapeModel(V, F, N, P)
+        elif engine == 'embree':
+            shape_model = EmbreeTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'),
+                                                  N.copy(order='C'))  # TrimeshShapeModel(V, F, N, P)
+        else:
+            logging.error("Please specify which ray tracing engine to use: cgal or embree.")
 
     # illuminate FF
     E_arr = []
