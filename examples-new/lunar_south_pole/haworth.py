@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 DO_3D_PLOTTING = False
+RAYTRACING_BACKEND = 'embree' # 'cgal'
 
 cmap = dict()
 try:
@@ -35,7 +36,14 @@ from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.form_factors import get_form_factor_matrix
 from flux.model import compute_steady_state_temp
 from flux.plot import plot_blocks, tripcolor_vector
-from flux.shape import CgalTrimeshShapeModel
+
+RAYTRACING_BACKEND = RAYTRACING_BACKEND.lower()
+if RAYTRACING_BACKEND == 'cgal':
+    from flux.shape import CgalTrimeshShapeModel as MyTrimeshShapeModel
+elif RAYTRACING_BACKEND == 'embree':
+    from flux.shape import EmbreeTrimeshShapeModel as MyTrimeshShapeModel
+else:
+    raise ValueError('RAYTRACING_BACKEND should be one of: "cgal", "embree"')
 
 if __name__ == '__main__':
     # Define constants used in the simulation:
@@ -122,7 +130,7 @@ if __name__ == '__main__':
 
     # Create a triangle mesh shape model using the vertices (V) and
     # face indices (F).
-    shape_model = CgalTrimeshShapeModel(V, F)
+    shape_model = MyTrimeshShapeModel(V, F)
 
     # Build the compressed form factor matrix. All of the code related
     # to this can be found in the "form_factors.py" file in this
