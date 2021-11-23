@@ -12,22 +12,14 @@
 #include <CGAL/AABB_traits.h>
 #include <CGAL/AABB_face_graph_triangle_primitive.h>
 
-#include <CGAL/Polygon_mesh_processing/compute_normal.h>
-#include <CGAL/Polygon_mesh_processing/orientation.h>
-
-#include <iostream>
-#include <fstream>
-
 typedef CGAL::Simple_cartesian<double> K;
 
-typedef K::FT FT;
 typedef K::Point_3 Point;
 typedef K::Vector_3 Vector;
 typedef K::Ray_3 Ray;
-typedef K::Triangle_3 Triangle;
 
 typedef CGAL::Surface_mesh<Point> Mesh;
-typedef boost::graph_traits<Mesh>::face_descriptor face_descriptor;
+
 typedef boost::graph_traits<Mesh>::halfedge_descriptor halfedge_descriptor;
 
 typedef CGAL::AABB_face_graph_triangle_primitive<Mesh> Primitive;
