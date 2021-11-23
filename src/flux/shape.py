@@ -138,22 +138,17 @@ class TrimeshShapeModel(ShapeModel):
         triangles are facing one another).
 
         '''
-        vis = self._get_visibility(I, J, oriented).ravel()
-
-        m, n = len(I), len(J)
+        vis = self._get_visibility(I, J)
 
         # set vis for any pairs of faces with unoccluded LOS which
         # aren't oriented towards each other to False
         if oriented:
-            PJ = self.P[J]
-            for q, i in enumerate(I):
-                vis[q*n:(q + 1)*n] *= (PJ - self.P[i])@self.N[i] > 0
+            I_, J_ = np.where(vis)
+            mask = ((self.P[J_] - self.P[I_])*self.N[I_]).sum(1) <= 0
+            for i, j in zip(I_[mask], J_[mask]):
+                vis[i, j] = False
 
-        # faces can't see themselves
-        for q, i in enumerate(I):
-            vis[q*n:(q + 1)*n][J == i] = False
-
-        return vis.reshape(m, n)
+        return vis
 
     def get_visibility_1_to_N(self, i, J, oriented=False):
         '''Convenience function for calling get_visibility with a single
@@ -168,7 +163,7 @@ class TrimeshShapeModel(ShapeModel):
         np.arange(num_faces).
 
         '''
-        I = np.arange(self.num_faces)
+        I = np.arange(self.num_faces, dtype=np.uintp)
         return self.get_visibility(I, I, oriented)
 
     def is_occluded(self, I, D):
@@ -257,15 +252,16 @@ class CgalTrimeshShapeModel(TrimeshShapeModel):
         self.aabb = AABB.from_trimesh(
             self.V.astype(np.float64), self.F.astype(np.uintp))
 
-    def _get_visibility(self, I, J, oriented=False):
-        m, n = len(I), len(J)
-        vis = np.empty((m, n), dtype=np.bool_)
-        for (p, i), (q, j) in it.product(enumerate(I), enumerate(J)):
-            if i == j:
-                vis[p, q] = False
-            else:
-                vis[p, q] = self.aabb.test_face_to_face_vis(i, j)
-        return vis
+    def _get_visibility(self, I, J):
+        if not isinstance(I, np.ndarray):
+            I = np.array(I)
+        I = I.astype(np.uintp)
+
+        if not isinstance(J, np.ndarray):
+            J = np.array(J)
+        J = J.astype(np.uintp)
+
+        return self.aabb.test_face_to_face_vis_MN(I, J)
 
     def _is_occluded(self, I, D):
         m = len(I)
@@ -327,7 +323,7 @@ class EmbreeTrimeshShapeModel(TrimeshShapeModel):
         # (I think)
         self.scene = scene
 
-    def _get_visibility(self, I, J, oriented=False):
+    def _get_visibility(self, I, J):
         # TODO: desperately need a better way to set this.
         eps = 1e3*np.finfo(np.float32).resolution
 

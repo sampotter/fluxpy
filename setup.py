@@ -20,7 +20,9 @@ ext_modules = [
         sources=['src/flux/cgal/aabb.pyx',
                  'src/flux/cgal/aabb_wrapper.cpp'],
         include_dirs=['.'],
-        language='c++'
+        language='c++',
+        extra_compile_args=['-fopenmp'],
+        extra_link_args=['-fopenmp']
     )
 ]
 

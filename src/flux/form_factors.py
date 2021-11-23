@@ -17,9 +17,9 @@ def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
     if eps is None:
         eps = flux.config.DEFAULT_EPS
     if I is None:
-        I = np.arange(P.shape[0])
+        I = np.arange(P.shape[0], dtype=np.uintp)
     if J is None:
-        J = np.arange(P.shape[0])
+        J = np.arange(P.shape[0], dtype=np.uintp)
 
     m, n = len(I), len(J)
 
@@ -32,7 +32,7 @@ def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
     # ends up making _compute_FF_block O(N^3).
     size = m
     data = np.empty(m, dtype=shape_model.dtype)
-    indices = np.empty(m, dtype=np.intp)
+    indices = np.empty(m, dtype=np.uintp)
     indptr = [0]
 
     # Current index into data and indices
@@ -49,7 +49,7 @@ def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
         if row_indices.size == 0:
             indptr.append(indptr[-1])
             continue
-        vis = shape_model.get_visibility_1_to_N(i, J[row_indices])
+        vis = shape_model.get_visibility_1_to_N(i, J[row_indices].astype(np.uintp))
         row_indices = row_indices[vis]
 
         s = np.pi*np.sum((P[i] - P[J[row_indices]])**2, axis=1)**2

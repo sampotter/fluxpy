@@ -1,4 +1,9 @@
+import numpy as np
+
+from cython.parallel import prange
 from libcpp cimport bool
+
+cimport cython
 
 cdef extern from "aabb_wrapper.h":
     cdef struct cgal_aabb:
@@ -10,7 +15,7 @@ cdef extern from "aabb_wrapper.h":
     void cgal_aabb_deinit(cgal_aabb *aabb) except +
     void cgal_aabb_dealloc(cgal_aabb **aabb) except +
     bool cgal_aabb_test_face_to_face_vis(const cgal_aabb *aabb,
-                                         size_t i, size_t j) except +
+                                         size_t i, size_t j) nogil except +
     bool cgal_aabb_ray_from_centroid_is_occluded(const cgal_aabb *aabb,
                                                  size_t i, double d[3]) except +
 
@@ -40,6 +45,21 @@ cdef class AABB:
 
     def test_face_to_face_vis(self, size_t i, size_t j):
         return cgal_aabb_test_face_to_face_vis(self.aabb, i, j)
+
+    @cython.boundscheck(False)
+    def test_face_to_face_vis_MN(self, size_t[::1] I, size_t[::1] J):
+        cdef size_t m = len(I)
+        cdef size_t n = len(J)
+        cdef bool[:, ::1] vis = np.zeros((m, n), dtype=np.bool_)
+        cdef size_t i, j, p, q
+        for p in prange(m, nogil=True): # run outer loop in parallel
+            i = I[p]
+            for q in range(n):
+                j = J[q]
+                if i == j:
+                    continue
+                vis[p, q] = cgal_aabb_test_face_to_face_vis(self.aabb, i, j)
+        return np.asarray(vis)
 
     def ray_from_centroid_is_occluded(self, size_t i, double[::1] d):
         return cgal_aabb_ray_from_centroid_is_occluded(self.aabb, i, &d[0])
