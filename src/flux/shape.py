@@ -208,9 +208,9 @@ class TrimeshShapeModel(ShapeModel):
 
         # Determine which rays escaped (i.e., can see the sun)
         if basemesh is None:
-            I = self.is_occluded(np.arange(self.num_faces), Dsun)
+            I = ~self.is_occluded(np.arange(self.num_faces), Dsun)
         else:
-            I = basemesh.is_occluded(np.arange(self.num_faces), Dsun)
+            I = ~basemesh.is_occluded(np.arange(self.num_faces), Dsun)
 
         # rescale solar flux depending on distance
         if not unit_Svec:
