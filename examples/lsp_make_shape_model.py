@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import logging
 
 import colorcet as cc
 import dmsh
@@ -10,10 +11,9 @@ import scipy.interpolate
 import scipy.ndimage
 import scipy.spatial
 
-from flux.shape import get_centroids, get_surface_normals, TrimeshShapeModel
+from flux.shape import get_centroids, get_surface_normals, EmbreeTrimeshShapeModel, CgalTrimeshShapeModel
 
-def make_shape_model(grdpath, verbose=False):
-
+def make_shape_model(grdpath, verbose=False, engine='cgal', ij=[]):
     # Read GRD file
 
     rootgrp = netCDF4.Dataset(grdpath)
@@ -56,8 +56,11 @@ def make_shape_model(grdpath, verbose=False):
     el_ = np.deg2rad(lat_)
     r_ = R + grdz_
 
-    i0, i1 = 2475, 2525 # 2425, 2525
-    j0, j1 = 1912, 1962 # 1912, 2012
+    if ij == []:
+        i0, i1 = 2475, 2525 # 2425, 2525
+        j0, j1 = 1912, 1962 # 1912, 2012
+    else:
+        i0, i1, j0, j1 = ij
 
     az = az_[i0:i1, j0:j1]
     el = el_[i0:i1, j0:j1]
@@ -73,16 +76,25 @@ def make_shape_model(grdpath, verbose=False):
     J = np.arange(j0, j1)
     IJ = np.array([_.flatten() for _ in np.meshgrid(I, J, indexing='ij')]).T
 
-    V = np.array([x.ravel(), y.ravel(), z.ravel()]).T
+    V = np.array([x.ravel(), y.ravel(), z.ravel()]).T.copy(order='C')
     F = scipy.spatial.Delaunay(IJ).simplices
 
     # Compute face normals by computing
-
     P = get_centroids(V, F)
     N = get_surface_normals(V, F)
     N[(N*P).sum(1) < 0] *= -1
 
-    shape_model = TrimeshShapeModel(V, F, N, P)
+    if engine == 'cgal':
+        shape_model = CgalTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'), N.copy(order='C'), P.copy(order='C')) #TrimeshShapeModel(V, F, N, P)
+    elif engine == 'embree':
+        shape_model = EmbreeTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'), N.copy(order='C'),
+                                            P.copy(order='C'))  # TrimeshShapeModel(V, F, N, P)
+    else:
+        logging.error("Please specify which ray tracing engine to use: cgal or embree.")
+
+    # sure that this is equivalent? i got way too many issues with wrong normals...
+    # shape_model = CgalTrimeshShapeModel(V, F)
+    # shape_model.N[(shape_model.N*shape_model.P).sum(1) < 0] *= -1
 
     print('- created shape model with %d faces and %d vertices' % (F.shape[0], V.shape[0]))
 

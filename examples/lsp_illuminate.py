@@ -28,7 +28,7 @@ from flux.thermal import PccThermalModel1D, setgrid
 from scipy.constants import sigma as sigSB
 
 # Use these temporary parameters...
-from flux.shape import TrimeshShapeModel
+from flux.shape import CgalTrimeshShapeModel, EmbreeTrimeshShapeModel
 
 F0 = 1365  # Solar constant
 emiss = 0.95  # Emissitivity
@@ -36,7 +36,8 @@ albedo = 0.12  # Visual (?) albedo
 Fgeoth = 0.2
 steady_state = False  # True
 
-def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compressed=True, plot_fluxes=False, use_svd=False):
+def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compressed=True, plot_fluxes=False,
+                           use_svd=False, engine='cgal'):
     """
     Compute Sun position, illuminate FF and compute irradiance and temperature
     Args:
@@ -70,14 +71,14 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
         np.cos(lonsun)*np.cos(latsun),
         np.sin(lonsun)*np.cos(latsun),
         np.sin(latsun)
-    ]).T
+    ]).T.copy(order='C')
 
     # Load compressed form factor matrix, including shape model, from disk
     if use_svd:
         V = np.load('lsp_V.npy')
         F = np.load('lsp_F.npy')
         N = np.load('lsp_N.npy')
-        shape_model = TrimeshShapeModel(V, F, N)
+        shape_model = CgalTrimeshShapeModel(V, F, N)
     elif compressed:
         logging.warning("Retrieving compressed FF block and shape_model...")
         FF = cff.CompressedFormFactorMatrix.from_file(FF_path)
@@ -90,12 +91,19 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
         V = np.load('lsp_V.npy')
         F = np.load('lsp_F.npy')
         N = np.load('lsp_N.npy')
-        shape_model = TrimeshShapeModel(V, F, N)
+        if engine == 'cgal':
+            shape_model = CgalTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'),
+                                                N.copy(order='C'))  # TrimeshShapeModel(V, F, N, P)
+        elif engine == 'embree':
+            shape_model = EmbreeTrimeshShapeModel(V.copy(order='C'), F.copy(order='C'),
+                                                  N.copy(order='C'))  # TrimeshShapeModel(V, F, N, P)
+        else:
+            logging.error("Please specify which ray tracing engine to use: cgal or embree.")
 
     # illuminate FF
     E_arr = []
-    for i, sun_dir in enumerate(sun_dirs[:]):
-        E_arr.append(shape_model.get_direct_irradiance(F0, sun_dir))
+    for i, sun_dir in enumerate(sun_dirs):
+        E_arr.append(shape_model.get_direct_irradiance(F0, sun_dir, unit_Svec=True))
 
     E = np.vstack(E_arr).T
     Qrefl = []
@@ -195,4 +203,4 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
 
 if __name__ == '__main__':
 
-    illuminate_form_factor()
+    illuminate_form_factor(plot_fluxes=True)

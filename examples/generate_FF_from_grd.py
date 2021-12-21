@@ -29,14 +29,14 @@ import trimesh
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.plot import plot_blocks, tripcolor_vector
-from flux.shape import TrimeshShapeModel
+from flux.shape import CgalTrimeshShapeModel
 from flux.form_factors import get_form_factor_matrix
 
 
 
 if __name__ == '__main__':
 
-    compress = False  # compressed or uncompressed FF
+    compress = True  # compressed or uncompressed FF
 
     # Load a DEM stored as a netCDF4 file, and pull out the coordinate data.
     path = os.path.join('.', 'ingersoll41.grd')
@@ -88,14 +88,14 @@ if __name__ == '__main__':
 
     # Create a triangle mesh shape model using the vertices (V) and
     # face indices (F).
-    shape_model = TrimeshShapeModel(V, F)
+    shape_model = CgalTrimeshShapeModel(V, F)
 
     # Build the compressed form factor matrix. All of the code related
     # to this can be found in the "form_factors.py" file in this
     # directory.
     if compress:
         t0 = time.perf_counter()
-        FF = CompressedFormFactorMatrix.assemble_using_quadtree(
+        FF = CompressedFormFactorMatrix(
             shape_model, tol=np.finfo(np.float32).resolution)
         print('assembled form factor matrix in %f sec (%1.2f MB)' %
               (time.perf_counter() - t0, FF.nbytes/(1024**2),))
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     dir_sun = np.array([0, -np.cos(e0), np.sin(e0)]) # Direction of sun
 
     # Compute the direct irradiance and find the elements which are in shadow.
-    E = shape_model.get_direct_irradiance(F0, dir_sun)
+    E = shape_model.get_direct_irradiance(F0, dir_sun, unit_Svec=True)
 
     # Make plot of direct irradiance
     fig, ax = tripcolor_vector(V, F, E, cmap='gray')
