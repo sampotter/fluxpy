@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
     # Compute the direct irradiance and find the elements which are
     # in shadow.
-    E = shape_model.get_direct_irradiance(F0, dir_sun, unit_Svec=True)
+    E = shape_model.get_direct_irradiance(F0, dir_sun)
     I_shadow = E == 0
 
     # Compute the steady state temperature. This function is at the

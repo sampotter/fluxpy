@@ -103,7 +103,7 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
     # illuminate FF
     E_arr = []
     for i, sun_dir in enumerate(sun_dirs):
-        E_arr.append(shape_model.get_direct_irradiance(F0, sun_dir, unit_Svec=True))
+        E_arr.append(shape_model.get_direct_irradiance(F0, sun_dir))
 
     E = np.vstack(E_arr).T
     Qrefl = []

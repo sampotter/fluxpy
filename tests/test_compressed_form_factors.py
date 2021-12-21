@@ -183,7 +183,7 @@ class CompressedFormFactorMatrixTestCase(unittest.TestCase):
                 FF_gt = get_form_factor_matrix(shape_model).toarray()
 
                 dir_sun = np.array([np.cos(e0), 0, np.sin(e0)])
-                E = shape_model.get_direct_irradiance(F0, dir_sun, unit_Svec=True)
+                E = shape_model.get_direct_irradiance(F0, dir_sun)
 
                 B, B_gt = FF@E, FF_gt@E
                 mvp_rel_error = abs(B - B_gt).max()/abs(B_gt).max()

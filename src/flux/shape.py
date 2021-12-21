@@ -175,7 +175,7 @@ class TrimeshShapeModel(ShapeModel):
         '''
         return self._is_occluded(I, D)
 
-    def get_direct_irradiance(self, F0, Dsun, unit_Svec=False, basemesh=None, eps=None):
+    def get_direct_irradiance(self, F0, Dsun, basemesh=None, eps=None):
         '''Compute the insolation from the sun.
 
         Parameters
@@ -190,10 +190,6 @@ class TrimeshShapeModel(ShapeModel):
         basemesh: same as self, optional
             mesh used to check (Sun, light source) visibility at "self.cells";
             it would usually cover a larger area than "self".
-
-        unit_Svec: bool
-            defines if Dsun is a unit vector (Sun direction) or
-            the actual Sun-origin vector (check AU units below)
 
         Returns
         -------
@@ -212,11 +208,6 @@ class TrimeshShapeModel(ShapeModel):
         else:
             I = ~basemesh.is_occluded(np.arange(self.num_faces), Dsun)
 
-        # rescale solar flux depending on distance
-        if not unit_Svec:
-            AU_km = 149597900.
-            F0 *= (AU_km / distSunkm) ** 2
-
         # Compute the direct irradiance
         if Dsun.ndim == 1:
             E = np.zeros(self.num_faces, dtype=self.dtype)
@@ -226,7 +217,7 @@ class TrimeshShapeModel(ShapeModel):
             I = I.reshape(m, n)
             # TODO check if this can be vectorized
             for i, d in enumerate(Dsun):
-                if unit_Svec:
+                if np.isscalar(F0):
                     E[I[i], i] = F0*np.maximum(0, self.N[I[i]]@d)
                 else:
                     E[I[i], i] = F0[i]*np.maximum(0, self.N[I[i]]@d)

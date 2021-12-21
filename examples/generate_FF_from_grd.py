@@ -140,7 +140,7 @@ if __name__ == '__main__':
     dir_sun = np.array([0, -np.cos(e0), np.sin(e0)]) # Direction of sun
 
     # Compute the direct irradiance and find the elements which are in shadow.
-    E = shape_model.get_direct_irradiance(F0, dir_sun, unit_Svec=True)
+    E = shape_model.get_direct_irradiance(F0, dir_sun)
 
     # Make plot of direct irradiance
     fig, ax = tripcolor_vector(V, F, E, cmap='gray')

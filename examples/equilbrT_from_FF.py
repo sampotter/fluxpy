@@ -108,7 +108,7 @@ if __name__ == '__main__':
 
     # Compute the direct irradiance and find the elements which are in shadow.
     tic()
-    E = shape_model.get_direct_irradiance(F0, dir_sun, unit_Svec=True)
+    E = shape_model.get_direct_irradiance(F0, dir_sun)
     t_E = toc()
     I_shadow = E == 0
     print('Number of elements in E =',E.shape[0])
