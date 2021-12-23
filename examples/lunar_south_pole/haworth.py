@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 DO_3D_PLOTTING = False
-RAYTRACING_BACKEND = 'embree' # 'cgal'
+
+RAYTRACING_BACKEND = 'cgal'
+# RAYTRACING_BACKEND = 'embree'
 
 cmap = dict()
 try:
