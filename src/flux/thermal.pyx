@@ -141,8 +141,8 @@ cdef class PccThermalModel1D:
                 if not np.isfinite(X[i]):
                     raise RuntimeError(f'found non-finite temp: X[{i}] == {X[i]}')
 
-                if X[i] <= 0:
-                    raise RuntimeError(f'found non-positive temp: X[{i}] == {X[i]}')
+                if X[i] < 0:
+                    raise RuntimeError(f'found non-natural temp: X[{i}] == {X[i]}')
 
             self.Qprev[...] = X[...]
 
