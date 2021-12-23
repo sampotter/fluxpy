@@ -3,7 +3,7 @@ import numpy as np
 import pathlib
 import unittest
 
-from flux.thermal import *
+from flux.thermal import setgrid, flux_noatm, PccThermalModel1D
 
 class ThermalTestCase(unittest.TestCase):
     def setUp(self):

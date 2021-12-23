@@ -120,7 +120,7 @@ if __name__ == '__main__':
     plotter.camera = camera
 
     plotter.subplot(0, 2)
-    plotter.add_text(f'Difference', font_size=12)
+    plotter.add_text('Difference', font_size=12)
     plotter.add_mesh(tm_vis_diff, lighting=False, cmap=cc.cm.coolwarm)
     plotter.camera = camera
 

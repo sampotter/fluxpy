@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 import flux.form_factors as ff
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
-from flux.plot import tripcolor_vector, plot_blocks
+from flux.plot import plot_blocks
 from flux.util import tic
 
 from examples.lsp_form_factor_matrix import setup_form_factor_matrix

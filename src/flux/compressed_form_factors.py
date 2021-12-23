@@ -14,7 +14,7 @@ import scipy.sparse.linalg
 import flux.linalg
 
 
-from flux.debug import DebugLinearOperator, IndentedPrinter
+from flux.debug import IndentedPrinter
 from flux.form_factors import get_form_factor_matrix
 from flux.octree import get_octant_order
 from flux.quadtree import get_quadrant_order

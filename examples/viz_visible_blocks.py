@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     # Make plot using PyVista
     plotter = pvqt.BackgroundPlotter()
-    plotter.add_text(f'Block indices', font_size=12)
+    plotter.add_text('Block indices', font_size=12)
     plotter.add_mesh(tri_mesh, clim=(-1, num_blocks),
                      lighting=False, cmap=cc.cm.glasbey)
     plotter.remove_scalar_bar()

@@ -2,9 +2,7 @@ import itertools as it
 import matplotlib.pyplot as plt
 import meshzoo
 import numpy as np
-import pyvista as pv
 import pyvistaqt as pvqt
-import vtk
 
 plt.ion()
 

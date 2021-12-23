@@ -25,7 +25,6 @@ except ImportError:
     USE_DISTMESH = False
 
 
-import embree
 import matplotlib.pyplot as plt
 import meshio
 import netCDF4
@@ -37,7 +36,6 @@ import time
 
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
-from flux.form_factors import get_form_factor_matrix
 from flux.model import compute_steady_state_temp
 from flux.plot import plot_blocks, tripcolor_vector
 from flux.shape import TrimeshShapeModel
@@ -199,5 +197,5 @@ if __name__ == '__main__':
         plotter.add_mesh(surf, scalars='T', opacity='opacity',
                          use_transparency=True, cmap=this_cmap)
         plotter.camera_position = cpos
-        plotter.set_focus([*p0, P[:, 2].mean()])
+        plotter.set_focus([*p0, shape_model.P[:, 2].mean()])
         plotter.screenshot('test.png')

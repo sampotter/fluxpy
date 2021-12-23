@@ -1,4 +1,3 @@
-import embree
 import itertools as it
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt

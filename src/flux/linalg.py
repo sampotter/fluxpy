@@ -27,7 +27,6 @@ def estimate_rank(spmat, tol, max_nbytes=None, k0=40):
         return 1
 
     m, k = min(spmat.shape), k0
-    dtype_eps = np.finfo(spmat.dtype).eps
     while True:
         k = min(k, m - 1)
         if not k >= 1:
@@ -59,26 +58,5 @@ def nnz(mat, tol=None):
 
 
 def sparsity(mat, tol=None):
-    nnz = _get_nnz(mat, tol)
     size = mat.size
-    return 0 if size == 0 else nnz/size
-
-
-def sparsify(spmat, tol=1e-2):
-    spmat_ = np.zeros(spmat.shape)
-    for i, row in enumerate(spmat):
-        if row.nnz == 0:
-            continue
-        row = row.toarray().ravel()
-        abs_row = abs(row)
-        index_array = np.argsort(abs_row)
-        cumsum = np.cumsum(abs_row[index_array])
-        k = np.where(normalized_cumsum >= tol)[0][0]
-        # print(abs_row[index_array[:i]].sum()/abs_row.max())
-        spmat_[i, index_array[k:]] = row[index_array[k:]]
-    return scipy.sparse.csr_matrix(spmat_)
-
-def winnow(spmat):
-    I, J = spmat.nonzero()
-    I, J = np.unique(I), np.unique(J)
-    return spmat[I, :][:, J], I, J
+    return 0 if size == 0 else nnz(mat, tol)/size

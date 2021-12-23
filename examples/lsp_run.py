@@ -6,7 +6,6 @@ from examples.lsp_form_factor_matrix import setup_form_factor_matrix
 from examples.lsp_make_shape_model import make_shape_model
 from examples.lsp_illuminate import illuminate_form_factor
 from flux.linalg2 import xSVDcomputation
-from flux.model import update_incoming_radiances_wsvd
 from flux.plot import tripcolor_vector
 
 # run sequence from grd to FF
@@ -35,8 +34,8 @@ for compressed,v in enumerate(["full", "compressed"]): #
         d[v] = illuminate_form_factor(FF_path=f'lsp_{v}_form_factors.bin', compressed=compressed)
 
 if test_svd:
-    xSVDcomputation(f'lsp_full_form_factors.bin', TRUNC=200, mode='approx')
-    d["svd"] = illuminate_form_factor(FF_path = f'lsp_full_form_factors.bin', compressed=False, use_svd=True)
+    xSVDcomputation('lsp_full_form_factors.bin', TRUNC=200, mode='approx')
+    d["svd"] = illuminate_form_factor(FF_path='lsp_full_form_factors.bin', compressed=False, use_svd=True)
 
 # compute residuals
 V = d['full']['V']
@@ -50,18 +49,18 @@ else:
 for i in range(residuals.shape[1]):
     # print('frame = %d' % i)
     fig, ax = tripcolor_vector(V, F, residuals[:, i], cmap='inferno')
-    fig.savefig(f"./frames/lsp_dfc32_%03d.png" % i)
+    fig.savefig(f"./frames/lsp_dfc32_{i}.png")
     plt.close(fig)
 
     fig, ax = tripcolor_vector(V, F, d['full']['T'][:, i], cmap='inferno')
-    fig.savefig(f"./frames/lsp_fd32_%03d.png" % i)
+    fig.savefig(f"./frames/lsp_fd32_{i}.png")
     plt.close(fig)
 
     fig, ax = tripcolor_vector(V, F, d['compressed']['T'][:, i], cmap='inferno')
-    fig.savefig(f"./frames/lsp_cd32_%03d.png" % i)
+    fig.savefig(f"./frames/lsp_cd32_{i}.png")
     plt.close(fig)
 
     if test_svd:
         fig, ax = tripcolor_vector(V, F, d['svd']['Qrefl'][:, i], vmax=1.e16)
-        fig.savefig(f"./frames/lsp_sd32_%03d.png" % i)
+        fig.savefig(f"./frames/lsp_sd32_{i}.png")
         plt.close(fig)

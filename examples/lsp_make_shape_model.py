@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 import logging
 
-import colorcet as cc
-import dmsh
-import matplotlib.pyplot as plt
 import netCDF4
 import numpy as np
 import os

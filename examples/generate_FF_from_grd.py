@@ -25,10 +25,9 @@ import os
 import scipy.interpolate
 import time
 import pickle
-import trimesh
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
-from flux.plot import plot_blocks, tripcolor_vector
+from flux.plot import tripcolor_vector
 from flux.shape import CgalTrimeshShapeModel
 from flux.form_factors import get_form_factor_matrix
 
@@ -116,13 +115,6 @@ if __name__ == '__main__':
         #print('wrote blocks.png')
 
     else:  # uncompressed
-        # Write the mesh to disk as an OBJ file
-        #trimesh.Trimesh(V, F).export('mesh.obj')
-        #print('- wrote mesh.obj')
-
-        #np.savez('mesh', shape_model=shape_model, V=V, F=F)
-        #print('- wrote mesh.npy')
-
         with open('mesh.bin', 'wb') as f:
             pickle.dump(shape_model,f)
 

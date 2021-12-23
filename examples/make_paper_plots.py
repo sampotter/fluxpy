@@ -20,7 +20,7 @@ def read_all_stats_files_to_dicts(glob_path, verbose=False):
         stats_path = os.path.join(test_path, 'stats.json')
         stats = load_stats(stats_path)
         if verbose:
-            print_stats(stats_gt)
+            print_stats(stats)
         Stats[p] = stats
     return Stats
 

@@ -1,5 +1,4 @@
 import embree
-import itertools as it
 import numpy as np
 
 
@@ -213,6 +212,7 @@ class TrimeshShapeModel(ShapeModel):
             E = np.zeros(self.num_faces, dtype=self.dtype)
             E[I] = F0*np.maximum(0, self.N[I]@Dsun)
         else:
+            m, n = E.shape[0], self.num_faces
             E = np.zeros((n, m), dtype=self.dtype)
             I = I.reshape(m, n)
             # TODO check if this can be vectorized

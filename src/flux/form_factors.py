@@ -7,8 +7,6 @@ import scipy.sparse.linalg
 
 from cached_property import cached_property
 
-from flux.debug import IndentedPrinter
-
 def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
     P = shape_model.P
     N = shape_model.N

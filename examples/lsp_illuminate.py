@@ -10,7 +10,6 @@ position.
 
 '''
 import logging
-import pickle
 
 import colorcet as cc
 import matplotlib.pyplot as plt
@@ -179,23 +178,23 @@ def illuminate_form_factor(FF_path = 'lsp_compressed_form_factors.bin', compress
         Qrefl = np.vstack(Qrefl).T
         T = np.vstack(T).T
 
-    Path(f"./frames").mkdir(parents=True, exist_ok=True)
+    Path("./frames").mkdir(parents=True, exist_ok=True)
 
     if plot_fluxes:
         for i, sun_dir in enumerate(sun_dirs[:]):
             print('frame = %d' % i)
 
             fig, ax = tripcolor_vector(V, F, E[:,i], cmap=cc.cm.gray)
-            fig.savefig(f"./frames/lsp_E1_%03d.png" % i)
+            fig.savefig(f"./frames/lsp_E1_{i}.png")
             plt.close(fig)
 
             fig, ax = tripcolor_vector(V, F, T[:,i], cmap=cc.cm.fire)
-            fig.savefig(f"./frames/lsp_T1_%03d.png" % i)
+            fig.savefig(f"./frames/lsp_T1_{i}.png")
             plt.close(fig)
 
             I_shadow = E[:,i] == 0
             fig, ax = tripcolor_vector(V, F, T[:,i], I=I_shadow, cmap=cc.cm.rainbow, vmax=100)
-            fig.savefig(f"./frames/lsp_T1_shadow_%03d.png" % i)
+            fig.savefig(f"./frames/lsp_T1_shadow_{i}.png")
             plt.close(fig)
 
     # starting E from second element, to have same number of elements on all arrays
