@@ -211,16 +211,16 @@ class TrimeshShapeModel(ShapeModel):
         if Dsun.ndim == 1:
             E = np.zeros(self.num_faces, dtype=self.dtype)
             E[I] = F0*np.maximum(0, self.N[I]@Dsun)
+        elif Dsun.ndim == 2:
+            if Dsun.shape[0] != self.num_faces:
+                raise ValueError('need Dsun.shape[0] == num_faces')
+            if Dsun.shape[1] != 3:
+                raise ValueError('need Dsun.shape[1] == 3 if Dsun.ndim == 2')
+            E = np.zeros(self.num_faces, dtype=self.dtype)
+            E[I] = F0*np.maximum(0, (self.N[I]*Dsun[I]).sum(1))
         else:
-            m, n = E.shape[0], self.num_faces
-            E = np.zeros((n, m), dtype=self.dtype)
-            I = I.reshape(m, n)
-            # TODO check if this can be vectorized
-            for i, d in enumerate(Dsun):
-                if np.isscalar(F0):
-                    E[I[i], i] = F0*np.maximum(0, self.N[I[i]]@d)
-                else:
-                    E[I[i], i] = F0[i]*np.maximum(0, self.N[I[i]]@d)
+            raise RuntimeError('Dsun.ndim > 2 not implemented yet')
+
         return E
 
 
