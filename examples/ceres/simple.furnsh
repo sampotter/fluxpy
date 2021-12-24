@@ -1,0 +1,15 @@
+\begindata
+
+   PATH_VALUES     = ( './kernels' ) 
+
+   PATH_SYMBOLS    = ( 'KERNELS_COMMON'   )
+
+   KERNELS_TO_LOAD = (
+                       '$KERNELS_COMMON/naif0012.tls'
+                       '$KERNELS_COMMON/de421.bsp'
+                     )
+
+\begintext
+
+
+
