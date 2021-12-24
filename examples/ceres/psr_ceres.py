@@ -86,7 +86,6 @@ if __name__ == '__main__':
         HA = np.mod(HA,2*pi)
         k = np.where(HA>pi)
         HA[k] = HA[k]-2*pi
-
         #print('HA range',np.rad2deg(np.max(HA)), np.rad2deg(np.min(HA)) )
 
         # calculate local sun elevation and azimuth
@@ -105,10 +104,10 @@ if __name__ == '__main__':
         # Direction of sun
         dir_sun = np.array([
             cos(azSun)*cosbeta, sin(azSun)*cosbeta, sinbeta 
-        ])  # doesn't work
+        ]).astype(np.double).T
         #e0 = np.deg2rad(10.) # Solar elevation angle
-        #dir_sun = np.array([0, -np.cos(e0), np.sin(e0)]) # works
-        dir_sun = dir_sun[:,0]  # already doesn't work
+        #dir_sun = np.array([0, -np.cos(e0), np.sin(e0)])
+        #dir_sun = dir_sun.copy(order='C')
         
         # Compute the direct irradiance and find the elements which are in shadow.
         E = shape_model.get_direct_irradiance(F0/Rau**2, dir_sun)

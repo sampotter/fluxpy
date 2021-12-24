@@ -262,7 +262,8 @@ class CgalTrimeshShapeModel(TrimeshShapeModel):
                 occluded[p] = self.aabb.ray_from_centroid_is_occluded(i, D)
         elif D.ndim == 2:
             for p, i in enumerate(I):
-                occluded[p] = self.aabb.ray_from_centroid_is_occluded(i, D[i])
+                dir_sun = D[i,:].copy(order='C') ##
+                occluded[p] = self.aabb.ray_from_centroid_is_occluded(i, dir_sun)
         return occluded
 
 
