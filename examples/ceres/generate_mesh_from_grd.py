@@ -104,8 +104,8 @@ if __name__ == '__main__':
 
     P = get_centroids(V, F)
     N = get_surface_normals(V, F)
-    N[(N*P)[:,2] > 0] *= -1   # strange but true
-    #print( 'hell', N.shape, P.shape, (N*P).shape, Nz.shape  )
+    N[(N*P)[:,2] < 0] *= -1  # normals must be outward
+    #print( 'array shapes:', N.shape, P.shape, (N*P).shape, Nz.shape  )
     
     # Create a triangle mesh shape model using the vertices (V) and
     # face indices (F).
