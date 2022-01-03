@@ -37,6 +37,8 @@ sun_dirs = np.array([
     np.sin(latsun)
 ]).T
 
+sun_dirs = (possun[:,0], possun[:,1], possun[:,2]) / radsun
+
 for j in range(0,len(et)):
     print(et[j], np.rad2deg(latsun[j]), np.rad2deg(lonsun[j]) )
 

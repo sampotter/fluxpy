@@ -19,8 +19,8 @@ print('PSR area:', areas[kpsr].sum() )
 
 fig, ax = plt.subplots(1, 1, figsize=(12, 10))
 
-#vv = numpy.vstack( (V[:,0], V[:,1]) )  # same as V[:,:2]
-vv = numpy.vstack( (V[:,1], -V[:,0]) ) # rotated
+vv = numpy.vstack( (V[:,0], V[:,1]) )  # same as V[:,:2]
+#vv = numpy.vstack( (V[:,1], -V[:,0]) ) # rotated
 #print(V[:,:2].shape, vv.shape)
 
 # Make plot of maximum direct irradiance

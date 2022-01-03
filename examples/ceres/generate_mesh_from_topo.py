@@ -15,6 +15,35 @@ import pickle
 from flux.plot import tripcolor_vector
 from flux.shape import get_centroids, get_surface_normals
 from flux.shape import CgalTrimeshShapeModel as MyTrimeshShapeModel
+#from flux.shape import EmbreeTrimeshShapeModel as MyTrimeshShapeModel
+
+
+def mesh_from_xyz():
+    pathfn = os.path.join('/arsia/Dawn/DWNCHSPG_2/DATA', 'tmp.xyz')
+    
+    a = np.loadtxt(pathfn)
+    X = a[:,0]
+    Y = a[:,1]
+    Z = a[:,2]
+    print('Number of vertices', a.shape[0] )
+    print('x_min:',np.min(X), 'x_max:',np.max(X) )
+    print('y_min:',np.min(Y), 'y_max:',np.max(Y) )
+    print('z_min:',np.min(Z), 'z_max:',np.max(Z))
+    print('loaded',pathfn)
+
+    # generate (x,y)
+    #points_mesh = np.array([X, Y]).T
+    points_mesh = a[:,:2]
+    
+    # with native values of (x,y), Delaunay triangulates without interpolation
+    triangulation = scipy.spatial.Delaunay(points_mesh)
+    V, F = triangulation.points, triangulation.simplices
+
+    V = np.row_stack([V.T, Z]).T
+    assert np.linalg.norm(V-a) == 0.
+    
+    return V, F
+
 
 def mesh_from_grd():
     # Load a DEM stored as a netCDF4 file, and pull out the coordinate data.
@@ -31,9 +60,10 @@ def mesh_from_grd():
     print('y_min:',y0, 'y_max:',y1, 'y_inc:',(y1-y0)/(ny-1), 'n_rows:',ny)
     print('loaded',pathfn)
 
-    # generate (x,y) 
+    # generate (x,y)
     X_mesh, Y_mesh = np.meshgrid(X,Y)
     points_mesh = np.array([X_mesh.flatten(), Y_mesh.flatten()]).T
+    
     # with native values of (x,y), Delaunay triangulates without interpolation
     triangulation = scipy.spatial.Delaunay(points_mesh)
     V, F = triangulation.points, triangulation.simplices
@@ -41,9 +71,6 @@ def mesh_from_grd():
     z = np.ndarray.flatten(Z)
     V = np.row_stack([V.T, z]).T
     
-    num_faces = F.shape[0]
-    print('created mesh with %d triangles' % num_faces)
-
     return V, F
     
 
@@ -61,24 +88,27 @@ def mesh_from_icq():
     print('loaded',pathfn)
 
     points_mesh = np.vstack((X,Y)).T
+    
     # with native values of (x,y), Delaunay triangulates without interpolation
     delaunay = scipy.spatial.Delaunay(points_mesh, qhull_options = 'QJ')
     V, F = delaunay.points, delaunay.simplices
     assert V.shape[0] == a.shape[0]
     
     V = np.row_stack([V.T, Z]).T
+    assert np.linalg.norm(V-a) == 0.
     
-    num_faces = F.shape[0]
-    num_vertices = V.shape[0]
-    print('created mesh with %d triangles and %d vertices' % (num_faces, num_vertices) )
-
     return V, F
 
 
 if __name__ == '__main__':
 
-    #V, F = mesh_from_grd()
-    V, F = mesh_from_icq()
+    #V, F = mesh_from_xyz()
+    V, F = mesh_from_grd()
+    #V, F = mesh_from_icq()
+
+    num_faces = F.shape[0]
+    num_vertices = V.shape[0]
+    print('created mesh with %d triangles and %d vertices' % (num_faces, num_vertices) )
     
     # Make plot of topography
     fig, ax = tripcolor_vector(V, F, V[:,2], cmap='jet')
@@ -116,3 +146,9 @@ if __name__ == '__main__':
     with open('mesh.bin', 'wb') as f:
         pickle.dump(shape_model,f)
         print('- wrote mesh.bin')
+
+    # Optionally, output properties of the shape model
+    print('x_min:',np.min(V[:,0]), 'x_max:',np.max(V[:,0]) )
+    print('y_min:',np.min(V[:,1]), 'y_max:',np.max(V[:,1]) )
+    print('z_min:',np.min(V[:,2]), 'z_max:',np.max(V[:,2]) )
+    
