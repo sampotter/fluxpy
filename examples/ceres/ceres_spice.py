@@ -24,11 +24,11 @@ et1 = spice.str2et('2018 JUN 06 00:00:00.00')
 et = np.linspace(et0, et1, 100, endpoint=False)
 
 # Sun positions over time period
-
 possun = spice.spkpos('SUN', et, 'CERES_FIXED', 'LT+S', 'CERES')[0]
+
 lonsun = np.arctan2(possun[:, 1], possun[:, 0])
 lonsun = np.mod(lonsun, 2*np.pi)
-radsun = np.sqrt(np.sum(possun[:, :2]**2, axis=1))
+radsun = np.sqrt(np.sum(possun[:, :3]**2, axis=1))
 latsun = np.arctan2(possun[:, 2], radsun)
 
 sun_dirs = np.array([
@@ -40,6 +40,6 @@ sun_dirs = np.array([
 sun_dirs = (possun[:,0], possun[:,1], possun[:,2]) / radsun
 
 for j in range(0,len(et)):
-    print(et[j], np.rad2deg(latsun[j]), np.rad2deg(lonsun[j]) )
+    print(et[j], np.rad2deg(latsun[j]), np.rad2deg(lonsun[j]), radsun[j] )
 
 

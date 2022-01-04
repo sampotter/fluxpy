@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# processes grd file in native resolution (no interpolation)
+# produces mesh for topo file using grid points as vertices (no interpolation)
 
 
 import matplotlib.pyplot as plt
@@ -18,32 +18,6 @@ from flux.shape import CgalTrimeshShapeModel as MyTrimeshShapeModel
 #from flux.shape import EmbreeTrimeshShapeModel as MyTrimeshShapeModel
 
 
-def mesh_from_xyz():
-    pathfn = os.path.join('/arsia/Dawn/DWNCHSPG_2/DATA', 'tmp.xyz')
-    
-    a = np.loadtxt(pathfn)
-    X = a[:,0]
-    Y = a[:,1]
-    Z = a[:,2]
-    print('Number of vertices', a.shape[0] )
-    print('x_min:',np.min(X), 'x_max:',np.max(X) )
-    print('y_min:',np.min(Y), 'y_max:',np.max(Y) )
-    print('z_min:',np.min(Z), 'z_max:',np.max(Z))
-    print('loaded',pathfn)
-
-    # generate (x,y)
-    #points_mesh = np.array([X, Y]).T
-    points_mesh = a[:,:2]
-    
-    # with native values of (x,y), Delaunay triangulates without interpolation
-    triangulation = scipy.spatial.Delaunay(points_mesh)
-    V, F = triangulation.points, triangulation.simplices
-
-    V = np.row_stack([V.T, Z]).T
-    assert np.linalg.norm(V-a) == 0.
-    
-    return V, F
-
 
 def mesh_from_grd():
     # Load a DEM stored as a netCDF4 file, and pull out the coordinate data.
@@ -52,6 +26,7 @@ def mesh_from_grd():
     X = np.array(rootgrp.variables['x'])
     Y = np.array(rootgrp.variables['y'])
     Z = np.array(rootgrp.variables['z'])
+    Z = Z+100. # makes upward outward for bowl-shaped crater
     x0, x1 = rootgrp.variables['x'].actual_range
     y0, y1 = rootgrp.variables['y'].actual_range
     nx = rootgrp.dimensions['x'].size
@@ -72,49 +47,53 @@ def mesh_from_grd():
     V = np.row_stack([V.T, z]).T
     
     return V, F
-    
 
-def mesh_from_icq():
-    # Load a DEM stored as a icq file (Gaskell file format)
-    pathfn = os.path.join('/home/norbert/Dawn/PSR2/', 'tmp.topo')
+
+def mesh_from_xyz():
+
+    # Load DEM with (x,y,z) columns
+    pathfn = os.path.join('/arsia/Dawn/DWNCHSPG_2/DATA', 'tmp.xyz')
+    # Or load a DEM stored as a icq file (Gaskell file format)
+    #pathfn = os.path.join('/home/norbert/Dawn/PSR2/', 'tmp.topo')
+    
     a = np.loadtxt(pathfn)
-    X = a[:,0]
-    Y = a[:,1]
+    print('loaded',pathfn)
+    
+    #X = a[:,0]
+    #Y = a[:,1]
     Z = a[:,2]
     print('Number of vertices', a.shape[0] )
-    print('x_min:',np.min(X), 'x_max:',np.max(X) )
-    print('y_min:',np.min(Y), 'y_max:',np.max(Y) )
-    print('z_min:',np.min(Z), 'z_max:',np.max(Z))
-    print('loaded',pathfn)
 
-    points_mesh = np.vstack((X,Y)).T
+    # generate (x,y)
+    #points_mesh = np.array([X, Y]).T
+    points_mesh = a[:,:2]
     
     # with native values of (x,y), Delaunay triangulates without interpolation
-    delaunay = scipy.spatial.Delaunay(points_mesh, qhull_options = 'QJ')
-    V, F = delaunay.points, delaunay.simplices
-    assert V.shape[0] == a.shape[0]
-    
+    triangulation = scipy.spatial.Delaunay(points_mesh)
+    V, F = triangulation.points, triangulation.simplices
+
     V = np.row_stack([V.T, Z]).T
+    
     assert np.linalg.norm(V-a) == 0.
     
     return V, F
 
 
+
 if __name__ == '__main__':
 
-    #V, F = mesh_from_xyz()
     V, F = mesh_from_grd()
-    #V, F = mesh_from_icq()
+    #V, F = mesh_from_xyz()
 
     num_faces = F.shape[0]
     num_vertices = V.shape[0]
-    print('created mesh with %d triangles and %d vertices' % (num_faces, num_vertices) )
+    print('created mesh with %d triangles and %d vertices' % (num_faces,num_vertices))
     
     # Make plot of topography
     fig, ax = tripcolor_vector(V, F, V[:,2], cmap='jet')
     fig.savefig('topo2.png')
     plt.close(fig)
-    print('wrote topo2.png')
+    print('- wrote topo2.png')
 
     # Let's use another Python library (meshio) to save the triangle
     # mesh as an OBJ file (optional).

@@ -27,11 +27,11 @@ if __name__ == '__main__':
     #et0 = spice.str2et('2017 DEC 23 05:00:00.00')
     #et1 = spice.str2et('2017 DEC 23 15:00:00.00')
 
-    et = np.linspace(et0, et1, 10, endpoint=False)
+    et = np.linspace(et0, et1, 180, endpoint=False)
 
     # Sun positions over time period
     possun = spice.spkpos('SUN', et, 'CERES_FIXED', 'LT+S', 'CERES')[0]
-    radsun = np.sqrt(np.sum(possun[:, :2]**2, axis=1))
+    radsun = np.sqrt(np.sum(possun[:, :3]**2, axis=1))
     AU = 149.59787e6 # km
     print('distance range (AU)', np.min(radsun)/AU, np.max(radsun)/AU )
     
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     N = shape_model.N
     P = shape_model.P
     print('- Number of vertices',V.shape[0],'Number of facets',F.shape[0])
-    print('V',V.shape,'F',F.shape,'P',P.shape)
+    #print('V',V.shape,'F',F.shape,'P',P.shape)
 
     # Define constants used in the simulation
     F0 = 1365 # Solar constant
@@ -52,8 +52,8 @@ if __name__ == '__main__':
     # This assumes z=0 represents the equatorial plane
     x = P[:,0]; y = P[:,1]; z = P[:,2]
     latloc = np.arctan( z / np.sqrt(x**2 + y**2) )
-    print('latitude range of shape model', np.rad2deg(np.min(latloc)), np.rad2deg(np.max(latloc)) )
-    
+    print('latitude range of shape model',
+          np.rad2deg(np.min(latloc)), np.rad2deg(np.max(latloc)) )
     Emax = np.zeros(F.shape[0])
 
     print('')
