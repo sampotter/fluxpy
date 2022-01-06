@@ -2,6 +2,8 @@
 
 # finds areas in permanent shadow
 # sun directions are from spice kernel for Ceres
+# z=0 must represent the equatorial plane
+
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +12,14 @@ import spiceypy as spice
 
 from flux.plot import tripcolor_vector
 
+
+def latitude_extent(P):
+    x = P[:,0]; y = P[:,1]; z = P[:,2]
+    latloc = np.arctan( z / np.sqrt(x**2 + y**2) )
+    print('latitude range of shape model',
+          np.rad2deg(np.min(latloc)), np.rad2deg(np.max(latloc)) )
     
+
 if __name__ == '__main__':
 
     # initialize SPICE
@@ -41,23 +50,15 @@ if __name__ == '__main__':
 
     V = shape_model.V
     F = shape_model.F
-    N = shape_model.N
-    P = shape_model.P
     print('- Number of vertices',V.shape[0],'Number of facets',F.shape[0])
     #print('V',V.shape,'F',F.shape,'P',P.shape)
-
+    print('')
+    
     # Define constants used in the simulation
     F0 = 1365 # Solar constant
 
-    # This assumes z=0 represents the equatorial plane
-    x = P[:,0]; y = P[:,1]; z = P[:,2]
-    latloc = np.arctan( z / np.sqrt(x**2 + y**2) )
-    print('latitude range of shape model',
-          np.rad2deg(np.min(latloc)), np.rad2deg(np.max(latloc)) )
     Emax = np.zeros(F.shape[0])
 
-    print('')
-    
     for i in range(len(et)):
 
         Rau = radsun[i] / AU  # km -> au
@@ -73,7 +74,7 @@ if __name__ == '__main__':
         # Keep track of maximum irradiance
         Emax = np.maximum.reduce([Emax, E])
         
-        # output snapshots
+        # output snapshots (consumes a lot of memory and time)
         if len(et)<=10:
             fn = 'E' + str(i) + '.png'
             fig, ax = tripcolor_vector(V, F, E, cmap='jet')
@@ -89,7 +90,7 @@ if __name__ == '__main__':
     print('PSR area:', shape_model.A[kpsr].sum() )
 
     # Save map
-    np.savez('emax', V=V, F=F, P=P, Emax=Emax, areas=shape_model.A)
+    np.savez('emax', V=V, F=F, P=shape_model.P, Emax=Emax, areas=shape_model.A)
 
     # Make plot of maximum direct irradiance
     fig, ax = tripcolor_vector(V, F, Emax, cmap='gray')

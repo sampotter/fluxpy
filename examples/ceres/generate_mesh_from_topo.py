@@ -14,8 +14,8 @@ import pickle
 
 from flux.plot import tripcolor_vector
 from flux.shape import get_centroids, get_surface_normals
-from flux.shape import CgalTrimeshShapeModel as MyTrimeshShapeModel
-#from flux.shape import EmbreeTrimeshShapeModel as MyTrimeshShapeModel
+#from flux.shape import CgalTrimeshShapeModel as MyTrimeshShapeModel
+from flux.shape import EmbreeTrimeshShapeModel as MyTrimeshShapeModel
 
 
 
@@ -113,6 +113,13 @@ if __name__ == '__main__':
     # face indices (F).
     shape_model = MyTrimeshShapeModel(V, F, N=N, P=P)
 
+    # reduce precision to save memory usage during subsequent processing
+    shape_model.V = shape_model.V.astype(np.float32)
+    # F is int32
+    shape_model.N = shape_model.N.astype(np.float32)
+    shape_model.P = shape_model.P.astype(np.float32)
+    shape_model.A = shape_model.A.astype(np.float32)
+    
     # Write the mesh to disk as an OBJ file
     #trimesh.Trimesh(V, F).export('mesh.obj')
     #print('- wrote mesh.obj')
@@ -126,7 +133,7 @@ if __name__ == '__main__':
         pickle.dump(shape_model,f)
         print('- wrote mesh.bin')
 
-    # Optionally, output properties of the shape model
+    # Output properties of the shape model
     print('x_min:',np.min(V[:,0]), 'x_max:',np.max(V[:,0]) )
     print('y_min:',np.min(V[:,1]), 'y_max:',np.max(V[:,1]) )
     print('z_min:',np.min(V[:,2]), 'z_max:',np.max(V[:,2]) )
