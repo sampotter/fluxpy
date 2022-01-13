@@ -4,7 +4,7 @@ TOL=$1
 
 mkdir -p stats/eps_$TOL
 
-for p in {3..12}
+for p in {5..13}
 do
 	echo "p = $p"
 	OUTDIR="stats/eps_$TOL/ingersoll_p$p"

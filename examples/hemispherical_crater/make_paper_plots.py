@@ -6,6 +6,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import os
 
+SAVE_PDF_PLOTS = False
+
 def load_stats(path):
     with open(path, 'r') as f:
         return json.load(f)
@@ -32,7 +34,7 @@ def get_values_by_key(dicts, key):
     return lst
 
 stats_gt_path = 'stats/gt'
-stats_path = 'stats/eps_1e-7'
+stats_path = 'stats/eps_1e-2'
 
 ################################################################################
 # MAKE INGERSOLL PLOTS
@@ -59,7 +61,8 @@ plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('RMS error in $T$ (shadow)')
 plt.tight_layout()
-plt.savefig('paper_plots/h_vs_rms.pdf', dpi=dpi)
+if SAVE_PDF_PLOTS:
+    plt.savefig('paper_plots/h_vs_rms.pdf', dpi=dpi)
 plt.savefig('paper_plots/h_vs_rms.png', dpi=dpi)
 plt.close()
 
@@ -74,7 +77,8 @@ plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('Size of $F$ [MB]')
 plt.tight_layout()
-plt.savefig('paper_plots/h_vs_size.pdf', dpi=dpi)
+if SAVE_PDF_PLOTS:
+    plt.savefig('paper_plots/h_vs_size.pdf', dpi=dpi)
 plt.savefig('paper_plots/h_vs_size.png', dpi=dpi)
 plt.close()
 
@@ -89,7 +93,8 @@ plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('Time to compute $T$ [s]')
 plt.tight_layout()
-plt.savefig('paper_plots/h_vs_T_time.pdf', dpi=dpi)
+if SAVE_PDF_PLOTS:
+    plt.savefig('paper_plots/h_vs_T_time.pdf', dpi=dpi)
 plt.savefig('paper_plots/h_vs_T_time.png', dpi=dpi)
 plt.close()
 
@@ -110,7 +115,8 @@ plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('Time to compute $B$ [s]')
 plt.tight_layout()
-plt.savefig('paper_plots/h_vs_B_and_E_time.pdf', dpi=dpi)
+if SAVE_PDF_PLOTS:
+    plt.savefig('paper_plots/h_vs_B_and_E_time.pdf', dpi=dpi)
 plt.savefig('paper_plots/h_vs_B_and_E_time.png', dpi=dpi)
 plt.close()
 
@@ -125,6 +131,7 @@ plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('Time to assemble $F$ [s]')
 plt.tight_layout()
-plt.savefig('paper_plots/h_vs_assembly_time.pdf', dpi=dpi)
+if SAVE_PDF_PLOTS:
+    plt.savefig('paper_plots/h_vs_assembly_time.pdf', dpi=dpi)
 plt.savefig('paper_plots/h_vs_assembly_time.png', dpi=dpi)
 plt.close()

@@ -45,11 +45,12 @@ import scipy.sparse
 import trimesh
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
+from flux.compressed_form_factors import FormFactorPartitionBlock
 from flux.form_factors import get_form_factor_matrix
 from flux.ingersoll import HemisphericalCrater
 from flux.model import compute_steady_state_temp
 from flux.plot import plot_blocks, tripcolor_vector
-from flux.shape import TrimeshShapeModel, get_surface_normals
+from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 from flux.solve import solve_radiosity
 from flux.util import tic, toc
 
@@ -77,7 +78,7 @@ if __name__ == '__main__':
     N[N[:, 2] < 0] *= -1
 
     # Create a shape model from the triangle mesh (used for raytracing)
-    shape_model = TrimeshShapeModel(V, F, N)
+    shape_model = CgalTrimeshShapeModel(V, F, N)
 
     if args.tol is None:
         print("- tol argument not passed: assembling sparse form factor matrix")
@@ -87,8 +88,9 @@ if __name__ == '__main__':
         FF_nbytes = FF.data.nbytes + FF.indptr.nbytes + FF.indices.nbytes
     else:
         tic()
-        FF = CompressedFormFactorMatrix.assemble_using_partition(
-            shape_model, parts, tol=args.tol)
+        FF = CompressedFormFactorMatrix(
+            shape_model, parts=parts, tol=args.tol,
+            RootBlock=FormFactorPartitionBlock)
         t_FF = toc()
         FF_nbytes = FF.nbytes
     print('- finished assembly (%1.1f Mb) [%1.2f s]' %
