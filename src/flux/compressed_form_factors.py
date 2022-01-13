@@ -625,8 +625,8 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
                 spmat = get_form_factor_matrix(shape_model, I, J)
                 block = self.make_block(shape_model, I, J, spmat, is_diag,
                                         max_depth, force_max_depth)
-                row_blocks.append(block)
             blocks.append(row_blocks)
+                row_blocks.append(block)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
 
     def make_child_block(self, *args):
