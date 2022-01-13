@@ -598,8 +598,12 @@ class FormFactorOctreeBlock(FormFactor2dTreeBlock):
 
 class FormFactorPartitionBlock(FormFactorBlockMatrix):
 
-    def __init__(self, root, shape_model, parts,
+    def __init__(self, root, shape_model, parts=None,
+                 max_depth=None, force_max_depth=False,
                  ChildBlock=FormFactorQuadtreeBlock):
+        if parts is None:
+            parts = [np.range(shape_model.num_faces)]
+
         I_union = []
         for I in parts:
             I_union = np.union1d(I_union, I)
@@ -619,7 +623,8 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
             for j, J in enumerate(parts):
                 is_diag = i == j
                 spmat = get_form_factor_matrix(shape_model, I, J)
-                block = self.make_block(shape_model, I, J, spmat, is_diag)
+                block = self.make_block(shape_model, I, J, spmat, is_diag,
+                                        max_depth, force_max_depth)
                 row_blocks.append(block)
             blocks.append(row_blocks)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)

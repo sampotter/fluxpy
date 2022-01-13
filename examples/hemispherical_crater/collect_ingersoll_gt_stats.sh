@@ -2,7 +2,7 @@
 
 mkdir -p stats/gt
 
-for p in {11..12}
+for p in {4..10}
 do
 	echo "p = $p"
 	OUTDIR="stats/gt/ingersoll_p$p"
