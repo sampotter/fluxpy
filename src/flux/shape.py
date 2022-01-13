@@ -1,12 +1,15 @@
-import embree
+try:
+    import embree
+except:
+    pass
 import numpy as np
-
+import sys
 
 from abc import ABC
-
-
-from flux.cgal.aabb import AABB
-
+try:
+    from flux.cgal.aabb import AABB
+except:
+    pass
 
 use1M = True
 
@@ -240,6 +243,9 @@ class TrimeshShapeModel(ShapeModel):
 
 class CgalTrimeshShapeModel(TrimeshShapeModel):
     def _make_scene(self):
+        if 'flux.cgal.aabb' not in sys.modules:
+            raise ImportError('failed to import AABB from flux.cgal.aabb')
+
         self.aabb = AABB.from_trimesh(
             self.V.astype(np.float64), self.F.astype(np.uintp))
 
@@ -276,6 +282,9 @@ class EmbreeTrimeshShapeModel(TrimeshShapeModel):
         is our mesh.
 
         '''
+        if 'embree' not in sys.modules:
+            raise ImportError('failed to import embree')
+
         device = embree.Device()
 
         geometry = device.make_geometry(embree.GeometryType.Triangle)
