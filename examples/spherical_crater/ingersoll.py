@@ -157,6 +157,12 @@ if __name__ == '__main__':
     rms_error = np.linalg.norm(error)/np.sqrt(error.size)
     print('- RMS error: %1.2f K' % (rms_error,))
 
+    B.tofile(os.path.join(args.outdir, 'B.bin'))
+    print('- wrote B.bin')
+
+    T.tofile(os.path.join(args.outdir, 'T.bin'))
+    print('- wrote T.bin')
+
     stats = {
         'p': args.p,
         'e0_deg': args.e0,
@@ -168,7 +174,6 @@ if __name__ == '__main__':
         'rc': args.rc,
         'h': h,
         'num_faces': F.shape[0],
-        'T_gt': float(hc.T_gt),
         'max_error': float(max_error),
         'rms_error': float(rms_error),
         'FF_size': float(FF_nbytes/1024**2),

@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 
-TOL=$1
+PMIN=$1
+PMAX=$2
+TOL=$3
+
+echo $TOL
 
 mkdir -p stats/eps_$TOL
 
-for p in {5..13}
+for p in $(seq $PMIN $PMAX)
 do
 	echo "p = $p"
 	OUTDIR="stats/eps_$TOL/ingersoll_p$p"

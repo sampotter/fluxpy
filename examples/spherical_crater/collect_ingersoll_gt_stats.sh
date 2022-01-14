@@ -2,7 +2,10 @@
 
 mkdir -p stats/gt
 
-for p in {5..13}
+PMIN=$1
+PMAX=$2
+
+for p in $(seq $PMIN $PMAX)
 do
 	echo "p = $p"
 	OUTDIR="stats/gt/ingersoll_p$p"
