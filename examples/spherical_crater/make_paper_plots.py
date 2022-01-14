@@ -92,7 +92,7 @@ plt.figure(figsize=(6, 6))
 plt.loglog(H, GtVs1em2['T_rel_l2_errors'], linewidth=linewidth, marker=marker,
            c='black', linestyle='-', label=r'$\|T_{gt} - T\|_2/\|T_{gt}\|_2$')
 plt.loglog(H, GtVs1em2['B_rel_l2_errors'], linewidth=linewidth, marker=marker,
-           c='black', linestyle='--', label=r'$\|B_{gt} - B\|_2/\|T_{gt}\|_2$')
+           c='black', linestyle='--', label=r'$\|B_{gt} - B\|_2/\|B_{gt}\|_2$')
 plt.legend()
 plt.xlabel('$h$')
 plt.tight_layout()
