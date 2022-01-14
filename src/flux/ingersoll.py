@@ -149,9 +149,11 @@ only one of return_part_indices or return_parts should be true''')
         # Define our refinement function which will be passed to
         # Shewchuk's triangle. If we wanted to do something more
         # sophisticated, we could try some other definitions here.
-        min_area = (2/3)*h**2
-        def should_refine(verts, area):
-            return area > min_area
+        max_area = (2/3)*h**2
+        def should_refine(verts, _):
+            P = np.array(verts)
+            area = np.linalg.norm(np.cross(P[1] - P[0], P[2] - P[0]))/2
+            return area > max_area
 
         if save_plots:
             fig = plt.figure(figsize=(8.4, 4.9))
