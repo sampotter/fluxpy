@@ -799,3 +799,14 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         tmp = copy.copy(self) # shallow copy
         tmp._root = tmp._root.get_off_diag_blocks()
         return tmp
+
+    def toarray(self):
+        def std_basis_vec(i):
+            e = np.zeros(self.num_faces, dtype=self.dtype)
+            e[i] = 1
+            return e
+        arr = np.array([self@std_basis_vec(i) for i in range(self.num_faces)])
+        return arr.T
+
+    def tocsr(self):
+        return scipy.sparse.csr_matrix(self.toarray())
