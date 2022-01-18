@@ -10,6 +10,8 @@ import pickle
 
 from pathlib import Path
 
+from plot_style import linewidth, dpi, marker
+
 SAVE_PDF_PLOTS = False
 
 def load_stats(path):
@@ -55,9 +57,6 @@ stats_path = 'stats/eps_1e-2'
 #
 
 # plot parameters
-linewidth = 3
-dpi = 100
-marker = 'o'
 
 matplotlib.rcParams.update({'font.size': 18})
 

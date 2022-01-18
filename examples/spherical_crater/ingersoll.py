@@ -34,6 +34,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--blocks', type=bool, default=False,
         help='Make a plot of the form factor matrix blocks')
+    parser.add_argument(
+        '--mprof', type=bool, default=False,
+        help='Measure the memory use during assembly and save results')
     args = parser.parse_args()
 
 import colorcet as cc
@@ -53,6 +56,23 @@ from flux.plot import plot_blocks, tripcolor_vector
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 from flux.solve import solve_radiosity
 from flux.util import tic, toc
+
+from memory_profiler import memory_usage
+
+def assemble(args, shape_model, parts):
+    if args.tol is None:
+        tic()
+        FF = get_form_factor_matrix(shape_model)
+        t_FF = toc()
+        FF_nbytes = FF.data.nbytes + FF.indptr.nbytes + FF.indices.nbytes
+    else:
+        tic()
+        FF = CompressedFormFactorMatrix(
+            shape_model, parts=parts, tol=args.tol,
+            RootBlock=FormFactorPartitionBlock)
+        t_FF = toc()
+        FF_nbytes = FF.nbytes
+    return FF, t_FF, FF_nbytes
 
 if __name__ == '__main__':
     if not os.path.exists(args.outdir):
@@ -82,17 +102,21 @@ if __name__ == '__main__':
 
     if args.tol is None:
         print("- tol argument not passed: assembling sparse form factor matrix")
-        tic()
-        FF = get_form_factor_matrix(shape_model)
-        t_FF = toc()
-        FF_nbytes = FF.data.nbytes + FF.indptr.nbytes + FF.indices.nbytes
+
+    if args.mprof:
+        interval = 0.25
+        mem_usage, (FF, t_FF, FF_nbytes) = memory_usage(
+            (assemble, (args, shape_model, parts)),
+            interval=interval,
+            retval=True
+        )
+        mem_T = interval*np.arange(1, len(mem_usage) + 1)
+        np.save(os.path.join(args.outdir, 'mem_usage.npy'), mem_usage)
+        np.save(os.path.join(args.outdir, 'mem_T.npy'), mem_T)
+        print("- saved mem_usage.npy and mem_T.npy")
     else:
-        tic()
-        FF = CompressedFormFactorMatrix(
-            shape_model, parts=parts, tol=args.tol,
-            RootBlock=FormFactorPartitionBlock)
-        t_FF = toc()
-        FF_nbytes = FF.nbytes
+        FF, t_FF, FF_nbytes = assemble(args, shape_model, parts)
+
     print('- finished assembly (%1.1f Mb) [%1.2f s]' %
           (FF_nbytes/1024**2, t_FF))
 

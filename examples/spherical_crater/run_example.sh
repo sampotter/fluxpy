@@ -20,6 +20,10 @@ TOL=1e-2
 # using various compressed form factor matrices
 ./do_direct_comparisons.py
 
+# Collect memory usage statistics
+./collect_memory_usage_stats.sh
+
 # Make plots from the collected statistics
 mkdir paper_plots
 ./make_paper_plots.py
+./make_memory_usage_plots.py
