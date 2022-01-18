@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import glob
 import numpy as np
 import os
@@ -32,10 +33,12 @@ def read_spmats(spmat_npz_path, path, pattern):
         spmats[p] = scipy.sparse.load_npz(os.path.join(test_path, spmat_npz_path))
     return spmats
 
+tol = sys.argv[1]
+
 stats_path = Path('stats')
 path_gt = stats_path/'gt'
-path = stats_path/'eps_1e-2'
-comparison_path = stats_path/'gt_vs_1e-2'
+path = stats_path/f'eps_{tol}'
+comparison_path = stats_path/f'gt_vs_{tol}'
 
 # Load binary files for direct comparisons
 

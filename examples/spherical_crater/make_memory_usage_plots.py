@@ -2,6 +2,9 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
+
+PAPER_PLOT_DIR = sys.argv[1]
 
 from plot_style import linewidth, dpi
 
@@ -20,5 +23,5 @@ plt.legend()
 plt.ylabel('Memory use [MB]')
 plt.xlabel('Time [s]')
 plt.tight_layout()
-plt.savefig('paper_plots/memory_usage.pdf', dpi=dpi)
-plt.savefig('paper_plots/memory_usage.png', dpi=dpi)
+plt.savefig(f'{PAPER_PLOT_DIR}/memory_usage.pdf', dpi=dpi)
+plt.savefig(f'{PAPER_PLOT_DIR}/memory_usage.png', dpi=dpi)

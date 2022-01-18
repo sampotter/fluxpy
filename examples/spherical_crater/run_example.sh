@@ -4,7 +4,9 @@ PMIN=5
 PMAX=8
 
 # The compression tolerance
-TOL=1e-2
+TOLS=(1e-1 1e-2)
+
+PAPER_PLOT_DIR=spherical_crater_plots
 
 # Collect statistics for the "groundtruth form factor matrix"
 # (i.e. the original sparse form factor matrix without compression
@@ -14,16 +16,24 @@ TOL=1e-2
 
 # Collect statistics for our method (the compressed form factor
 # matrix)
-./collect_ingersoll_stats.sh $PMIN $PMAX $TOL
+for TOL in "${TOLS[@]}"
+do
+	echo "tol = $TOL"
+	./collect_ingersoll_stats.sh $PMIN $PMAX $TOL
+done
 
 # Do comparisons between groundtruth results and results obtained
 # using various compressed form factor matrices
-./do_direct_comparisons.py
+for TOL in "${TOLS[@]}"
+do
+	echo "doing direct comparison for tol = $TOL"
+	./do_direct_comparisons.py $TOL
+done
 
 # Collect memory usage statistics
 ./collect_memory_usage_stats.sh
 
 # Make plots from the collected statistics
-mkdir paper_plots
-./make_paper_plots.py
-./make_memory_usage_plots.py
+mkdir $PAPER_PLOT_DIR
+./make_paper_plots.py $PAPER_PLOT_DIR
+./make_memory_usage_plots.py $PAPER_PLOT_DIR

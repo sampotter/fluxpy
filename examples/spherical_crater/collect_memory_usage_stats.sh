@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-p=10 # fixed value of p for now
+p=9 # fixed value of p for now
 
 mkdir -p ./mprof_stats
 
