@@ -105,8 +105,6 @@ plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('RMS error in $T$ (shadow)')
 plt.tight_layout()
-plt.show()
-
 if SAVE_PDF_PLOTS:
     plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_rms.pdf', dpi=dpi)
 plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_rms.png', dpi=dpi)
