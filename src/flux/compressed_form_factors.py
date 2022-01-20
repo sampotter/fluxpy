@@ -810,3 +810,43 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def tocsr(self):
         return scipy.sparse.csr_matrix(self.toarray())
+
+class CompressedKernelMatrix(scipy.sparse.linalg.LinearOperator):
+    def __init__(self, form_factor_matrix, rho, albedo_placement='right'):
+        self.form_factor_matrix = form_factor_matrix
+
+        if not (0 < rho <= 1):
+            raise ValueError('need 0 < rho <= 1')
+        self.rho = rho
+
+        if albedo_placement not in {'left', 'right'}:
+            raise ValueError('albedo_placement must be "left" or "right"')
+        self.albedo_placement = albedo_placement
+
+    @property
+    def shape(self):
+        return self.form_factor_matrix.shape
+
+    @property
+    def dtype(self):
+        return self.form_factor_matrix.dtype
+
+    def _matvec(self, x):
+        y = x.copy()
+        if self.albedo_placement == 'left':
+            y -= self.rho*(self.form_factor_matrix@x)
+        elif self.albedo_placement == 'right':
+            y -= self.form_factor_matrix@(self.rho*x)
+        else:
+            raise RuntimeError('albedo_placement must be "left" or "right"')
+        return y
+
+    def _rmatvec(self, x):
+        y = x.copy()
+        if self.albedo_placement == 'left':
+            y -= (self.rho*x)@self.form_factor_matrix
+        elif self.albedo_placement == 'right':
+            y -= self.rho*(x@self.form_factor_matrix)
+        else:
+            raise RuntimeError('albedo_placement must be "left" or "right"')
+        return y
