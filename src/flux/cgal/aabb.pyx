@@ -18,6 +18,8 @@ cdef extern from "aabb_wrapper.h":
                                          size_t i, size_t j) nogil except +
     bool cgal_aabb_ray_from_centroid_is_occluded(const cgal_aabb *aabb,
                                                  size_t i, double d[3]) except +
+    bool cgal_aabb_intersect1(const cgal_aabb *aabb, const double x[3], const double d[3],
+                              size_t *i, double xt[3]) except +
 
 cdef class AABB:
     cdef cgal_aabb *aabb
@@ -42,6 +44,12 @@ cdef class AABB:
 
     def __dealloc__(self):
         cgal_aabb_dealloc(&self.aabb)
+
+    def intersect1(self, double[::1] x, double[::1] d):
+        cdef size_t i
+        cdef double xt[3]
+        if cgal_aabb_intersect1(self.aabb, &x[0], &d[0], &i, &xt[0]):
+            return i, np.array([xt[0], xt[1], xt[2]])
 
     def test_face_to_face_vis(self, size_t i, size_t j):
         return cgal_aabb_test_face_to_face_vis(self.aabb, i, j)
