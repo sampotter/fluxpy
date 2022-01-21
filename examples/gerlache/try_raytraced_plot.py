@@ -2,19 +2,20 @@ import colorcet as cc
 import itertools as it
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.sparse.linalg
+import scipy.sparse
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.compressed_form_factors import CompressedKernelMatrix
 from flux.model import compute_steady_state_temp
 from flux.solve import solve_radiosity
+from flux.util import tic, toc
 
 FF = CompressedFormFactorMatrix.from_file('FF.bin')
 shape_model = FF.shape_model
 V, F = shape_model.V, shape_model.F
 dtype = V.dtype
 
-FF_gt = scipy.sparse.load_npz('FF_gt.npz')
+# FF_gt = scipy.sparse.load_npz('FF_gt.npz')
 
 az, el = 45, -10
 phi, theta = np.deg2rad(az), np.deg2rad(el)
@@ -25,13 +26,18 @@ E = shape_model.get_direct_irradiance(
     np.array([np.cos(phi)*np.cos(theta), np.sin(phi)*np.cos(theta), np.sin(theta)])
 )
 
-rho, emiss = 0.11, 0.999
+rho, emiss, method = 0.11, 0.999, 'jacobi'
 
+tic()
 T = compute_steady_state_temp(FF, E, rho, emiss)
-B = solve_radiosity(FF, E, rho, albedo_placement='left')[0]
+print(toc())
 
-T_gt = compute_steady_state_temp(FF_gt, E, rho, emiss)
-B_gt = solve_radiosity(FF_gt, E, rho, albedo_placement='left')[0]
+tic()
+B = solve_radiosity(FF, E, rho, method=method, albedo_placement='left')[0]
+print(toc())
+
+# T_gt = compute_steady_state_temp(FF_gt, E, rho, emiss)
+# B_gt = solve_radiosity(FF_gt, E, rho, method=method='left')[0]
 
 # KK = CompressedKernelMatrix(FF, 0.11, albedo_placement='left')
 # B = scipy.sparse.linalg.cg(KK, E)[0]
@@ -58,11 +64,11 @@ for i, j in it.product(range(m), range(n)):
     x = np.array([xg[i], yg[j], z], dtype=dtype)
     hit = shape_model.intersect1(x, d)
     if hit is not None:
-        value[i, j] = B[hit[0]] - E[hit[0]]
-        # value[i, j] = T[hit[0]]
-        value[i, j] = (B[hit[0]] - B_gt[hit[0]])/B.max()
+        # value[i, j] = B[hit[0]] - E[hit[0]]
+        value[i, j] = T[hit[0]]
+        # value[i, j] = (B[hit[0]] - B_gt[hit[0]])/B.max()
 
 plt.figure()
-plt.imshow(value, interpolation='none', cmap=cc.cm.bmw)
+plt.imshow(value_, interpolation='none', cmap=cc.cm.bmw)
 plt.colorbar()
 plt.show()

@@ -1,16 +1,19 @@
 import numpy as np
-from scipy.constants import Stefan_Boltzmann as sigSB 
+from scipy.constants import Stefan_Boltzmann as sigSB
 from flux.solve import solve_radiosity
 
 
 def compute_steady_state_temp(FF, E, rho, emiss, Fsurf=0.,
-                              clamp=True, tol=np.finfo(np.float64).eps):
+                              clamp=True, tol=np.finfo(np.float64).eps,
+                              method='jacobi'):
     if E.ndim == 1:
-        B = solve_radiosity(FF, E, rho)[0]
+        # solve "visible"
+        B = solve_radiosity(FF, E, rho, 'right', method)[0]
         if clamp:
             B = np.maximum(0, B)
         IR = FF@((1 - rho)*B + Fsurf)
-        Q = solve_radiosity(FF, IR)[0]
+        # solve IR
+        Q = solve_radiosity(FF, IR, 1, 'right', method)[0]
         if clamp:
             Q = np.maximum(0, Q)
         tot = (1 - rho)*B + emiss*Q + Fsurf
@@ -19,7 +22,7 @@ def compute_steady_state_temp(FF, E, rho, emiss, Fsurf=0.,
         return (tot/(emiss*sigSB))**0.25
     elif E.ndim == 2:
         # solve "visible" section for all time-steps
-        B_arr = solve_radiosity(FF, E, rho)[0]
+        B_arr = solve_radiosity(FF, E, rho, 'right', method)[0]
         if len(B_arr.shape)==1:
             B_arr = B_arr[:,np.newaxis]
         # solve IR section for each time step sequentially
@@ -28,7 +31,7 @@ def compute_steady_state_temp(FF, E, rho, emiss, Fsurf=0.,
             if clamp:
                 B = np.maximum(0, B)
             IR = FF@((1 - rho)*B)
-            Q = solve_radiosity(FF, IR)[0]
+            Q = solve_radiosity(FF, IR, 1, 'right', method)[0]
             if clamp:
                 Q = np.maximum(0, Q)
             T.append((((1 - rho)*B + emiss*Q)/(emiss*sigSB))**0.25)
