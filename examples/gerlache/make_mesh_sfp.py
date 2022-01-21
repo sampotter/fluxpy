@@ -98,22 +98,34 @@ def stereo2cart(x, y):
     cos_el = np.cos(el)
     return r*np.array([cos_el*np.cos(az), cos_el*np.sin(az), np.sin(el)])
 
-max_area = 0.1
+max_area_inner, max_area_outer = 0.05, 3
 
-def should_refine(verts, area):
+xc_roi, yc_roi = 0, -45
+r_roi, R_roi = 20, 40
+
+x0_roi, x1_roi = xc_roi - R_roi, xc_roi + R_roi
+y0_roi, y1_roi = yc_roi - R_roi, yc_roi + R_roi
+
+def should_refine(verts, _):
     verts = np.array(verts)
-    num_verts = verts.shape[0]
+    assert verts.shape[0] == 3
 
-    P = np.empty((num_verts, 3))
+    P = np.empty((3, 3))
     for i, (x, y) in enumerate(verts):
         P[i] = stereo2cart(x, y)
 
     tri_area = np.linalg.norm(np.cross(P[1] - P[0], P[2] - P[0]))/2
 
-    return tri_area > max_area
+    xm, ym = np.mean(verts, 0)
+    rm = np.sqrt((xm - xc_roi)**2 + (ym - yc_roi)**2)
 
-x0_roi, x1_roi = -25, 25
-y0_roi, y1_roi = -25, 25
+    if rm < r_roi:
+        max_area = max_area_inner
+    else:
+        max_area = ((rm - r_roi)/(R_roi - r_roi))*max_area_inner \
+            + (rm/(R_roi - r_roi))*max_area_outer
+
+    return tri_area > max_area
 
 points = np.array(
     [(x0_roi, y0_roi), (x1_roi, y0_roi), (x1_roi, y1_roi), (x0_roi, y1_roi)],
@@ -136,3 +148,7 @@ grid['dR'] = np.array([getz(x, y) for x, y in zip(*centroids_stereographic.T)])
 
 plotter = pvqt.BackgroundPlotter()
 plotter.add_mesh(grid, scalars='dR', cmap=parula_cmap)
+# plotter.add_mesh(grid, show_edges=True)
+
+np.save('gerlache_verts', verts)
+np.save('gerlache_faces', faces)
