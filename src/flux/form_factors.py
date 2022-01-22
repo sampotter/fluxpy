@@ -36,6 +36,7 @@ def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
     data = array.array(typecode)
     indices = array.array('Q')
     indptr = array.array('Q')
+    indptr.append(0)
 
     for r, i in enumerate(I):
         row_data = np.maximum(0, N[i]@(P[J] - P[i]).T) \
