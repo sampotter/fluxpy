@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import colorcet as cc
 import meshpy.triangle as triangle
 import numpy as np
@@ -12,6 +14,12 @@ from parula import parula_cmap
 path = 'ldem_87s_5mpp'
 npy_path = path + '.npy'
 tif_path = path + '.tif'
+
+max_inner_area_str = sys.argv[1]
+max_outer_area_str = sys.argv[2]
+
+max_inner_area = float(max_inner_area_str)
+max_outer_area = float(max_outer_area_str)
 
 Rp = 1737.4 # average radius of the moon at the south pole in meters,
             # I guess?
@@ -98,8 +106,6 @@ def stereo2cart(x, y):
     cos_el = np.cos(el)
     return r*np.array([cos_el*np.cos(az), cos_el*np.sin(az), np.sin(el)])
 
-max_area_inner, max_area_outer = 0.05, 3
-
 xc_roi, yc_roi = 0, -45
 r_roi, R_roi = 20, 40
 
@@ -120,10 +126,10 @@ def should_refine(verts, _):
     rm = np.sqrt((xm - xc_roi)**2 + (ym - yc_roi)**2)
 
     if rm < r_roi:
-        max_area = max_area_inner
+        max_area = max_inner_area
     else:
-        max_area = ((rm - r_roi)/(R_roi - r_roi))*max_area_inner \
-            + (rm/(R_roi - r_roi))*max_area_outer
+        max_area = ((rm - r_roi)/(R_roi - r_roi))*max_inner_area \
+            + (rm/(R_roi - r_roi))*max_outer_area
 
     return tri_area > max_area
 
@@ -140,15 +146,18 @@ mesh = triangle.build(info, refinement_func=should_refine)
 
 verts = np.array([stereo2cart(*_) for _ in np.array(mesh.points)]).squeeze()
 faces = np.array(mesh.elements)
-centroids = verts[faces].mean(1)
-centroids_stereographic = np.array(mesh.points)[faces].mean(1)
 
-grid = pv.UnstructuredGrid({vtk.VTK_TRIANGLE: faces}, verts)
-grid['dR'] = np.array([getz(x, y) for x, y in zip(*centroids_stereographic.T)])
+# # uncomment the following to plot:
 
-plotter = pvqt.BackgroundPlotter()
-plotter.add_mesh(grid, scalars='dR', cmap=parula_cmap)
+# centroids = verts[faces].mean(1)
+# centroids_stereographic = np.array(mesh.points)[faces].mean(1)
+
+# grid = pv.UnstructuredGrid({vtk.VTK_TRIANGLE: faces}, verts)
+# grid['dR'] = np.array([getz(x, y) for x, y in zip(*centroids_stereographic.T)])
+
+# plotter = pvqt.BackgroundPlotter()
+# plotter.add_mesh(grid, scalars='dR', cmap=parula_cmap)
 # plotter.add_mesh(grid, show_edges=True)
 
-np.save('gerlache_verts', verts)
-np.save('gerlache_faces', faces)
+np.save(f'gerlache_verts_{max_inner_area_str}_{max_outer_area_str}', verts)
+np.save(f'gerlache_faces_{max_inner_area_str}_{max_outer_area_str}', faces)
