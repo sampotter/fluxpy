@@ -1,9 +1,12 @@
+import os
+
 import colorcet as cc
 import itertools as it
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse
 
+from spice_util import get_sunvec
 from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.compressed_form_factors import CompressedKernelMatrix
 from flux.model import ThermalModel
@@ -19,21 +22,32 @@ dtype = V.dtype
 
 F0 = 1365
 
-frames_per_second = 30
-animation_time = 30 # s
-num_frames = frames_per_second*animation_time + 1
+frames_per_second = 0.3  # 30
+animation_time = 86400*30 # s
+num_frames = int(frames_per_second*animation_time + 1)
 t = np.linspace(0, animation_time, num_frames)
 
-Az = np.linspace(0, 360, num_frames, endpoint=False)
-El = -10*np.ones_like(Az)
+use_spice = True
+if use_spice:
+    # Define time window (it can be done either with dates or with utc0 - initial epoch - and np.linspace of epochs)
+    utc0 = '2011 MAR 01 00:00:00.00'
+    # utc1 = '2011 MAR 02 00:00:00.00'
+    # stepet = 3*3600
+    # sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet)
+    sun_vecs = get_sunvec(utc0=utc0, et_linspace=t)
+    D = sun_vecs/np.linalg.norm(sun_vecs,axis=1)[:,np.newaxis]
+    D = D.copy(order='C')
+else:
+    Az = np.linspace(0, 360, num_frames, endpoint=False)
+    El = -10*np.ones_like(Az)
 
-Phi, Theta = np.deg2rad(Az), np.deg2rad(El)
+    Phi, Theta = np.deg2rad(Az), np.deg2rad(El)
 
-# D[i] = ith sun direction (num_frames x 3)
-D = np.array([
-    (np.cos(phi)*np.cos(theta), np.sin(phi)*np.cos(theta), np.sin(theta))
-    for phi, theta in zip(Phi, Theta)
-])
+    # D[i] = ith sun direction (num_frames x 3)
+    D = np.array([
+        (np.cos(phi)*np.cos(theta), np.sin(phi)*np.cos(theta), np.sin(theta))
+        for phi, theta in zip(Phi, Theta)
+    ])
 
 z = np.linspace(0, 3e-3, 31)
 
@@ -46,7 +60,7 @@ thermal_model = ThermalModel(
 plot_layers = [0, 1, 2, 3]
 
 Tmin, Tmax = np.inf, -np.inf
-vmin, vmax = 99, 128
+vmin, vmax = 90, 310
 
 for frame_index, T in enumerate(thermal_model):
     Tmin = min(Tmin, T.min())
@@ -79,7 +93,9 @@ for frame_index, T in enumerate(thermal_model):
                 value[i, j, layer_index] = T[hit[0], layer]
 
     # save plot to disk
-    for layer_index, layer in enumerate(plot_layers):
+    if not os.path.exists('frame/'):
+        os.mkdir('frame/')
+    for layer_index, layer in enumerate(plot_layers[::3000]):
         plt.imsave(
             'frame/layer%d_frame%05d.png' % (layer, frame_index + 1),
             value[:, :, layer_index], vmin=vmin, vmax=vmax, cmap=cc.cm.bmy)
