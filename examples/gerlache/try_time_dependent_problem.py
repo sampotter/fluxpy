@@ -43,10 +43,16 @@ thermal_model = ThermalModel(
     z=z, T0=100, ti=120, rhoc=9.6e5, emiss=0.95,
     Fgeotherm=0.2, bcond='Q')
 
-plot_layer = 5
+plot_layers = [0, 1, 2, 3]
+
+Tmin, Tmax = np.inf, -np.inf
+vmin, vmax = 99, 128
 
 for frame_index, T in enumerate(thermal_model):
-    print(f'frame {frame_index}: <T> = {T.mean()}, min(T) = {T.min()}, max(T) = {T.max()}')
+    Tmin = min(Tmin, T.min())
+    Tmax = max(Tmax, T.max())
+
+    print(f'frame {frame_index}: <T> = {T.mean()}, min(T) = {Tmin}, max(T) = {Tmax}')
 
     # plotting
 
@@ -63,13 +69,17 @@ for frame_index, T in enumerate(thermal_model):
     z = z0 - max(abs(dx), abs(dy))
     d = np.array([0, 0, 1], dtype=dtype)
 
-    value = np.empty((m, n), dtype=dtype)
+    value = np.empty((m, n, len(plot_layers)), dtype=dtype)
     value[...] = np.nan
     for i, j in it.product(range(m), range(n)):
         x = np.array([xg[i], yg[j], z], dtype=dtype)
         hit = shape_model.intersect1(x, d)
         if hit is not None:
-            value[i, j] = T[hit[0], plot_layer]
+            for layer_index, layer in enumerate(plot_layers):
+                value[i, j, layer_index] = T[hit[0], layer]
 
     # save plot to disk
-    plt.imsave('frame/frame%05d.png' % (frame_index + 1), value, cmap=cc.cm.bmy)
+    for layer_index, layer in enumerate(plot_layers):
+        plt.imsave(
+            'frame/layer%d_frame%05d.png' % (layer, frame_index + 1),
+            value[:, :, layer_index], vmin=vmin, vmax=vmax, cmap=cc.cm.bmy)
