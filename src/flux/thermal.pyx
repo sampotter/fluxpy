@@ -12,157 +12,214 @@ cdef extern from "pcc/thrmlLib.h":
 
 cdef class PccThermalModel1D:
     cdef:
-        int nfaces
-        int nz
-        double t, emissivity
-        double[::1] z
-        double[::1] ti
-        double[::1] rhoc
-        double[::1] Fgeotherm
-        double[::1] Qprev
-        double[::1] Fsurf
-        double[:, ::1] T
+        int _num_layers
+        int _num_faces
+        int _num_layers_interior
 
-        double[::1] Tsurfprev
-        str bcond
+        double _current_time
 
+        double[::1] _emiss
+        double[::1] _z
+        double[::1] _ti
+        double[::1] _rhoc
+        double[::1] _Fgeotherm
+        double[::1] _Qprev
+        double[::1] _Fsurf
+        double[:, ::1] _T
+        double[::1] _Tsurfprev
 
-    @property
-    def nfaces(self):
-        return self.nfaces
-
-    @property
-    def nz(self):
-        return self.nz
+        str _bcond
 
     @property
-    def t(self):
-        return self.t
+    def num_layers(self):
+        return self._num_layers
 
     @property
-    def emissivity(self):
-        return self.emissivity
+    def num_faces(self):
+        return self._num_faces
+
+    @property
+    def num_layers_interior(self):
+        return self._num_layers_interior
+
+    @property
+    def current_time(self):
+        return self._current_time
+
+    @property
+    def emiss(self):
+        return np.asarray(self._emiss)
 
     @property
     def z(self):
-        return np.asarray(self.z[1:])
+        return np.asarray(self._z)
 
     @property
     def ti(self):
-        return np.asarray(self.ti[1:])
+        return np.asarray(self._ti)
 
     @property
     def rhoc(self):
-        return np.asarray(self.rhoc[1:])
+        return np.asarray(self._rhoc)
 
     @property
     def Fgeotherm(self):
-        return np.asarray(self.Fgeotherm)
+        return np.asarray(self._Fgeotherm)
 
     @property
     def Qprev(self):
-        return np.asarray(self.Qprev[:])
+        return np.asarray(self._Qprev)
 
     @property
     def Fsurf(self):
-        return np.asarray(self.Fsurf)
+        return np.asarray(self._Fsurf)
 
     @property
     def T(self):
-        return np.asarray(self.T)
+        return np.asarray(self._T)
 
     @property
     def Tsurfprev(self):
-        return np.asarray(self.Tsurfprev)
+        return np.asarray(self._Tsurfprev)
 
-    def __cinit__(self, int nfaces, double[::1] z, double[:,:] T0, double
-                  ti, double rhoc, double emissivity, Fgeotherm=0.0, Qprev=0.0,
-                  Tsurfprev=0.0, bcond='Q'):
-        if not 0 <= emissivity <= 1:
-            raise ValueError('emissivity should be in range [0, 1]')
+    @property
+    def bcond(self):
+        return self._bcond
 
+    def __cinit__(self,
+                  double[::1] z,
+                  double[:, ::1] T0,
+                  double[::1] ti,
+                  double[::1] rhoc,
+                  double[::1] emiss,
+                  double[::1] Fgeotherm,
+                  double[::1] Q0,
+                  double[::1] Tsurfprev,
+                  bcond='Q'):
         if bcond not in {'Q', 'T'}:
             raise ValueError('bcond should be "Q" or "T"')
+        self._bcond = bcond
 
-        self.nfaces = nfaces
-        self.nz = z.size
-        self.t = 0
-        self.emissivity = emissivity
-        self.bcond = bcond
+        self._num_faces = T0.shape[0]
+        self._num_layers = z.size
+        self._num_layers_interior = self._num_layers - 1
+        self._current_time = 0
 
-        self.z = np.empty((self.nz + 1,), dtype=np.float64)
-        self.z[0] = 0.
-        self.z[1:] = z[...]
+        if not all(0 <= _ <= 1 for _ in emiss):
+            raise ValueError('emissivity values ("emiss") should be in range [0, 1]')
+        if emiss.ndim != 1 or emiss.size != self.num_faces:
+            raise ValueError('"emiss" should be a 1D array with length == T0.shape[0]')
+        self._emiss = emiss
 
-        self.ti = np.empty((self.nz + 1,), dtype=np.float64)
-        self.ti[:] = ti
+        if z[0] != 0:
+            raise RuntimeError('z[0] is required to be zero')
+        self._z = z
+        # TODO: should z[i] be positive or negative for i > 0?
 
-        self.rhoc = np.empty((self.nz + 1,), dtype=np.float64)
-        self.rhoc[:] = rhoc
+        self._ti = ti
+        if (self.ti <= 0.0).any():
+            raise ValueError('thermal inertia ("ti") values should be positive')
+        if self.ti.ndim != 1 or self.ti.size != self.num_layers:
+            raise ValueError('"ti" should be a 1D array with length == z.size')
 
-        self.Fgeotherm = np.empty((self.nfaces,), dtype=np.float64)
-        self.Fgeotherm[...] = Fgeotherm
+        self._rhoc = rhoc
+        if (self.rhoc <= 0).any():
+            raise ValueError('volumetric heat capacity ("rhoc") values should be positive')
+        if self.rhoc.ndim != 1 or self.rhoc.size != self.num_layers:
+            raise ValueError('"rhoc" should be a 1D array with length == z.size')
 
-        # conductionT arg
-        self.Tsurfprev = np.empty((self.nfaces,), dtype=np.float64)
-        self.Tsurfprev[...] = Tsurfprev
+        self._Fgeotherm = Fgeotherm
+        if (self.Fgeotherm < 0).any():
+            raise ValueError('geothermal fluxes ("Fgeotherm") should be positive')
+        if self.Fgeotherm.ndim != 1 or self.Fgeotherm.size != self.num_faces:
+            raise ValueError('"Fgeotherm" should be a 1D array with length == T0.shape[0]')
 
-        self.Qprev = np.empty((self.nfaces,), dtype=np.float64)
-        if nfaces > 1: #TODO not sure if this is the correct way to deal with this error
-            self.Qprev = Qprev
-        else:
-            self.Qprev[...] = Qprev
+        self._Tsurfprev = Tsurfprev
+        if (self.Tsurfprev < 0).any():
+            raise ValueError('surface temperatures ("Tsurfprev") should be nonnegative')
+        if self.Tsurfprev.ndim != 1 or self.Tsurfprev.size != self.num_faces:
+            raise ValueError('"Tsurfprev" should be a 1D array with length == T0.shape[0]')
 
-        self.Fsurf = np.empty((self.nfaces,), dtype=np.float64)
-        self.Fsurf[...] = 0
+        self._Qprev = Q0
+        if (self.Qprev < 0).any():
+            raise ValueError('initial irradiance ("Q0") should be nonnegative')
+        if self.Qprev.ndim != 1 or self.Qprev.size != self.num_faces:
+            raise ValueError('"Q0" should be a 1D array with length == T0.shape[0]')
 
-        self.T = np.empty((self.nfaces, self.nz + 1), dtype=np.float64)
-        self.T[...] = T0
+        self._Fsurf = np.empty_like(self._Qprev)
+        self._Fsurf[:] = np.nan
+
+        self._T = T0
+        if (self.T < 0).any():
+            raise ValueError('initial temperature ("T0") should be nonnegative')
+        if self.T.ndim != 2 or self.T.shape[1] != self.num_layers:
+            raise ValueError('"T0" should be a 2D array with T0.shape[1] == z.size')
 
     # step for conductionQ
-    cpdef step(self, double dt, double[::1] X):
+    cpdef step(self, double dt, X):
         cdef int i
 
         if self.bcond == 'Q':
-            for i in range(self.nfaces):
+            if X.ndim != 1 or X.size != self._Qprev.size:
+                raise RuntimeError(f'input flux of wrong size: X.size == {X.size}')
+
+            if not np.isfinite(X).all():
+                raise RuntimeError('trying to step with nonfinite input fluxes')
+
+            if (X < 0).any():
+                raise RuntimeError('trying to step with negative fluxes')
+
+            for i in range(self._num_faces):
                 conductionQ(
-                    self.nz, # number of grid points
-                    &self.z[0], # depth below surface
-                    dt,
-                    self.Qprev[i],
-                    X[i],
-                    &self.T[i, 0],
-                    &self.ti[0],
-                    &self.rhoc[0],
-                    self.emissivity,
-                    self.Fgeotherm[i],
-                    &self.Fsurf[i])
+                    self.num_layers_interior, # number of grid points below surface
+                    &self._z[0],              # depth below surface
+                    dt,                       # time step
+                    self._Qprev[i],           # net solar insolation at previous time step
+                    X[i],                     # net solar insolation at current time step
+                    &self._T[i, 0],           # vertical temperature profile
+                    &self._ti[0],             # thermal inertia
+                    &self._rhoc[0],           # volumetric heat capacity
+                    self._emiss[i],           # emissivity
+                    self._Fgeotherm[i],       # geothermal heat flux at bottom boundary
+                    &self._Fsurf[i])          # heat flux at surface (output)
 
-                if not np.isfinite(X[i]):
-                    raise RuntimeError(f'found non-finite temp: X[{i}] == {X[i]}')
+            self._Qprev = X
 
-                if X[i] < 0:
-                    raise RuntimeError(f'found non-natural temp: X[{i}] == {X[i]}')
+        elif self.bcond == 'T':
+            if X.ndim != 1 or X.size != self._Tsurfprev.size:
+                raise RuntimeError(f'input flux of wrong size: X.size == {X.size}')
 
-            self.Qprev[...] = X[...]
+            if not np.isfinite(X).all():
+                raise RuntimeError('trying to step with nonfinite input temps')
 
-        if self.bcond == 'T':
-            for i in range(self.nfaces):
+            if (X < 0).any():
+                raise RuntimeError('trying to step with negative input temps')
+
+            for i in range(self._num_faces):
                 conductionT(
-                    self.nz, # number of grid points
-                    &self.z[0], # depth below surface
-                    dt,
-                    &self.T[i, 0],
-                    self.Tsurfprev[i],
-                    X[i],
-                    &self.ti[0],
-                    &self.rhoc[0],
-                    self.Fgeotherm[i],
-                    &self.Fsurf[i])
+                    self.num_layers_interior, # number of grid points below surface
+                    &self._z[0],              # depth below surface
+                    dt,                       # time step
+                    &self._T[i, 0],           # vertical temperature profile (in/out)
+                    self._Tsurfprev[i],       # surf temp at previous time step
+                    X[i],                     # surf temp at current time step
+                    &self._ti[0],             # thermal inertia
+                    &self._rhoc[0],           # volumetric heat capacity
+                    self._Fgeotherm[i],       # geothermal heat flux at bottom boundary
+                    &self._Fsurf[i])          # heat flux at surface (output)
 
-            self.Tsurfprev[...] = X[...]
+            self._Tsurfprev = X
 
-        self.t += dt
+        else:
+            raise RuntimeError(f'got unexpected BC mode: "{self.bcond}"')
+
+        if not np.isfinite(self.T).all():
+            raise RuntimeError('computed nonfinite temperatures while stepping')
+
+        if (self.T < 0).any():
+            raise RuntimeError('computed negative temperatures while stepping')
+
+        self._current_time += dt
 
 def setgrid(nz,zfac,zmax):
     """
