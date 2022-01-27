@@ -144,6 +144,7 @@ info.set_facets(facets)
 
 mesh = triangle.build(info, refinement_func=should_refine)
 
+verts_stereo = np.array(mesh.points)
 verts = np.array([stereo2cart(*_) for _ in np.array(mesh.points)]).squeeze()
 faces = np.array(mesh.elements)
 
@@ -159,5 +160,7 @@ faces = np.array(mesh.elements)
 # plotter.add_mesh(grid, scalars='dR', cmap=parula_cmap)
 # plotter.add_mesh(grid, show_edges=True)
 
-np.save(f'gerlache_verts_{max_inner_area_str}_{max_outer_area_str}', verts)
-np.save(f'gerlache_faces_{max_inner_area_str}_{max_outer_area_str}', faces)
+area_str = f'{max_inner_area_str}_{max_outer_area_str}'
+np.save(f'gerlache_verts_stereo_{area_str}', verts_stereo)
+np.save(f'gerlache_verts_{area_str}', verts)
+np.save(f'gerlache_faces_{area_str}', faces)

@@ -3,7 +3,7 @@
 import colorcet as cc
 import glob
 import itertools as it
-import json
+import json_numpy as json
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse
@@ -28,33 +28,19 @@ el = params['el']
 phi, theta = np.deg2rad(az), np.deg2rad(el)
 sundir = np.array([np.cos(phi)*np.sin(theta), np.sin(phi)*np.sin(theta), np.cos(theta)])
 
-def get_data(shape_model, FF):
+def get_data(shape_model, shape_model_st, FF, xgrid, ygrid):
     def get_values_using_raytracing(field):
-        assert field.ndim == 1 and field.size == shape_model.num_faces
-
-        x0, y0, z0 = shape_model.V.min(0)
-        x1, y1, z1 = shape_model.V.max(0)
-        xc, yc = (x0 + x1)/2, (y0 + y1)/2
-        dx, dy = x1 - x0, y1 - y0
-        p = 0.25
-
-        m, n = 512, 512
-
+        assert field.ndim == 1 and field.size == shape_model_st.num_faces
         dtype = field.dtype
-
-        xg = np.linspace(xc - p*dx, xc + p*dx, m).astype(dtype)
-        yg = np.linspace(yc - p*dx, yc + p*dx, n).astype(dtype)
-        z = z0 - max(abs(dx), abs(dy))
-        d = np.array([0, 0, 1], dtype=dtype)
-
+        d = np.array([0, 0, 1], dtype=np.float64)
+        m, n = len(xgrid), len(ygrid)
         grid = np.empty((m, n), dtype=dtype)
         grid[...] = np.nan
         for i, j in it.product(range(m), range(n)):
-            x = np.array([xg[i], yg[j], z], dtype=dtype)
-            hit = shape_model.intersect1(x, d)
+            x = np.array([xgrid[i], ygrid[j], -1], dtype=dtype)
+            hit = shape_model_st.intersect1(x, d)
             if hit is not None:
                 grid[i, j] = field[hit[0]]
-
         return grid
 
     tic()
@@ -78,25 +64,68 @@ def get_data(shape_model, FF):
 
 data = dict()
 
+# get data for compressed FF matrices
+
 FF_paths = glob.glob('FF_*_*_*.bin')
+
 for path in FF_paths:
-    max_inner_area, max_outer_area, tol = map(float, path[:-4].split('_')[1:])
-    print(max_inner_area, max_outer_area, tol)
+    max_inner_area_str, max_outer_area_str, tol_str = path[3:-4].split('_')
+    print(max_inner_area_str, max_outer_area_str, tol_str)
+
+    areas_str = max_inner_area_str + '_' + max_outer_area_str
+
+    # build shape model in stereographic projection
+    V_st = np.load(f'gerlache_verts_stereo_{areas_str}.npy')
+    V_st = np.concatenate([V_st, np.ones((V_st.shape[0], 1))], axis=1)
+    F = np.load(f'gerlache_faces_{areas_str}.npy')
+    N_st = get_surface_normals(V_st, F)
+    N_st[N_st[:, 2] > 0] *= -1
+    shape_model_st = CgalTrimeshShapeModel(V_st, F, N_st)
+
+    # set up plot grid
+    xmin, ymin = V_st.min(0)[:-1]
+    xmax, ymax = V_st.max(0)[:-1]
+    N = 512
+    x = np.linspace(xmin, xmax, N)
+    y = np.linspace(ymin, ymax, N)
+
     FF = CompressedFormFactorMatrix.from_file(path)
-    data[path] = get_data(FF.shape_model, FF)
+    shape_model = FF.shape_model
+    data[path] = get_data(shape_model, shape_model_st, FF, x, y)
+
+# get data from true FF matrices
 
 FF_true_paths = glob.glob('FF_*.npz')
+
 for path in FF_true_paths:
-    areas_str = path[3:-4]
     max_inner_area, max_outer_area = map(float, areas_str.split('_'))
     print(max_inner_area, max_outer_area)
-    V = np.load(f'gerlache_verts_{areas_str}.npy')
+
+    areas_str = path[3:-4]
+
+    # build shape model in stereographic projection
+    V_st = np.load(f'gerlache_verts_stereo_{areas_str}.npy')
+    V_st = np.concatenate([V_st, np.ones((V_st.shape[0], 1))], axis=1)
     F = np.load(f'gerlache_faces_{areas_str}.npy')
+    N_st = get_surface_normals(V_st, F)
+    N_st[N_st[:, 2] > 0] *= -1
+    shape_model_st = CgalTrimeshShapeModel(V_st, F, N_st)
+
+    # set up plot grid
+    xmin, ymin = V_st.min(0)[:-1]
+    xmax, ymax = V_st.max(0)[:-1]
+    N = 512
+    x = np.linspace(xmin, xmax, N)
+    y = np.linspace(ymin, ymax, N)
+
+    # build regular shape model
+    V = np.load(f'gerlache_verts_{areas_str}.npy')
     N = get_surface_normals(V, F)
     N[N[:, 2] > 0] *= -1
     shape_model = CgalTrimeshShapeModel(V, F, N)
+
     FF_true = scipy.sparse.load_npz(path)
-    data[path] = get_data(shape_model, FF_true)
+    data[path] = get_data(shape_model, shape_model_st, FF_true, x, y)
 
 T_grid_hat = data['FF_0.75_3.0_1e-2.bin']['T_grid']
 T_grid = data['FF_0.4_3.0.npz']['T_grid']
@@ -107,3 +136,18 @@ plt.figure()
 plt.imshow(perc_error, interpolation='none', vmax=10, cmap=cc.cm.bmw)
 plt.colorbar()
 plt.show()
+
+T_grid = data['FF_0.4_3.0_1e-2.bin']['T_grid']
+plt.figure()
+plt.imshow(T_grid, extent=[xmin, xmax, ymin, ymax],
+           interpolation='none', cmap=cc.cm.fire)
+plt.xlabel('$x$')
+plt.ylabel('$y$')
+plt.colorbar()
+plt.gca().set_aspect('equal')
+plt.tight_layout()
+plt.show()
+
+
+with open('test.json', 'w') as f:
+    json.dump(data, f)
