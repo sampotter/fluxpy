@@ -1,4 +1,9 @@
 {
+	"xmin": -20,
+	"xmax": 20,
+	"ymin": -65,
+	"ymax": -25,
+	"ROI_radius": 15,
 	"F0": 1365,
 	"rho": 0.11,
 	"emiss": 0.95,

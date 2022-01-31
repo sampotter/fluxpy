@@ -148,6 +148,8 @@ verts_stereo = np.array(mesh.points)
 verts = np.array([stereo2cart(*_) for _ in np.array(mesh.points)]).squeeze()
 faces = np.array(mesh.elements)
 
+print(f'  * {verts.shape[0]} vertices and {faces.shape[0]} faces')
+
 # # uncomment the following to plot:
 
 # centroids = verts[faces].mean(1)

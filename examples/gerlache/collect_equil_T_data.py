@@ -20,6 +20,10 @@ from parula import parula_cmap
 with open('params.json') as f:
     params = json.load(f)
 
+xmin = params['xmin']
+xmax = params['xmax']
+ymin = params['ymin']
+ymax = params['ymax']
 F0 = params['F0']
 rho = params['rho']
 emiss = params['emiss']
@@ -55,6 +59,8 @@ def get_data(shape_model, shape_model_st, FF, xgrid, ygrid):
     T_grid = get_values_using_raytracing(T)
 
     return {
+        'P_st': shape_model_st.P,
+        'A': shape_model.A,
         'E': E,
         'time_E': time_E,
         'T': T,
@@ -83,8 +89,6 @@ for path in FF_paths:
     shape_model_st = CgalTrimeshShapeModel(V_st, F, N_st)
 
     # set up plot grid
-    xmin, ymin = V_st.min(0)[:-1]
-    xmax, ymax = V_st.max(0)[:-1]
     N = 512
     x = np.linspace(xmin, xmax, N)
     y = np.linspace(ymin, ymax, N)
@@ -112,8 +116,6 @@ for path in FF_true_paths:
     shape_model_st = CgalTrimeshShapeModel(V_st, F, N_st)
 
     # set up plot grid
-    xmin, ymin = V_st.min(0)[:-1]
-    xmax, ymax = V_st.max(0)[:-1]
     N = 512
     x = np.linspace(xmin, xmax, N)
     y = np.linspace(ymin, ymax, N)
@@ -127,27 +129,5 @@ for path in FF_true_paths:
     FF_true = scipy.sparse.load_npz(path)
     data[path] = get_data(shape_model, shape_model_st, FF_true, x, y)
 
-T_grid_hat = data['FF_0.75_3.0_1e-2.bin']['T_grid']
-T_grid = data['FF_0.4_3.0.npz']['T_grid']
-error = (T_grid - T_grid_hat)/T_grid
-perc_error = 100*abs(error)
-
-plt.figure()
-plt.imshow(perc_error, interpolation='none', vmax=10, cmap=cc.cm.bmw)
-plt.colorbar()
-plt.show()
-
-T_grid = data['FF_0.4_3.0_1e-2.bin']['T_grid']
-plt.figure()
-plt.imshow(T_grid, extent=[xmin, xmax, ymin, ymax],
-           interpolation='none', cmap=cc.cm.fire)
-plt.xlabel('$x$')
-plt.ylabel('$y$')
-plt.colorbar()
-plt.gca().set_aspect('equal')
-plt.tight_layout()
-plt.show()
-
-
-with open('test.json', 'w') as f:
+with open('equil_T_data.json', 'w') as f:
     json.dump(data, f)

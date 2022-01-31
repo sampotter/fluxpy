@@ -155,6 +155,83 @@ cdef class PccThermalModel1D:
         if self.T.ndim != 2 or self.T.shape[1] != self.num_layers:
             raise ValueError('"T0" should be a 2D array with T0.shape[1] == z.size')
 
+    # @staticmethod
+    # def from_params(num_faces=None, z=None, num_layers=None,
+    #                 zfac=None, zmax=None, T0=None, ti=None, rhoc=None,
+    #                 emiss=None, Fgeotherm=None, Q0=None, Tsurf0=None,
+    #                 bcond='Q'):
+    #     if num_faces is None:
+    #         raise ValueError("must pass num_faces explicitly")
+
+    #     if num_layers is None:
+    #         if z is not None:
+    #             num_layers = z.size
+    #         # TODO: try to look up num_layers from other passed arguments
+    #         else:
+    #             raise ValueError("couldn't infer num_layers from passed params")
+
+    #     if z is None:
+    #         if zfac is None:
+    #             raise ValueError("if z isn't passed, must pass zfac")
+    #         if zmax is None:
+    #             raise ValueError("if z isn't passed, must pass zmax")
+    #         z = setgrid(num_layers, zfac, zmax)
+    #         z = np.concatenate([[0], z])
+
+    #     if len(z) != num_layers:
+    #         raise ValueError("len(z) != num_layers")
+
+    #     if isinstance(T0, (float, int)):
+    #         T0 = np.full((num_faces, num_layers), T0)
+    #     elif isinstance(T0, np.ndarray):
+    #         if T0.ndim == 1:
+    #             raise ValueError("if T0 is an array, it must be 2D (for now)")
+    #         if T0.shape != (num_faces, num_layers):
+    #             raise ValueError("if T0 is an array, it must be num_faces x num_layers")
+    #     else:
+    #         raise TypeError(f"T0 has unsupported type: {type(T0)}")
+
+    #     if isinstance(ti, (float, int)):
+    #         ti = np.full((num_layers,), ti)
+    #     elif isinstance(ti, np.ndarray):
+    #         if ti.ndim != 1:
+    #             raise ValueError("ti must be one-dimensional")
+    #         if ti.size != num_layers:
+    #             raise ValueError("len(ti) != num_layers")
+    #     else:
+    #         raise TypeError(f"ti has unsupported type: {type(ti)}")
+
+    #     if isinstance(rhoc, (float, int)):
+    #         rhoc = np.full((num_layers,), rhoc)
+    #     elif isinstance(rhoc, np.ndarray):
+    #         if rhoc.ndim != 1:
+    #             raise ValueError("rhoc must be one-dimensional")
+    #         if rhoc.size != num_layers:
+    #             raise ValueError("len(rhoc) != num_layers")
+    #     else:
+    #         raise TypeError(f"rhoc has unsupported type: {type(rhoc)}")
+
+    #     if isinstance(emiss, (float, int)):
+    #         emiss = np.full((num_faces,), emiss)
+    #     elif isinstance(emiss, np.ndarray):
+    #         if emiss.ndim != 1:
+    #             raise ValueError("emiss must be one-dimensional")
+    #         if emiss.size != num_faces:
+    #             raise ValueError("len(emiss) != num_faces")
+    #     else:
+    #         raise TypeError(f"emiss has unsupported type: {type(emiss)}")
+
+    #     if isinstance(emiss, (float, int)):
+    #         emiss = np.full((num_faces,), emiss)
+    #     elif isinstance(emiss, np.ndarray):
+    #         if emiss.ndim != 1:
+    #             raise ValueError("emiss must be one-dimensional")
+    #         if emiss.size != num_faces:
+    #             raise ValueError("len(emiss) != num_faces")
+    #     else:
+    #         raise TypeError(f"emiss has unsupported type: {type(emiss)}")
+
+
     # step for conductionQ
     cpdef step(self, double dt, X):
         cdef int i

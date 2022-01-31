@@ -115,7 +115,8 @@ class ThermalModel:
             raise ValueError('number of time points ("t") and sun positions ("D") should agree')
 
         self._FF = FF
-        self._shape_model = FF.shape_model
+        self._shape_model = kwargs['shape_model'] \
+            if 'shape_model' in kwargs else FF.shape_model
         self._t = t
         self._D = D
         self._F0 = F0

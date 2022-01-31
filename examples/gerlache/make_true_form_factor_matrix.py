@@ -24,5 +24,11 @@ normals[normals[:, 2] > 0] *= -1
 shape_model = CgalTrimeshShapeModel(verts, faces, normals)
 
 # use quadtree by default
+tic()
 FF_true = get_form_factor_matrix(shape_model)
-scipy.sparse.save_npz(f'FF_{max_inner_area_str}_{max_outer_area_str}_true.bin', FF_true)
+assembly_time = toc()
+
+with open('FF_assembly_times.txt', 'a') as f:
+    print(f'true {max_inner_area_str} {max_outer_area_str} {assembly_time}', file=f)
+
+scipy.sparse.save_npz(f'FF_{max_inner_area_str}_{max_outer_area_str}', FF_true)
