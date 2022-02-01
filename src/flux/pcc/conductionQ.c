@@ -3,6 +3,9 @@
 #include <math.h>
 #include <stdio.h>
 
+// uncomment to debug conductionQ
+// #define VERBOSE 1
+
 void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 				 double T[], double ti[], double rhoc[], double emiss,
 				 double Fgeotherm, double *Fsurf)  {
@@ -45,6 +48,8 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
    converted from Fortran to C in 2019
 ************************************************************************/
 
+	// TODO: using variable-length arrays below... should either pass
+	// in a workspace or allocate on the heap (preferably the former)
 	int i, iter;
 	const double sigSB = 5.6704e-8;
 	double a[nz+1], b[nz+1], c[nz+1], r[nz+1];
@@ -55,20 +60,7 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	/* set some constants */
 	for (i=1; i<=nz; i++) {
 		k[i] = ti[i] * ti[i] / rhoc[i];  // thermal conductivity
-//		printf("%d rhoc_old=%f k=%f \n", i, rhoc[i], k[i]);
 	}
-//    for(int i = 0; i < nz; i++) {
-//        rho[i] = rho_d - (rho_d-rho_s)*exp(-z[i]/H);  // eq 9 Hayne15
-//        Kc[i] = Kd - (Kd-Ks)*(rho_d - rho[i])/(rho_d-rho_s); // eq 10 Hayne15
-//
-//        dT300 = (T[i] - 300.)/300.;
-//        cp = 4184 * (0.1812+0.1191*dT300+0.0176*pow(dT300,2)+0.2721*pow(dT300,3)+0.1869*pow(dT300,4)); // Eq 6 Ledlow92 [4184 cal g^-1 K^-1 --> J kg^-1 K^-1]
-//        k[i] = Kc[i] + B*pow(T[i],3);  //  eq 11 Hayne15
-//        rhoc[i] = rho[i]*cp;
-////        printf("%d rhoc_new=%f k=%f \n", i, rhoc[i], k[i]);
-//    }
-//    rhoc[0] = rhoc[1];
-//    rhoc[nz] = rhoc[nz-1];
 
 	dz = 2.*z[1];
 	beta = dt / rhoc[1] / (2.*dz*dz);  // assumes rhoc[0]=rhoc[1]
@@ -85,11 +77,15 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	k1 = k[1] / dz;
 
 	/* elements of tridiagonal matrix */
+	a[0] = NAN;
+	b[0] = NAN;
+	c[0] = NAN;
 	for (i=1; i<=nz; i++) {
 		a[i] = -gamma[i];  //  a[1] is not used
 		b[i] = 1. + alpha[i] + gamma[i];  //  b[1] has to be reset at ever
 		c[i] = -alpha[i];  //  c[nz] is not used
 	}
+	c[nz] = NAN;
 	b[nz] = 1. + gamma[nz];
 
 	Tr = T[0];    //   'reference' temperature
@@ -97,17 +93,10 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	for (i=1; i<=nz; i++) Told[i] = T[i];
 
   lbpredcorr:
-    // update with new T
-//    for(int i = 0; i < nz; i++) {
-//        dT300 = (T[i] - 300.)/300.;
-//        cp = 4184 * (0.1812+0.1191*dT300+0.0176*pow(dT300,2)+0.2721*pow(dT300,3)+0.1869*pow(dT300,4)); // Eq 6 Ledlow92 [4184 cal g^-1 K^-1 --> J kg^-1 K^-1]
-//
-//        k[i] = Kc[i] + B*pow(T[i],3);  //  eq 11 Hayne15
-//        rhoc[i] = rho[i]*cp;
-////        printf("%d rhoc_new_lbpredcorr@%d=%f k=%f \n", i, iter, rhoc[i], k[i]);
-//        }
-//    rhoc[0] = rhoc[1];
-//    rhoc[nz] = rhoc[nz-1];
+
+#ifdef VERBOSE
+	printf("iter = %d\n", iter);
+#endif
 
 	/* Emission */
 	arad = -3 * emiss * sigSB * Tr * Tr * Tr * Tr;
@@ -118,18 +107,50 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	b[1] = 1. + alpha[1] + gamma[1] - gamma[1] * bn;
 
 	/* Set RHS */
+	r[0] = NAN;
 	r[1] = gamma[1] * (annp1 + ann) +
 		(1. - alpha[1] - gamma[1] + gamma[1] * bn) * T[1] + alpha[1] * T[2];
 	for (i=2; i<nz; i++) {
 		r[i] = gamma[i] * T[i-1] + (1 - alpha[i] - gamma[i]) * T[i] + alpha[i] * T[i+1];
 	}
+
+#ifdef VERBOSE
+	printf("rhoc[nz] = rhoc[%d] = %g\n", nz, rhoc[nz]);
+#endif
+
 	r[nz] = gamma[nz] * T[nz-1] + (1. - gamma[nz]) * T[nz] +
 		dt / rhoc[nz] * Fgeotherm / (z[nz] - z[nz-1]);   // assumes rhoc[nz+1]=rhoc[nz]
+
+#ifdef VERBOSE
+	for (size_t j = 0; j <= nz; ++j)
+		printf("T[%lu] = %g\n", j, T[j]);
+
+	for (size_t j = 0; j <= nz; ++j)
+		printf("a[%lu] = %g\n", j, a[j]);
+
+	for (size_t j = 0; j <= nz; ++j)
+		printf("b[%lu] = %g\n", j, b[j]);
+
+	for (size_t j = 0; j <= nz; ++j)
+		printf("c[%lu] = %g\n", j, c[j]);
+
+	for (size_t j = 0; j <= nz; ++j)
+		printf("r[%lu] = %g\n", j, r[j]);
+#endif
 
 	/*  Solve for T at n+1 */
 	tridag(a, b, c, r, T, (unsigned long)nz);  // update by tridiagonal inversion
 
+#ifdef VERBOSE
+	for (size_t j = 0; j <= nz; ++j)
+		printf("T[%lu] = %g\n", j, T[j]);
+#endif
+
 	T[0] = 0.5 * (annp1 + bn * T[1] + T[1]);
+
+#ifdef VERBOSE
+	printf("T[0] = %g\n", T[0]);
+#endif
 
 	/* iterative predictor-corrector */
 	if ((T[0] > 1.2*Tr || T[0] < 0.8*Tr) && iter<10) {  // linearization error expected

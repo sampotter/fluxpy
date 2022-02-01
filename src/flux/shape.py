@@ -123,7 +123,17 @@ class TrimeshShapeModel(ShapeModel):
     def num_verts(self):
         return self.V.shape[0]
 
+    def intersect1(self, x, d):
+        '''Trace a single ray starting from `x` and in the direction `d`.  If
+        there is a hit, return the index (`i`) of the hit and a
+        parameter `t` such that the hit point is given by `x(t) = x +
+        t*d`.
+
+        '''
+        return self._intersect1(x, d)
+
     def get_visibility(self, I, J, oriented=False):
+
         '''Compute the visibility mask for pairs of indices (i, j) taken from
         index arrays I and J. If m = len(I) and N = len(J), the
         resulting array is an m x N binary matrix V, where V[i, j] ==
@@ -243,6 +253,9 @@ class CgalTrimeshShapeModel(TrimeshShapeModel):
         self.aabb = AABB.from_trimesh(
             self.V.astype(np.float64), self.F.astype(np.uintp))
 
+    def _intersect1(self, x, d):
+        return self.aabb.intersect1(x, d)
+
     def _get_visibility(self, I, J):
         if not isinstance(I, np.ndarray):
             I = np.array(I)
@@ -314,6 +327,9 @@ class EmbreeTrimeshShapeModel(TrimeshShapeModel):
         # This is the only variable we need to retain a reference to
         # (I think)
         self.scene = scene
+
+    def _intersect1(self, x, d):
+        raise RuntimeError('intersect1 no implemented for EmbreeTrimeshShapeModel')
 
     def _get_visibility(self, I, J):
         # TODO: desperately need a better way to set this.

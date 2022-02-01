@@ -1,5 +1,6 @@
 import pickle
 
+import array
 import flux.config
 import numpy as np
 import scipy.sparse
@@ -24,17 +25,18 @@ def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
     NJ_PJ = np.sum(N[J]*P[J], axis=1)
     AJ = A[J]
 
-    # NOTE: we're deliberately using Python's built-in lists here
-    # to accumulate the data for the sparse matrix instead of
-    # numpy arrays, since using np.concatenate in the loop below
-    # ends up making _compute_FF_block O(N^3).
-    size = m
-    data = np.empty(m, dtype=shape_model.dtype)
-    indices = np.empty(m, dtype=np.uintp)
-    indptr = [0]
+    if shape_model.dtype == np.float32:
+        typecode = 'f'
+    elif shape_model.dtype == np.float64:
+        typecode = 'd'
+    else:
+        raise RuntimeError(f'unsupported dtype {shape_model.dtype}')
 
-    # Current index into data and indices
-    i0 = 0
+    size = m
+    data = array.array(typecode)
+    indices = array.array('Q')
+    indptr = array.array('Q')
+    indptr.append(0)
 
     for r, i in enumerate(I):
         row_data = np.maximum(0, N[i]@(P[J] - P[i]).T) \
@@ -56,27 +58,9 @@ def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
 
         assert row_data.size == row_indices.size
 
-        if size < row_data.size + i0:
-            size = max(2*size, row_data.size + i0)
-
-            tmp = np.empty(size, dtype=shape_model.dtype)
-            tmp[:i0] = data[:i0]
-            data = tmp
-
-            tmp = np.empty(size, dtype=np.intp)
-            tmp[:i0] = indices[:i0]
-            indices = tmp
-
-        data[i0:(row_data.size + i0)] = row_data
-        indices[i0:(row_indices.size + i0)] = row_indices
-
-        i0 += row_data.size
-
+        data.frombytes(row_data.tobytes())
+        indices.frombytes(row_indices.astype(np.uintp).tobytes())
         indptr.append(indptr[-1] + row_indices.size)
-
-    data = data[:i0]
-    indices = indices[:i0]
-    indptr = np.array(indptr, dtype=np.intp)
 
     return scipy.sparse.csr_matrix((data, indices, indptr), shape=(m, n))
 

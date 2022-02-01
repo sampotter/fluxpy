@@ -106,3 +106,24 @@ bool cgal_aabb_ray_from_centroid_is_occluded(cgal_aabb const *aabb, size_t i, do
 
 	return static_cast<bool>(aabb->tree.first_intersection(ray, skip));
 }
+
+bool cgal_aabb_intersect1(cgal_aabb const *aabb, double const x[3],
+						  double const d[3], size_t *i, double xt[3]) {
+	Point x_(x[0], x[1], x[2]);
+	Vector d_(d[0], d[1], d[2]);
+	Ray ray(x_, d_);
+
+	Ray_intersection intersection = aabb->tree.first_intersection(ray);
+	if (intersection) {
+		*i = intersection->second;
+
+		Point xt_ = boost::get<Point>(intersection->first);
+		xt[0] = xt_.x();
+		xt[1] = xt_.y();
+		xt[2] = xt_.z();
+
+		return true;
+	} else {
+		return false;
+	}
+}
