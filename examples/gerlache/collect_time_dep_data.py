@@ -18,7 +18,6 @@ from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 from flux.solve import solve_radiosity
 from flux.util import tic, toc
 
-from PIL import Image
 from pathlib import Path
 
 outdir = Path('T_frames')
