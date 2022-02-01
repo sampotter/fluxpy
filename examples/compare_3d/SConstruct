@@ -1,0 +1,30 @@
+import itertools as it
+
+from pathlib import Path
+
+from SCons.Script import Command, Copy
+
+obj_dir = Path('../../../../../Projects/psi/data/obj')
+
+planets = {'67p', 'vesta'}
+sizes = {'xtiny', 'tiny', 'xsmall'}
+tols = {'1e-1', '1e-2', '1e-3'}
+
+obj = dict()
+for path in obj_dir.glob('*.obj'):
+    path_s, name = str(path), path.name
+    for planet, size in it.product(planets, sizes):
+        if planet in name and '-' + size in name:
+            obj[planet, size] = Command(name, path_s, 'cp $SOURCE $TARGET')
+
+form_factor_matrix = dict()
+for planet, size in it.product(planets, sizes):
+    form_factor_matrix[planet, size, 'true'] = Command(
+        [f'{planet}_{size}.npz', f'{planet}_{size}_assembly_time.txt'],
+        obj[planet, size],
+        './make_true_form_factor_matrix.py $SOURCE $TARGET')
+    for tol in tols:
+        form_factor_matrix[planet, size, tol] = Command(
+            [f'{planet}_{size}_{tol}.bin', f'{planet}_{size}_{tol}_assembly_time.txt'],
+            obj[planet, size],
+            f'./make_compressed_form_factor_matrix.py $SOURCE $TARGET {tol} octree')

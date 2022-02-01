@@ -16,12 +16,13 @@
 .DS_Store
 .DS_Store
 .idea
+.sconsign.dblite
 GPATH
 GRTAGS
 GTAGS
 __pycache__
 build
 dist
-src/flux/thermal.c
 src/flux/cgal/aabb.cpp
+src/flux/thermal.c
 stats
