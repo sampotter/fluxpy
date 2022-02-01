@@ -3,10 +3,7 @@
 import colorcet as cc
 import meshpy.triangle as triangle
 import numpy as np
-import pyvista as pv
-import pyvistaqt as pvqt
 import sys
-import vtk
 
 from osgeo import gdal
 from parula import parula_cmap
@@ -149,18 +146,6 @@ verts = np.array([stereo2cart(*_) for _ in np.array(mesh.points)]).squeeze()
 faces = np.array(mesh.elements)
 
 print(f'  * {verts.shape[0]} vertices and {faces.shape[0]} faces')
-
-# # uncomment the following to plot:
-
-# centroids = verts[faces].mean(1)
-# centroids_stereographic = np.array(mesh.points)[faces].mean(1)
-
-# grid = pv.UnstructuredGrid({vtk.VTK_TRIANGLE: faces}, verts)
-# grid['dR'] = np.array([getz(x, y) for x, y in zip(*centroids_stereographic.T)])
-
-# plotter = pvqt.BackgroundPlotter()
-# plotter.add_mesh(grid, scalars='dR', cmap=parula_cmap)
-# plotter.add_mesh(grid, show_edges=True)
 
 area_str = f'{max_inner_area_str}_{max_outer_area_str}'
 np.save(f'gerlache_verts_stereo_{area_str}', verts_stereo)

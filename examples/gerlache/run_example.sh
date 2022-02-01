@@ -7,7 +7,10 @@ TOLS=(1e-1 1e-2 1e-3 1e-4)
 if [ ! -f ldem_87s_5mpp.tif ]; then
 	echo "didn't find DEM. downloading it from PGDA..."
 	wget https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/87S/ldem_87s_5mpp.tif
+
 fi
+
+./convert_geotiff_to_dem.py ldem_87s_5mpp.tif
 
 mkdir -p gerlache_plots
 
