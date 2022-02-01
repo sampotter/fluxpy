@@ -10,7 +10,7 @@ if [ ! -f ldem_87s_5mpp.tif ]; then
 
 fi
 
-./convert_geotiff_to_dem.py ldem_87s_5mpp.tif
+./convert_geotiff_to_npy.py ldem_87s_5mpp.tif
 
 mkdir -p gerlache_plots
 
