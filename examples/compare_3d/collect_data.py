@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import json
+import numpy as np
 import scipy.sparse
 import sys
 
@@ -51,13 +52,14 @@ np.save(T_path, T)
 # compute the number of visible entries per row in a "blocked"
 # style... trying to avoid hitting the rails memory-wise here... we
 # compute sqrt(N) MVPs at a time
-block_size = int(np.ceil(np.sqrt(FF.num_faces)))
-num_blocks = int(np.ceil(FF.num_faces/block_size))
+num_faces = FF.shape[0]
+block_size = int(np.ceil(np.sqrt(num_faces)))
+num_blocks = int(np.ceil(num_faces/block_size))
 num_vis = []
 for block_index in range(num_blocks):
     i0, i1 = block_index*block_size, (block_index + 1)*block_size
-    i1 = min(i1, FF.num_faces)
-    E = np.zeros((FF.num_faces, i1 - i0), dtype=FF.dtype)
+    i1 = min(i1, num_faces)
+    E = np.zeros((num_faces, i1 - i0), dtype=FF.dtype)
     for k, i in enumerate(range(i0, i1)):
         E[i, k] = 1
     assert(E.ravel().sum() == i1 - i0)
@@ -66,7 +68,7 @@ for block_index in range(num_blocks):
 num_vis = np.array(num_vis)
 
 # compute visibility percent and save to disk
-p = num_vis/FF.num_faces
+p = num_vis/num_faces
 np.save(p_path, p)
 
 # load assembly time from disk
