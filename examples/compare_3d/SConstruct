@@ -7,8 +7,14 @@ from SCons.Script import Command, Copy
 obj_dir = Path('../../../../../Projects/psi/data/obj')
 
 planets = {'67p', 'vesta'}
-sizes = {'xtiny', 'tiny', 'xsmall'}
-tols = {'1e-1', '1e-2', '1e-3'}
+# sizes = {'xtiny', 'tiny', 'xsmall'}
+sizes = {'test'}
+# tols = {'1e-1', '1e-2', '1e-3'}
+tols = {'1e-1'}
+
+#
+# 1. copy all OBJ files to this directory
+#
 
 obj = dict()
 for path in obj_dir.glob('*.obj'):
@@ -17,14 +23,53 @@ for path in obj_dir.glob('*.obj'):
         if planet in name and '-' + size in name:
             obj[planet, size] = Command(name, path_s, 'cp $SOURCE $TARGET')
 
+#
+# 2. create dense and compressed form factor matrices
+#
+
 form_factor_matrix = dict()
+form_factor_assembly_time = dict()
+
 for planet, size in it.product(planets, sizes):
-    form_factor_matrix[planet, size, 'true'] = Command(
+    # make dense form factor matrix
+    FF, time = Command(
         [f'{planet}_{size}.npz', f'{planet}_{size}_assembly_time.txt'],
         obj[planet, size],
         './make_true_form_factor_matrix.py $SOURCE $TARGET')
+    form_factor_matrix[planet, size, 'true'] = FF
+    form_factor_assembly_time[planet, size, 'true'] = time
+
+    # make compressed form factor matrices for each tolerance
     for tol in tols:
-        form_factor_matrix[planet, size, tol] = Command(
+        FF, time = Command(
             [f'{planet}_{size}_{tol}.bin', f'{planet}_{size}_{tol}_assembly_time.txt'],
             obj[planet, size],
             f'./make_compressed_form_factor_matrix.py $SOURCE $TARGET {tol} octree')
+        form_factor_matrix[planet, size, tol] = FF
+        form_factor_assembly_time[planet, size, tol] = time
+
+#
+# 3. collect statistics for each form factor matrix
+#
+
+form_factor_stats = dict()
+for planet, size, tol in it.product(planets, sizes, ['true'] + list(tols)):
+    form_factor_stats[planet, size, tol] = Command(
+        [
+            f'{planet}_{size}_{tol}_T.bin',
+            f'{planet}_{size}_{tol}_T_time.txt',
+            f'{planet}_{size}_{tol}_p.bin'
+        ],
+        [
+            form_factor_matrix[planet, size, tol],
+            obj[planet, size]
+        ],
+        f'./collect_data.py {planet} $SOURCES $TARGETS')
+
+#
+# 4. do comparisons between compressed form factor matrices and dense
+#
+
+#
+# 5. make plots
+#
