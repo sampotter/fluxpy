@@ -125,10 +125,13 @@ def imray(shape_model, values, pos, look, up, shape, mode='ortho', **kwargs):
         s, t = s.ravel(), t.ravel()
         orgs = pos + np.outer(s, left) + np.outer(t, up)
         dirs = np.outer(np.ones(m*n, dtype=look.dtype), look)
-        I = shape_model.intersect(orgs, dirs)
         im = np.empty(m*n, dtype=values.dtype)
-        im[I != -1] = values[I[I != -1]]
-        im[I == -1] = np.nan
+        im[:] = np.nan
+        for i, (o, d) in enumerate(zip(orgs, dirs)):
+            hit = shape_model.intersect1(o, d)
+            if hit is not None:
+                hit_index, hit_point = hit # hit_point unused
+                im[i] = values[hit_index]
     else:
         raise Exception('only mode == "ortho" currently supported')
 
