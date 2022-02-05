@@ -73,7 +73,7 @@ def exact_solution_ingersoll(F0, e0, albedo, emiss, D2d, P, N, E, dir_sun):
 
 
 
-compress = True
+compress = False
 
 
 if __name__ == '__main__':
@@ -166,11 +166,11 @@ if __name__ == '__main__':
     print('- wrote Texact.png')
 
     err = T - Texact
-    max_error = np.linalg.norm(err, np.inf)
-    abs_error = np.linalg.norm(err, 1) / err.size
-    rms_error = np.linalg.norm(err, 2) / err.size
+    max_error = np.linalg.norm(err, np.inf)                 # max(|x|)
+    abs_error = np.linalg.norm(err, 1) / err.size           # sum(|x|) / N
+    rms_error = np.linalg.norm(err, 2) / np.sqrt(err.size)  # sqrt( sum(x^2)/N )
 
-    vlim = ( np.percentile(err,95) + np.percentile(err,5) )/2
+    vlim = ( np.percentile(err,98) + np.percentile(err,2) )/2
     fig, ax = tripcolor_vector(V, F, err, vmin=-vlim, vmax=+vlim, cmap='seismic')
     fig.savefig('error.png')
     plt.close(fig)
