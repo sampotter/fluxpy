@@ -37,3 +37,4 @@ done
 mkdir $PAPER_PLOT_DIR
 ./make_paper_plots.py $PAPER_PLOT_DIR
 ./make_memory_usage_plots.py $PAPER_PLOT_DIR
+./make_error_hists.py
