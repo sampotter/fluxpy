@@ -12,7 +12,7 @@ import sys
 from matplotlib.ticker import AutoMinorLocator
 from pathlib import Path
 
-from plot_style import linewidth, dpi, marker, colors
+from plot_style import linewidth, dpi, marker, colors, linestyles
 
 PAPER_PLOT_DIR = sys.argv[1]
 SAVE_PDF_PLOTS = False
@@ -91,16 +91,17 @@ Tols = list(GtVsTol.keys())
 H = get_values_by_key(StatsGt, 'h')
 N = get_values_by_key(StatsGt, 'num_faces')
 
-# Make loglog h vs T_rms plot
+# Make loglog h vs T rel errors plot_blocks
 plt.figure(figsize=(6, 6))
-plt.loglog(H, get_values_by_key(StatsGt, 'rms_error'),
-           linewidth=linewidth, marker='o', c=colors[0], label='Sparse $F$', zorder=1)
-for i, tol in enumerate(Tols):
-    plt.loglog(H, get_values_by_key(Stats[tol], 'rms_error'),
-               linewidth=linewidth, marker=marker, c=colors[i + 1],
-               linestyle='--',
-               label=r'Compressed $F$ ($\epsilon = %s$)' % (tol_to_tex(tol),),
-               zorder=2)
+for j, order in enumerate(['max', 'l2', 'l1']):
+    plt.loglog(H, get_values_by_key(StatsGt, f'rel_{order}_T_error'),
+               linewidth=linewidth, marker='o', c=colors[0],
+               label='Dense $F$', zorder=1, linestyle=linestyles[0])
+    for i, tol in enumerate(Tols):
+        plt.loglog(H, get_values_by_key(Stats[tol], f'rel_{order}_T_error'),
+                   linewidth=linewidth, marker=marker, c=colors[i + 1],
+                   label=r'Compressed $F$ ($\epsilon = %s$)' % (tol_to_tex(tol),),
+                   zorder=2, linestyle=linestyles[j + 1])
 plt.legend()
 plt.xlabel('$h$')
 plt.ylabel('RMS error in $T$ (shadow)')
