@@ -37,6 +37,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '--mprof', type=bool, default=False,
         help='Measure the memory use during assembly and save results')
+    parser.add_argument(
+        '--contour_rim', type=bool, default=False,
+        help='Whether the rim of the crater should be contoured')
+    parser.add_argument(
+        '--contour_shadow', type=bool, default=False,
+        help='Whether the shadow line in the crater should be contoured')
     args = parser.parse_args()
 
 import colorcet as cc
@@ -49,6 +55,7 @@ import trimesh
 
 from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.compressed_form_factors import FormFactorPartitionBlock
+from flux.compressed_form_factors import FormFactorQuadtreeBlock
 from flux.form_factors import get_form_factor_matrix
 from flux.ingersoll import HemisphericalCrater
 from flux.model import compute_steady_state_temp, sigSB
@@ -59,7 +66,7 @@ from flux.util import tic, toc
 
 from memory_profiler import memory_usage
 
-def assemble(args, shape_model, parts):
+def assemble(args, shape_model, parts=None):
     if args.tol is None:
         tic()
         FF = get_form_factor_matrix(shape_model)
@@ -67,9 +74,13 @@ def assemble(args, shape_model, parts):
         FF_nbytes = FF.data.nbytes + FF.indptr.nbytes + FF.indices.nbytes
     else:
         tic()
-        FF = CompressedFormFactorMatrix(
-            shape_model, parts=parts, tol=args.tol,
-            RootBlock=FormFactorPartitionBlock)
+        if parts is None:
+            FF = CompressedFormFactorMatrix(
+                shape_model, tol=args.tol, RootBlock=FormFactorQuadtreeBlock)
+        else:
+            FF = CompressedFormFactorMatrix(
+                shape_model, tol=args.tol, parts=parts,
+                RootBlock=FormFactorPartitionBlock)
         t_FF = toc()
         FF_nbytes = FF.nbytes
     return FF, t_FF, FF_nbytes
@@ -85,8 +96,19 @@ if __name__ == '__main__':
     hc = HemisphericalCrater(beta, args.rc, e0, args.F0, args.rho, args.emiss)
     print('- groundtruth temperature in shadow: %1.2f K' % (hc.T_gt,))
 
+    print(args.contour_rim, args.contour_shadow)
+
     # Create the triangle mesh
-    V, F, parts = hc.make_trimesh(h, return_parts=True)
+    if args.contour_rim and args.contour_shadow:
+        V, F, parts = hc.make_trimesh(h, contour_rim=True, contour_shadow=True,
+                                      return_parts=True)
+    elif args.contour_rim:
+        V, F, parts = hc.make_trimesh(h, contour_rim=True, return_parts=True)
+    elif args.contour_shadow:
+        raise ValueError('must set --contour_rim if --contour_shadow is set')
+    else:
+        V, F = hc.make_trimesh(h)
+        parts = None
     print('- created tri. mesh with %d faces' % (F.shape[0],))
 
     # Write the mesh to disk as an OBJ file
@@ -182,14 +204,27 @@ if __name__ == '__main__':
 
     b = hc.f*(hc.emiss + hc.rho*(1 - hc.f))/(1 - hc.rho*hc.f)
 
-    Q_gt = np.empty(shape_model.num_faces)
-    Q_gt[parts[0]] = (1 - hc.rho)*hc.F0*np.sin(hc.e0)
-    Q_gt[parts[1]] = (1 - hc.rho)*hc.F0*b*np.sin(hc.e0)
-    Q_gt[parts[2]] = (1 - hc.rho)*hc.F0*(np.sin(e[parts[2]]) + b*np.sin(hc.e0))
+    Rc = np.sqrt(np.sum(shape_model.P[:, :2]**2, axis=1))
 
-    np.save(os.path.join(args.outdir, 'I_plane.npy'), parts[0])
-    np.save(os.path.join(args.outdir, 'I_shadow.npy'), parts[1])
-    np.save(os.path.join(args.outdir, 'I_sun.npy'), parts[2])
+    mask_plane = Rc > hc.rc
+    mask_crater = Rc <= hc.rc
+    mask_shadow = mask_crater & (abs(E) < np.finfo(E.dtype).eps)
+    mask_sun = mask_crater & (abs(E) >= np.finfo(E.dtype).eps)
+
+    I_plane = np.where(mask_plane)[0]
+    I_shadow = np.where(mask_shadow)[0]
+    I_sun = np.where(mask_sun)[0]
+
+    assert np.union1d(I_plane, np.union1d(I_shadow, I_sun)).size == mask_plane.size
+
+    Q_gt = np.empty(shape_model.num_faces)
+    Q_gt[I_plane] = (1 - hc.rho)*hc.F0*np.sin(hc.e0)
+    Q_gt[I_shadow] = (1 - hc.rho)*hc.F0*b*np.sin(hc.e0)
+    Q_gt[I_sun] = (1 - hc.rho)*hc.F0*(np.sin(e[I_sun]) + b*np.sin(hc.e0))
+
+    np.save(os.path.join(args.outdir, 'I_plane.npy'), I_plane)
+    np.save(os.path.join(args.outdir, 'I_shadow.npy'), I_shadow)
+    np.save(os.path.join(args.outdir, 'I_sun.npy'), I_sun)
 
     fig, ax = tripcolor_vector(V, F, Q_gt, cmap=cc.cm.gray)
     fig.savefig(os.path.join(args.outdir, 'Q_gt.png'))

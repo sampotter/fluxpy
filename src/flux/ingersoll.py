@@ -9,17 +9,19 @@ from scipy.interpolate import interp1d
 class HemisphericalCrater:
 
     def __init__(self, beta, rc, e0, F0, rho, emiss):
-        self.beta = beta
-        self.rc = rc
-        self.e0 = e0
-        self.F0 = F0
-        self.rho = rho
-        self.emiss = emiss
+        self.beta = beta # angle between crater bottom and crater rim measured from sphere center
+        self.rc = rc # radius of crater in the ground plane
+        self.e0 = e0 # elevation of sun above the ground plane
+        self.F0 = F0 # solar constant
+        self.rho = rho # albedo
+        self.emiss = emiss # emissivity
 
-        # Miscellaneous geometric quantities
-        self.H = rc/np.tan(beta)
-        self.r = rc/np.sin(beta)
+        # Parameters of sphere defining the crater
+        self.H = rc/np.tan(beta) # height of sphere center above ground plane
+        self.r = rc/np.sin(beta) # radius of sphere defining crater
         self.Sc = 2*np.pi*self.r*(self.r - self.H) # surface area of crater
+
+        # Geometric constants
         self.f = (1 - np.cos(self.beta))/2
         self.b = self.f*(self.emiss + self.rho*(1 - self.f))/(1 - self.rho*self.f)
 
@@ -57,8 +59,124 @@ robust way to do this...
             return None
         return brentq(f, xm - dxm, xm + dxm)
 
-    def make_trimesh(self, h, return_part_indices=False,
-                     return_parts=False, save_plots=False):
+    def make_trimesh(self,h,contour_rim=False,contour_shadow=False,**kwargs):
+        '''TODO: document me!'''
+        if contour_rim and contour_shadow:
+            return self._make_trimesh__contour_rim_and_shadow(h, **kwargs)
+        if contour_rim:
+            return self._make_trimesh__contour_rim(h, **kwargs)
+        if contour_shadow:
+            raise ValueError("can only contour the shadow line if the crater rim is also contoured")
+        else:
+            return self._make_trimesh__no_contouring(h, **kwargs)
+
+    def _get_z(self, x, y):
+        Rc = np.sqrt(x**2 + y**2)
+        if Rc <= self.rc + np.finfo(np.float32).eps:
+            return self.H - np.sqrt(self.r**2 - Rc**2)
+        else:
+            return 0
+
+    def _get_refinement_func(self, h):
+        max_area = (2/3)*h**2
+        def refinement_func(verts, _):
+            verts = np.array(verts)
+            assert verts.shape[0] == 3
+            P = np.array([(x, y, self._get_z(x, y)) for x, y in verts])
+            area = np.linalg.norm(np.cross(P[1] - P[0], P[2] - P[0]))/2
+            return area > max_area
+        return refinement_func
+
+    def _make_trimesh__no_contouring(self, h, save_plots=False):
+        if save_plots:
+            raise RuntimeError('not implemented yet')
+
+        points = np.array(
+            [(1, 1), (-1, 1), (-1, -1), (1, -1)], dtype=np.float32)
+        facets = np.array([(0, 1), (1, 2), (2, 3), (3, 0)], np.intc)
+
+        info = triangle.MeshInfo()
+        info.set_points(points)
+        info.set_facets(facets)
+
+        should_refine = self._get_refinement_func(h)
+        mesh = triangle.build(info, refinement_func=should_refine)
+
+        xy = np.array(mesh.points)
+        F = np.array(mesh.elements)
+        V = np.array([(x, y, self._get_z(x, y)) for x, y in zip(*xy.T)])
+
+        return V, F
+
+    def _make_trimesh__contour_rim(self, h, return_part_indices=False,
+                                   return_parts=False, save_plots=False):
+        if save_plots:
+            raise RuntimeError('not implemented yet')
+
+        ncirc = int(np.ceil(2*np.pi*self.rc/h))
+        theta = np.linspace(0, 2*np.pi, ncirc, endpoint=False)
+        xcirc = self.rc*np.cos(theta)
+        ycirc = self.rc*np.sin(theta)
+
+        points_rim = np.array([xcirc, ycirc]).T
+        facets_rim = np.array([np.arange(ncirc), np.mod(np.arange(ncirc) + 1, ncirc)]).T
+
+        should_refine = self._get_refinement_func(h)
+
+        points_bd = np.array(
+            [(1, 1), (-1, 1), (-1, -1), (1, -1)], dtype=np.float32)
+        facets_bd = np.array([(0, 1), (1, 2), (2, 3), (3, 0)], np.intc)
+
+        points_plane = np.concatenate([points_bd, points_rim], axis=0)
+        facets_plane = np.concatenate([facets_bd, facets_rim + facets_bd.shape[0]], axis=0)
+
+        info_plane = triangle.MeshInfo()
+        info_plane.set_points(points_plane)
+        info_plane.set_facets(facets_plane)
+        info_plane.set_holes([(0, 0)])
+
+        mesh_plane = triangle.build(info_plane, refinement_func=should_refine)
+        V_plane = np.array([(x, y, self._get_z(x, y)) for x, y in mesh_plane.points])
+        F_plane = np.array(mesh_plane.elements)
+
+        num_verts_plane = V_plane.shape[0]
+        num_faces_plane = F_plane.shape[0]
+
+        info_crater = triangle.MeshInfo()
+        info_crater.set_points(points_rim)
+        info_crater.set_facets(facets_rim)
+
+        mesh_crater = triangle.build(info_crater, refinement_func=should_refine)
+        V_crater = np.array([(x, y, self._get_z(x, y)) for x, y in mesh_crater.points])
+        F_crater = np.array(mesh_crater.elements)
+
+        num_faces_crater = F_crater.shape[0]
+
+        V = np.concatenate([V_plane, V_crater], axis=0)
+        F = np.concatenate([F_plane, F_crater + num_verts_plane], axis=0)
+
+        assert F.max() == V.shape[0] - 1
+
+        num_faces = F.shape[0]
+        assert num_faces == num_faces_plane + num_faces_crater
+
+        inds = (0, num_faces_plane, num_faces)
+
+        if return_part_indices:
+            return V, F, inds
+        elif return_parts:
+            parts = (
+                np.arange(inds[0], inds[1]),
+                np.arange(inds[1], inds[2])
+            )
+            return V, F, parts
+        else:
+            return V, F
+
+    def _make_trimesh__contour_rim_and_shadow(self, h,
+                                              return_part_indices=False,
+                                              return_parts=False,
+                                              save_plots=False):
         if return_part_indices and return_parts:
             raise Exception('''
 only one of return_part_indices or return_parts should be true''')
@@ -150,11 +268,7 @@ only one of return_part_indices or return_parts should be true''')
         # Define our refinement function which will be passed to
         # Shewchuk's triangle. If we wanted to do something more
         # sophisticated, we could try some other definitions here.
-        max_area = (2/3)*h**2
-        def should_refine(verts, _):
-            P = np.array(verts)
-            area = np.linalg.norm(np.cross(P[1] - P[0], P[2] - P[0]))/2
-            return area > max_area
+        should_refine = self._get_refinement_func(h)
 
         if save_plots:
             fig = plt.figure(figsize=(8.4, 4.9))

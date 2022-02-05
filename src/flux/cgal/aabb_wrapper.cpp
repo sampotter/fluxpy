@@ -84,7 +84,7 @@ bool cgal_aabb_test_face_to_face_vis(cgal_aabb const *aabb, size_t i, size_t j) 
 
 	Ray_intersection intersection = aabb->tree.first_intersection(ray, skip);
 	if (!intersection)
-		throw std::runtime_error("ray shot from face i to face j escaped!");
+		return false; // TODO: hope this is OK!!!
 
 	auto const hit_face_index = intersection->second;
 	decltype(hit_face_index) target_face_index(j);

@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 
 PMIN=5
-PMAX=8
+PMAX=6
+
+# CONTOUR_MODE=1 # contour rim and shadow
+# CONTOUR_MODE=2 # contour rim
+CONTOUR_MODE=3 # no contouring
 
 # The compression tolerance
-TOLS=(1e-1 1e-2)
+TOLS=(1e-1)
 
 PAPER_PLOT_DIR=spherical_crater_plots
 
@@ -12,14 +16,14 @@ PAPER_PLOT_DIR=spherical_crater_plots
 # (i.e. the original sparse form factor matrix without compression
 # applied)
 
-./collect_ingersoll_gt_stats.sh $PMIN $PMAX
+./collect_ingersoll_gt_stats.sh $PMIN $PMAX $CONTOUR_MODE
 
 # Collect statistics for our method (the compressed form factor
 # matrix)
 for TOL in "${TOLS[@]}"
 do
 	echo "tol = $TOL"
-	./collect_ingersoll_stats.sh $PMIN $PMAX $TOL
+	./collect_ingersoll_stats.sh $PMIN $PMAX $TOL $CONTOUR_MODE
 done
 
 # Do comparisons between groundtruth results and results obtained
@@ -31,7 +35,7 @@ do
 done
 
 # Collect memory usage statistics
-./collect_memory_usage_stats.sh
+./collect_memory_usage_stats.sh $PMAX $CONTOUR_MODE
 
 # Make plots from the collected statistics
 mkdir $PAPER_PLOT_DIR

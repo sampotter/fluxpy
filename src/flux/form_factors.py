@@ -22,7 +22,11 @@ def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
 
     m, n = len(I), len(J)
 
-    NJ_PJ = np.sum(N[J]*P[J], axis=1)
+    try:
+        NJ_PJ = np.sum(N[J]*P[J], axis=1)
+    except:
+        import ipdb; ipdb.set_trace()
+
     AJ = A[J]
 
     if shape_model.dtype == np.float32:
@@ -49,7 +53,10 @@ def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
         if row_indices.size == 0:
             indptr.append(indptr[-1])
             continue
-        vis = shape_model.get_visibility_1_to_N(i, J[row_indices].astype(np.uintp))
+        try:
+            vis = shape_model.get_visibility_1_to_N(i, J[row_indices].astype(np.uintp))
+        except:
+            import ipdb; ipdb.set_trace()
         row_indices = row_indices[vis]
 
         s = np.pi*np.sum((P[i] - P[J[row_indices]])**2, axis=1)**2
