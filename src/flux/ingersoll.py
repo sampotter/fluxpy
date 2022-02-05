@@ -20,7 +20,8 @@ class HemisphericalCrater:
         self.H = rc/np.tan(beta)
         self.r = rc/np.sin(beta)
         self.Sc = 2*np.pi*self.r*(self.r - self.H) # surface area of crater
-        self.f = self.Sc/(4*np.pi*self.r**2)
+        self.f = (1 - np.cos(self.beta))/2
+        self.b = self.f*(self.emiss + self.rho*(1 - self.f))/(1 - self.rho*self.f)
 
         # Compute the groundtruth temperature in the shadowed region
         self.T_gt = F0*np.sin(e0)*self.f
