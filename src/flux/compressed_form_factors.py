@@ -266,7 +266,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
     def __init__(self, root, shape):
         super().__init__(root, shape)
 
-    def make_block(self, shape_model, I, J, spmat, is_diag=False,
+    def make_block(self, shape_model, I, J, spmat,
                    max_depth=None, force_max_depth=False):
         if max_depth is not None and not isinstance(max_depth, int):
             raise RuntimeError(
@@ -282,16 +282,13 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         # If force_max_depth is True, we use the following simple
         # recursion when building the hierarchical block matrix
         if force_max_depth and max_depth > 1:
-            if is_diag:
-                block = self.make_child_block(
-                    shape_model, spmat, I, J, max_depth - 1, force_max_depth)
-                if block.is_dense():
-                    block = self.root.make_dense_block(spmat.toarray())
-                elif block.is_sparse():
-                    block = self.root.make_sparse_block(spmat)
-                return block
-            else:
-                return self.make_compressed_sparse_block(spmat)
+            block = self.make_child_block(
+                shape_model, spmat, I, J, max_depth - 1, force_max_depth)
+            if block.is_dense():
+                block = self.root.make_dense_block(spmat.toarray())
+            elif block.is_sparse():
+                block = self.root.make_sparse_block(spmat)
+            return block
 
         # On the other hand, if force_max_depth is False we "try" to
         # be "smart"... not sure how good of an idea this really is...
@@ -313,16 +310,13 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             else:
                 return self.root.make_dense_block(spmat.toarray())
         else:
-            if not is_diag:
-                block = self.make_compressed_sparse_block(spmat)
-            else:
-                new_max_depth = None if max_depth is None else max_depth - 1
-                block = self.make_child_block(shape_model, spmat, I, J,
-                                              new_max_depth)
-                if block.is_dense():
-                    block = self.root.make_dense_block(spmat.toarray())
-                elif block.is_sparse():
-                    block = self.root.make_sparse_block(spmat)
+            new_max_depth = None if max_depth is None else max_depth - 1
+            block = self.make_child_block(shape_model, spmat, I, J,
+                                          new_max_depth)
+            if block.is_dense():
+                block = self.root.make_dense_block(spmat.toarray())
+            elif block.is_sparse():
+                block = self.root.make_sparse_block(spmat)
             return block
 
     def make_compressed_sparse_block(self, spmat):
@@ -499,8 +493,7 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
                     spmat = get_form_factor_matrix(shape_model, I, J)
                 else:
                     spmat = spmat_par[row_inds, :][:, col_inds]
-                is_diag = i == j
-                block = self.make_block(shape_model, I, J, spmat, is_diag,
+                block = self.make_block(shape_model, I, J, spmat,
                                         max_depth, force_max_depth)
                 row.append(block)
             blocks.append(row)
@@ -621,9 +614,8 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
         for i, I in enumerate(parts):
             row_blocks = []
             for j, J in enumerate(parts):
-                is_diag = i == j
                 spmat = get_form_factor_matrix(shape_model, I, J)
-                block = self.make_block(shape_model, I, J, spmat, is_diag,
+                block = self.make_block(shape_model, I, J, spmat,
                                         max_depth, force_max_depth)
                 row_blocks.append(block)
             blocks.append(row_blocks)

@@ -34,6 +34,9 @@ do
 	./do_direct_comparisons.py $TOL
 done
 
+# Make block plots
+./make_block_plots.py
+
 # Collect memory usage statistics
 ./collect_memory_usage_stats.sh $PMAX $CONTOUR_MODE
 

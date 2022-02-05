@@ -2,7 +2,7 @@ import itertools as it
 
 from pathlib import Path
 
-from SCons.Script import Command, Copy
+from SCons.Script import Command
 
 obj_dir = Path('../../../../../Projects/psi/data/obj')
 
