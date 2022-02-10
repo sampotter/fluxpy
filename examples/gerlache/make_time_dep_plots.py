@@ -46,6 +46,7 @@ T_frame_dirs = list(T_frames_path.iterdir())
 frame_names = [_.name for _ in T_frame_dirs[0].glob('T*.npy')]
 
 rel_l2_errors = dict()
+T_avgs = dict()
 
 for i, frame_name in enumerate(frame_names):
     print(i, frame_name)
@@ -54,6 +55,12 @@ for i, frame_name in enumerate(frame_names):
 
         if area_str not in rel_l2_errors:
             rel_l2_errors[area_str] = dict()
+
+        if area_str not in T_avgs:
+            T_avgs[area_str] = dict()
+
+        if area_str not in T_stds:
+            T_stds[area_str] = dict()
 
         shape_model_st = load_stereographic_shape_model(area_str)
 
@@ -74,6 +81,10 @@ for i, frame_name in enumerate(frame_names):
             if tol_str not in rel_l2_errors[area_str]:
                 rel_l2_errors[area_str][tol_str] = []
             rel_l2_errors[area_str][tol_str].append(rel_l2_error)
+
+            if tol_str not in T_avgs[area_str]:
+                T_avgs[area_str][tol_str] = []
+            T_avgs[area_str][tol_str].append(T_frame.mean())
 
             # if i == 90 and tol_str == '1e-1':
             #     xgrid = np.linspace(xmin, xmax, 256)
@@ -98,12 +109,25 @@ colors = ['k', 'b', 'r']
 plt.figure()
 for linestyle, tol_str in zip(linestyles, tol_strs):
     for color, area_str in zip(colors, area_strs):
-        plt.loglog(rel_l2_errors[area_str][tol_str],
-                   linestyle=linestyle, linewidth=1,
-                   c=color,
-                   label=f'tol = {tol_str}, area = {area_str}')
+        plt.semilogy(rel_l2_errors[area_str][tol_str],
+                     linestyle=linestyle, linewidth=1,
+                     c=color,
+                     label=f'tol = {tol_str}, area = {area_str}')
 plt.legend()
 plt.title(f'Relative $\ell_2$ error in temperature field')
 plt.ylabel(r'$\|\hat{T}_n - T_n\|_2/\|T_n\|$')
-plt.xlabel('$n$ (Iteration number)')
+plt.xlabel('$n$ (Iteration)')
 plt.savefig('gerlache_plots/time_dep_error.png')
+
+plt.figure()
+for linestyle, tol_str in zip(linestyles, tol_strs):
+    for color, area_str in zip(colors, area_strs):
+        plt.plot(T_avgs[area_str][tol_str],
+                 linestyle=linestyle, linewidth=1,
+                 c=color,
+                 label=f'tol = {tol_str}, area = {area_str}')
+plt.legend()
+plt.title(f'Average temperature [K]')
+plt.ylabel(r'$<T_n>$')
+plt.xlabel('$n$ (Iteration)')
+plt.savefig('gerlache_plots/time_dep_T_avg.png')
