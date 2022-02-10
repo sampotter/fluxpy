@@ -26,10 +26,10 @@ shape_model = shape_model_from_obj_file(obj_path)
 tic()
 if tree_type == 'octree':
     FF = CompressedFormFactorMatrix(
-        shape_model, tol=tol, min_size=1024, RootBlock=FormFactorOctreeBlock)
+        shape_model, tol=tol, min_size=16384, RootBlock=FormFactorOctreeBlock)
 elif tree_type == 'quadtree':
     FF = CompressedFormFactorMatrix(
-        shape_model, tol=tol, min_size=1024, RootBlock=FormFactorQuadtreeBlock)
+        shape_model, tol=tol, min_size=16384, RootBlock=FormFactorQuadtreeBlock)
 else:
     raise ValueError(f'unexpected tree type: {tree_type}')
 assembly_time = toc()

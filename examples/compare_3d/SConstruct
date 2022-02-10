@@ -56,15 +56,39 @@ form_factor_stats = dict()
 for planet, size, tol in it.product(planets, sizes, ['true'] + list(tols)):
     form_factor_stats[planet, size, tol] = Command(
         [
-            f'{planet}_{size}_{tol}_T.bin',
+            f'{planet}_{size}_{tol}_T.npy',
             f'{planet}_{size}_{tol}_T_time.txt',
-            f'{planet}_{size}_{tol}_p.bin'
+            f'{planet}_{size}_{tol}_p.npy'
         ],
         [
             form_factor_matrix[planet, size, tol],
             obj[planet, size]
         ],
         f'./collect_data.py {planet} $SOURCES $TARGETS')
+
+planet_p_max = dict()
+for planet in planets:
+    planet_p_max[planet] = Command(
+        [
+            f'{planet}_p_max.txt'
+        ],
+        [
+            f'{planet}_{size}_{tol}_p.npy'
+            for size, tol in it.product(sizes, ['true'] + list(tols))
+        ],
+        f'./compute_field_max.py $SOURCES $TARGETS')
+
+planet_T_max = dict()
+for planet in planets:
+    planet_T_max[planet] = Command(
+        [
+            f'{planet}_T_max.txt'
+        ],
+        [
+            f'{planet}_{size}_{tol}_T.npy'
+            for size, tol in it.product(sizes, ['true'] + list(tols))
+        ],
+        f'./compute_field_max.py $SOURCES $TARGETS')
 
 #
 # 4. do comparisons between compressed form factor matrices and dense
@@ -73,3 +97,41 @@ for planet, size, tol in it.product(planets, sizes, ['true'] + list(tols)):
 #
 # 5. make plots
 #
+
+p_rendering = dict()
+for planet, size, tol in it.product(planets, sizes, ['true'] + list(tols)):
+    p_rendering[planet, size, tol] = Command(
+        [
+            f'{planet}_{size}_{tol}_p.png',
+        ],
+        [
+            obj[planet, size],
+            f'{planet}_{size}_{tol}_p.npy',
+            f'{planet}_p_max.txt'
+        ],
+        f'./render_field.py $SOURCES $TARGETS')
+
+T_rendering = dict()
+for planet, size, tol in it.product(planets, sizes, ['true'] + list(tols)):
+    T_rendering[planet, size, tol] = Command(
+        [
+            f'{planet}_{size}_{tol}_T.png',
+        ],
+        [
+            obj[planet, size],
+            f'{planet}_{size}_{tol}_T.npy',
+            f'{planet}_T_max.txt'
+        ],
+        f'./render_field.py $SOURCES $TARGETS')
+
+form_factor_matrix_blocks = dict()
+for planet, size, tol in it.product(planets, sizes, list(tols)):
+    form_factor_matrix_blocks[planet, size, tol] = Command(
+        [
+            f'{planet}_{size}_{tol}_blocks.png',
+            f'{planet}_{size}_{tol}_blocks.pdf',
+        ],
+        [
+            f'{planet}_{size}_{tol}.bin'
+        ],
+        f'./plot_form_factor_matrix_blocks.py $SOURCES $TARGETS')

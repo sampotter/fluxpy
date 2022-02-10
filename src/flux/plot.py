@@ -50,11 +50,11 @@ def plot_blocks(block, **kwargs):
                     ax.add_patch(rect)
                 elif isinstance(child, cff.FormFactorZeroBlock):
                     rect = patches.Rectangle(
-                        c, w, h, edgecolor='none', facecolor='gray')
+                        c, w, h, edgecolor='none', facecolor='black')
                     ax.add_patch(rect)
                 elif isinstance(child, cff.FormFactorSparseBlock):
                     rect = patches.Rectangle(
-                        c, w, h, edgecolor='none', facecolor='red')
+                        c, w, h, edgecolor='none', facecolor='white')
                     ax.add_patch(rect)
                 elif isinstance(child, cff.FormFactorDenseBlock):
                     rect = patches.Rectangle(
