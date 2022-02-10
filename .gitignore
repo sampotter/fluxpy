@@ -1,3 +1,4 @@
+*.o
 *.avi
 *.bin
 *.egg-info
@@ -25,4 +26,5 @@ build
 dist
 src/flux/cgal/aabb.cpp
 src/flux/thermal.c
+src/flux/view_factor/view_factor.c
 stats
