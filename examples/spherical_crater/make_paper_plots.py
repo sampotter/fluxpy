@@ -86,6 +86,7 @@ GtVsTol = {
 }
 
 Tols = list(GtVsTol.keys())
+Tols = sorted(Tols, key=lambda tol: float(tol))
 
 # Get values of H
 H = get_values_by_key(StatsGt, 'h')
@@ -94,54 +95,54 @@ N = get_values_by_key(StatsGt, 'num_faces')
 # Make loglog h vs T rel errors plot_blocks
 plt.figure(figsize=(6, 6))
 for j, order in enumerate(['max', 'l2', 'l1']):
-    plt.loglog(H, get_values_by_key(StatsGt, f'rel_{order}_T_error'),
+    plt.loglog(N, get_values_by_key(StatsGt, f'rel_{order}_T_error'),
                linewidth=linewidth, marker='o', c=colors[0],
                label='Dense $F$', zorder=1, linestyle=linestyles[0])
     for i, tol in enumerate(Tols):
-        plt.loglog(H, get_values_by_key(Stats[tol], f'rel_{order}_T_error'),
+        plt.loglog(N, get_values_by_key(Stats[tol], f'rel_{order}_T_error'),
                    linewidth=linewidth, marker=marker, c=colors[i + 1],
                    label=r'Compressed $F$ ($\epsilon = %s$)' % (tol_to_tex(tol),),
                    zorder=2, linestyle=linestyles[j + 1])
 plt.legend()
-plt.xlabel('$h$')
+plt.xlabel('$N$')
 plt.ylabel('RMS error in $T$ (shadow)')
 plt.tight_layout()
 if SAVE_PDF_PLOTS:
-    plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_rms.pdf', dpi=dpi)
-plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_rms.png', dpi=dpi)
+    plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_rms.pdf', dpi=dpi)
+plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_rms.png', dpi=dpi)
 plt.close()
 
 # Make loglog h vs T_rel_l2_errors and B_rel_l2_errors plot
 plt.figure(figsize=(6, 6))
 for i, tol in enumerate(Tols):
     plt.loglog(
-        H, GtVsTol[tol]['T_rel_l2_errors'],
+        N, GtVsTol[tol]['T_rel_l2_errors'],
         linewidth=linewidth, marker=marker, c=colors[i + 1], linestyle='-',
         label=r'$\|T_{gt} - T\|_2/\|T_{gt}\|_2$ ($\epsilon = %s$)' % (
             tol_to_tex(tol),))
     plt.loglog(
-        H, GtVsTol[tol]['B_rel_l2_errors'],
+        N, GtVsTol[tol]['B_rel_l2_errors'],
         linewidth=linewidth, marker=marker, c=colors[i + 1], linestyle='--',
         label=r'$\|B_{gt} - B\|_2/\|B_{gt}\|_2$ ($\epsilon = %s$)' % (
             tol_to_tex(tol),))
 plt.legend()
-plt.xlabel('$h$')
+plt.xlabel('$N$')
 plt.tight_layout()
 if SAVE_PDF_PLOTS:
-    plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_ptwise_errors.pdf', dpi=dpi)
-plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_ptwise_errors.png', dpi=dpi)
+    plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_ptwise_errors.pdf', dpi=dpi)
+plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_ptwise_errors.png', dpi=dpi)
 plt.close()
 
 # Make loglog h vs FF_rel_fro_errors
 plt.figure(figsize=(6, 6))
 for i, tol in enumerate(Tols):
-    plt.loglog(H, GtVsTol[tol]['FF_rel_fro_errors'],
+    plt.loglog(N, GtVsTol[tol]['FF_rel_fro_errors'],
                linewidth=linewidth, marker=marker, c=colors[i + 1],
                linestyle='-',
                label=r'$\epsilon = %s$' % (tol_to_tex(tol),))
 plt.legend()
 plt.ylabel(r'$\|\mathbf{F}_{gt} - \mathbf{F}\|_{F}/\|\mathbf{F}_{gt}\|_{F}$')
-plt.xlabel(r'$h$')
+plt.xlabel(r'$N$')
 plt.tight_layout()
 if SAVE_PDF_PLOTS:
     plt.savefig(f'{PAPER_PLOT_DIR}/FF_rel_fro_errors.pdf', dpi=dpi)
@@ -150,45 +151,45 @@ plt.close()
 
 # Make loglog h vs size plot
 plt.figure(figsize=(6, 6))
-plt.loglog(H, get_values_by_key(StatsGt, 'FF_size'),
-           linewidth=linewidth, marker=marker, c=colors[0], label='Sparse $F$', zorder=1)
+plt.loglog(N, get_values_by_key(StatsGt, 'FF_size'),
+           linewidth=linewidth, marker=marker, c=colors[0], label='True $F$', zorder=1)
 for i, tol in enumerate(Tols):
-    plt.loglog(H, get_values_by_key(Stats[tol], 'FF_size'),
+    plt.loglog(N, get_values_by_key(Stats[tol], 'FF_size'),
                linewidth=linewidth, marker=marker, c=colors[i + 1], linestyle='--',
                label=r'Compressed $F$ ($\epsilon = %s$)' % (tol_to_tex(tol),),
                zorder=2)
 plt.legend()
-plt.xlabel('$h$')
+plt.xlabel('$N$')
 plt.ylabel('Size of $F$ [MB]')
 plt.tight_layout()
 if SAVE_PDF_PLOTS:
-    plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_size.pdf', dpi=dpi)
-plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_size.png', dpi=dpi)
+    plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_size.pdf', dpi=dpi)
+plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_size.png', dpi=dpi)
 plt.close()
 
 # Make loglog h vs compute T time plot
 plt.figure(figsize=(6, 6))
-plt.loglog(H, get_values_by_key(StatsGt, 't_T'),
-           linewidth=linewidth, marker=marker, c=colors[0], label='Sparse $F$', zorder=1)
+plt.loglog(N, get_values_by_key(StatsGt, 't_T'),
+           linewidth=linewidth, marker=marker, c=colors[0], label='True $F$', zorder=1)
 for i, tol in enumerate(Tols):
-    plt.loglog(H, get_values_by_key(Stats[tol], 't_T'),
+    plt.loglog(N, get_values_by_key(Stats[tol], 't_T'),
                linewidth=linewidth, marker=marker, c=colors[i + 1], linestyle='--',
                label=r'Compressed $F$ ($\epsilon = %s$)' % (tol_to_tex(tol),),
                zorder=2)
 plt.legend()
-plt.xlabel('$h$')
+plt.xlabel('$N$')
 plt.ylabel('Time to compute $T$ [s]')
 plt.tight_layout()
 if SAVE_PDF_PLOTS:
-    plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_T_time.pdf', dpi=dpi)
-plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_T_time.png', dpi=dpi)
+    plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_T_time.pdf', dpi=dpi)
+plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_T_time.png', dpi=dpi)
 plt.close()
 
 # Make loglog h vs compute B and E time plot
 plt.figure(figsize=(6, 6))
-plt.loglog(H, get_values_by_key(StatsGt, 't_B'),
-           linewidth=linewidth, marker=marker, c=colors[0], label='Sparse $F$', zorder=1)
-plt.loglog(H, get_values_by_key(StatsGt, 't_E'), linewidth=linewidth, marker=marker,
+plt.loglog(N, get_values_by_key(StatsGt, 't_B'),
+           linewidth=linewidth, marker=marker, c=colors[0], label='True $F$', zorder=1)
+plt.loglog(N, get_values_by_key(StatsGt, 't_E'), linewidth=linewidth, marker=marker,
            c=colors[0], linestyle='--',
            label='Compute $E$', zorder=1)
 for i, tol in enumerate(Tols):
@@ -198,28 +199,28 @@ for i, tol in enumerate(Tols):
                label=r'Compressed $F$ ($\epsilon = %s$)' % (tol_to_tex(tol),),
                zorder=2)
 plt.legend()
-plt.xlabel('$h$')
+plt.xlabel('$N$')
 plt.ylabel('Time to compute $B$ [s]')
 plt.tight_layout()
 if SAVE_PDF_PLOTS:
-    plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_B_and_E_time.pdf', dpi=dpi)
-plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_B_and_E_time.png', dpi=dpi)
+    plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_B_and_E_time.pdf', dpi=dpi)
+plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_B_and_E_time.png', dpi=dpi)
 plt.close()
 
 # Make loglog h vs assembly time plot
 plt.figure(figsize=(6, 6))
-plt.loglog(H, get_values_by_key(StatsGt, 't_FF'),
-           linewidth=linewidth, marker=marker, c=colors[0], label='Sparse $F$', zorder=1)
+plt.loglog(N, get_values_by_key(StatsGt, 't_FF'),
+           linewidth=linewidth, marker=marker, c=colors[0], label='True $F$', zorder=1)
 for i, tol in enumerate(Tols):
-    plt.loglog(H, get_values_by_key(Stats[tol], 't_FF'),
+    plt.loglog(N, get_values_by_key(Stats[tol], 't_FF'),
                linewidth=linewidth, marker=marker, c=colors[i + 1], linestyle='--',
                label=r'Compressed $F$ ($\epsilon = %s$)' % (tol_to_tex(tol),),
                zorder=2)
 plt.legend()
-plt.xlabel('$h$')
+plt.xlabel('$N$')
 plt.ylabel('Time to assemble $F$ [s]')
 plt.tight_layout()
 if SAVE_PDF_PLOTS:
-    plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_assembly_time.pdf', dpi=dpi)
-plt.savefig(f'{PAPER_PLOT_DIR}/h_vs_assembly_time.png', dpi=dpi)
+    plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_assembly_time.pdf', dpi=dpi)
+plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_assembly_time.png', dpi=dpi)
 plt.close()

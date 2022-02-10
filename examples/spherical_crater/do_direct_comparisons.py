@@ -68,12 +68,12 @@ B_rel_l2_errors = np.array([
     for p in P
 ])
 
-FF_rel_fro_errors = np.array([
-    np.divide(
-        np.linalg.norm((FF[p].tocsr() - FF_gt[p]).toarray(), ord='fro'),
-        np.linalg.norm(FF_gt[p].toarray(), ord='fro'))
-    for p in P
-])
+# FF_rel_fro_errors = np.array([
+#     np.divide(
+#         np.linalg.norm((FF[p].tocsr() - FF_gt[p]).toarray(), ord='fro'),
+#         np.linalg.norm(FF_gt[p].toarray(), ord='fro'))
+#     for p in P
+# ])
 
 # Save results
 
@@ -85,5 +85,5 @@ with open(comparison_path/'T_rel_l2_errors.pickle', 'wb') as f:
 with open(comparison_path/'B_rel_l2_errors.pickle', 'wb') as f:
     pickle.dump(B_rel_l2_errors, f)
 
-with open(comparison_path/'FF_rel_fro_errors.pickle', 'wb') as f:
-    pickle.dump(FF_rel_fro_errors, f)
+# with open(comparison_path/'FF_rel_fro_errors.pickle', 'wb') as f:
+#     pickle.dump(FF_rel_fro_errors, f)

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 PMIN=5
-PMAX=6
+PMAX=8
 
-# CONTOUR_MODE=1 # contour rim and shadow
+CONTOUR_MODE=1 # contour rim and shadow
 # CONTOUR_MODE=2 # contour rim
-CONTOUR_MODE=3 # no contouring
+# CONTOUR_MODE=3 # no contouring
 
 # The compression tolerance
 TOLS=(1e-1)
