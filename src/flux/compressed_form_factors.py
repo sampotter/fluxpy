@@ -292,6 +292,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         # If force_max_depth is True, we use the following simple
         # recursion when building the hierarchical block matrix
         if force_max_depth and max_depth > 1:
+            assert False # this is wrong---fix
             block = self.make_child_block(
                 shape_model, spmat, I, J, max_depth - 1, force_max_depth)
             if block.is_dense():
@@ -300,34 +301,61 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 block = self.root.make_sparse_block(spmat)
             return block
 
-        # On the other hand, if force_max_depth is False we "try" to
-        # be "smart"... not sure how good of an idea this really is...
-
+        # First, check for degenerate cases: zero blocks and blocks
+        # which have no rows or columns
         nnz, shape = spmat.nnz, spmat.shape
-
+        if nnz == 0:
+            return self.root.make_zero_block(shape)
         if shape[0] == 0 or shape[1] == 0:
             return self.root.make_null_block(shape)
 
         size = np.product(shape)
         sparsity = nnz/size
 
-        if nnz == 0:
-            return self.root.make_zero_block(shape)
-
-        if max_depth == 1 or size < self._min_size:
-            if sparsity < self._sparsity_threshold:
-                return self.root.make_sparse_block(spmat, fmt='csr')
+        # First, if the matrix is small enough, we don't want to
+        # bother with trying to compress it or recursively descending
+        # further.
+        #
+        # NOTE: I've also observed that occasionally ARPACK will choke
+        # on tiny form factor matrices. Not sure why. But that's
+        # another thing to be careful about.
+        if size < self._min_size:
+            dense_block = self.root.make_dense_block(spmat)
+            if dense_block.nbytes < nbytes(spmat):
+                return dense_block
             else:
-                return self.root.make_dense_block(spmat.toarray())
-        else:
-            new_max_depth = None if max_depth is None else max_depth - 1
-            block = self.make_child_block(shape_model, spmat, I, J,
-                                          new_max_depth)
+                return self.root.make_sparse_block(spmat)
+
+        # Next, since the block is "big enough", we go ahead and
+        # compress it.
+        block = self.make_compressed_sparse_block(spmat)
+
+        # If we failed to compress the block, we need to be a little
+        # more careful and decide what to do next.
+        if isinstance(block, FormFactorSparseBlock):
+            # If we haven't specified a max depth, or if we haven't
+            # bottomed out yet, then we attempt to descend another
+            # level.
+            if max_depth is None or max_depth > 1:
+                block = self.make_child_block(
+                    shape_model, spmat, I, J,
+                    None if max_depth is None else max_depth - 1)
+            # If all of the child blocks are dense blocks, then
+            # collapse them into a single block and return it.
             if block.is_dense():
-                block = self.root.make_dense_block(spmat.toarray())
-            elif block.is_sparse():
-                block = self.root.make_sparse_block(spmat)
-            return block
+                return self.root.make_dense_block(spmat)
+            # ... ditto if all the child blocks are sparse blocks.
+            if block.is_sparse():
+                return self.root.make_sparse_block(spmat)
+
+        if isinstance(block, type(self)):
+            assert all(_ is not None for _ in block._blocks.ravel())
+
+        # Finally, we return whatever we have at this point. This
+        # should either be an instance of ChildBlock or an SVD block.
+        assert isinstance(block, type(self)) \
+            or isinstance(block, FormFactorSvdBlock)
+        return block
 
     def make_compressed_sparse_block(self, spmat):
         ret = flux.linalg.estimate_rank(
@@ -505,6 +533,7 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
                     spmat = spmat_par[row_inds, :][:, col_inds]
                 block = self.make_block(shape_model, I, J, spmat,
                                         max_depth, force_max_depth)
+                assert block is not None
                 row.append(block)
             blocks.append(row)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
@@ -627,6 +656,7 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
                 spmat = get_form_factor_matrix(shape_model, I, J)
                 block = self.make_block(shape_model, I, J, spmat,
                                         max_depth, force_max_depth)
+                assert block is not None
                 row_blocks.append(block)
             blocks.append(row_blocks)
         self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
