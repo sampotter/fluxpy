@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-MAX_INNER_AREAS=("1.5" "0.75" "0.4" "0.2" "0.1" "0.05")
+MAX_INNER_AREAS=("1.5" "0.75" "0.4")
 MAX_OUTER_AREA="3.0" # very coarse
-TOLS=(1e-1 1e-2 1e-3 1e-4)
+TOLS=(1e-1 1e-2)
 
 if [ ! -f ldem_87s_5mpp.tif ]; then
 	echo "didn't find DEM. downloading it from PGDA..."
@@ -10,7 +10,10 @@ if [ ! -f ldem_87s_5mpp.tif ]; then
 
 fi
 
-./convert_geotiff_to_npy.py ldem_87s_5mpp.tif
+if [ ! -f ldem_87s_5mpp.npy ]; then
+	echo "converting DEM to npy format..."
+	./convert_geotiff_to_npy.py ldem_87s_5mpp.tif
+fi
 
 mkdir -p gerlache_plots
 
