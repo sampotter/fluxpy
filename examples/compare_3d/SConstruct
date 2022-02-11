@@ -135,3 +135,15 @@ for planet, size, tol in it.product(planets, sizes, list(tols)):
             f'{planet}_{size}_{tol}.bin'
         ],
         f'./plot_form_factor_matrix_blocks.py $SOURCES $TARGETS')
+
+stats_table_sources = []
+for planet, size, tol in it.product(planets, sizes, ['true'] + list(tols)):
+    stats_table_sources.append(form_factor_matrix[planet, size, tol])
+    stats_table_sources.append(form_factor_assembly_time[planet, size, tol])
+    stats_table_sources.extend(form_factor_stats[planet, size, tol])
+
+stats_table = Command(
+    ['stats_table.tex'],
+    stats_table_sources,
+    f'./make_stats_table.py $SOURCES $TARGETS'
+)
