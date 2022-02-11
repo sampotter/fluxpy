@@ -258,6 +258,11 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
     def nbytes(self):
         return nbytes(self._u) + nbytes(self._s) + nbytes(self._vt)
 
+    @property
+    def compressed(self):
+        return isinstance(self._u, scipy.sparse.spmatrix) \
+            or isinstance(self._vt, scipy.sparse.spmatrix)
+
     def _get_sparsity(self, tol=None):
         u_nnz = flux.linalg.nnz(self._u, tol)
         v_nnz = flux.linalg.nnz(self._vt, tol)
