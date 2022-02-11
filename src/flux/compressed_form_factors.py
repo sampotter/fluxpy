@@ -149,7 +149,7 @@ class FormFactorZeroBlock(FormFactorLeafBlock,
 
 
 class FormFactorDenseBlock(FormFactorLeafBlock,
-                          scipy.sparse.linalg.LinearOperator):
+                           scipy.sparse.linalg.LinearOperator):
     def __init__(self, root, mat):
         if isinstance(mat, scipy.sparse.spmatrix):
             mat = mat.toarray()
