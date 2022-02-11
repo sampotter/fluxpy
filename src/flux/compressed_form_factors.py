@@ -234,10 +234,15 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
     def __init__(self, root, u, s, vt):
         shape = (u.shape[0], vt.shape[1])
         super().__init__(root, shape)
+
         self._k = s.size
-        self._u = u
         self._s = s
-        self._vt = vt
+
+        u_csr = scipy.sparse.csr_matrix(u)
+        self._u = u if nbytes(u) < nbytes(u_csr) else u_csr
+
+        vt_csr = scipy.sparse.csr_matrix(vt)
+        self._vt = vt if nbytes(vt) < nbytes(vt_csr) else vt_csr
 
     def _matmat(self, x):
         y = self._vt@x
