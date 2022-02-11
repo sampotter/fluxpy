@@ -59,9 +59,6 @@ for i, frame_name in enumerate(frame_names):
         if area_str not in T_avgs:
             T_avgs[area_str] = dict()
 
-        if area_str not in T_stds:
-            T_stds[area_str] = dict()
-
         shape_model_st = load_stereographic_shape_model(area_str)
 
         T_frame_dir_true = next(_ for _ in T_frame_dirs
