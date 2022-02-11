@@ -290,9 +290,9 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             block = self.make_child_block(
                 shape_model, spmat, I, J, max_depth - 1, force_max_depth)
             if block.is_dense():
-                block = FormFactorDenseBlock(spmat)
+                block = self.root.make_dense_block(spmat.toarray())
             elif block.is_sparse():
-                block = FormFactorCsrBlock(spmat)
+                block = self.root.make_sparse_block(spmat)
             return block
 
         # On the other hand, if force_max_depth is False we "try" to
@@ -301,36 +301,36 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         nnz, shape = spmat.nnz, spmat.shape
 
         if shape[0] == 0 or shape[1] == 0:
-            return FormFactorNullBlock(shape)
+            return self.root.make_null_block(shape)
 
         size = np.product(shape)
         sparsity = nnz/size
 
         if nnz == 0:
-            return FormFactorZeroBlock(shape)
+            return self.root.make_zero_block(shape)
 
         if max_depth == 1 or size < self._min_size:
             if sparsity < self._sparsity_threshold:
-                return FormFactorCsrBlock(spmat)
+                return self.root.make_sparse_block(spmat, fmt='csr')
             else:
-                return FormFactorDenseBlock(spmat)
+                return self.root.make_dense_block(spmat.toarray())
         else:
             new_max_depth = None if max_depth is None else max_depth - 1
             block = self.make_child_block(shape_model, spmat, I, J,
                                           new_max_depth)
             if block.is_dense():
-                block = FormFactorDenseBlock(spmat)
+                block = self.root.make_dense_block(spmat.toarray())
             elif block.is_sparse():
-                block = FormFactorSparseBlock(spmat)
+                block = self.root.make_sparse_block(spmat)
             return block
 
     def make_compressed_sparse_block(self, spmat):
         ret = flux.linalg.estimate_rank(
             spmat, self._tol, max_nbytes=nbytes(spmat))
         if ret is None:
-            return FormFactorCsrBlock(spmat)
+            return self.root.make_sparse_block(spmat)
         U, S, Vt, tol = ret
-        svd_block = FormFactorSvdBlock(U, S, Vt)
+        svd_block = self.root.make_svd_block(U, S, Vt)
 
         # If the tolerance estimated this way doesn't satisfy
         # the requested tolerance, return the sparse block
@@ -340,7 +340,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         else:
             logging.warning("""computed a really inaccurate SVD, using
             a larger sparse block instead...""")
-            return FormFactorCsrBlock(spmat)
+            return self.root.make_sparse_block(spmat)
 
     def _matmat(self, x):
         y = np.zeros((self.shape[0], x.shape[1]), dtype=self.dtype)
@@ -523,7 +523,7 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
         for i_, j_ in it.product(*(range(_) for _ in self.bshape)):
             if i_ != i or j_ != j:
                 continue
-            block = FormFactorZeroBlock(tmp._blocks[i, j].shape)
+            block = self.root.make_zero_block(tmp._blocks[i, j].shape)
             tmp._blocks[i, j] = block
         return tmp
 
@@ -537,7 +537,7 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
         for i, j in it.product(*(range(_) for _ in self.bshape)):
             if i == j:
                 continue
-            block = FormFactorZeroBlock(tmp._blocks[i, j].shape)
+            block = self.root.make_zero_block(tmp._blocks[i, j].shape)
             tmp._blocks[i, j] = block
         return tmp
 
@@ -551,7 +551,7 @@ class FormFactor2dTreeBlock(FormFactorBlockMatrix):
         for i, j in it.product(*(range(_) for _ in self.bshape)):
             if i != j:
                 continue
-            block = FormFactorZeroBlock(tmp._blocks[i, j].shape)
+            block = self.root.make_zero_block(tmp._blocks[i, j].shape)
             tmp._blocks[i, j] = block
         return tmp
 
@@ -566,7 +566,7 @@ class FormFactorQuadtreeBlock(FormFactor2dTreeBlock):
         super().__init__(*args, **kwargs)
 
     def make_child_block(self, *args):
-        return FormFactorQuadtreeBlock(*args)
+        return self.root.make_quadtree_block(*args)
 
     def _set_block_inds(self, shape_model, I, J):
         P = shape_model.P
@@ -583,7 +583,7 @@ class FormFactorOctreeBlock(FormFactor2dTreeBlock):
         super().__init__(*args, **kwargs)
 
     def make_child_block(self, *args):
-        return FormFactorOctreeBlock(*args)
+        return self.root.make_octree_block(*args)
 
     def _set_block_inds(self, shape_model, I, J):
         P = shape_model.P
@@ -709,6 +709,30 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
     @property
     def sparsity_threshold(self):
         return 2.0/3.0
+
+    def make_null_block(self, *args):
+        return FormFactorNullBlock(self, *args)
+
+    def make_zero_block(self, *args):
+        return FormFactorZeroBlock(self, *args)
+
+    def make_dense_block(self, *args):
+        return FormFactorDenseBlock(self, *args)
+
+    def make_sparse_block(self, *args, fmt='csr'):
+        if fmt == 'csr':
+            return FormFactorCsrBlock(self, *args)
+        else:
+            raise Exception('unknown sparse matrix format "%s"' % fmt)
+
+    def make_svd_block(self, *args):
+        return FormFactorSvdBlock(self, *args)
+
+    def make_quadtree_block(self, *args):
+        return FormFactorQuadtreeBlock(self, *args)
+
+    def make_octree_block(self, *args):
+        return FormFactorOctreeBlock(self, *args)
 
     def save(self, path):
         with open(path, 'wb') as f:
