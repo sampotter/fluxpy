@@ -285,7 +285,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             block = self.make_child_block(
                 shape_model, spmat, I, J, max_depth - 1, force_max_depth)
             if block.is_dense():
-                block = FormFactorDenseBlock(spmat.toarray())
+                block = FormFactorDenseBlock(spmat)
             elif block.is_sparse():
                 block = FormFactorCsrBlock(spmat)
             return block
@@ -308,13 +308,13 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             if sparsity < self._sparsity_threshold:
                 return FormFactorCsrBlock(spmat)
             else:
-                return FormFactorDenseBlock(spmat.toarray())
+                return FormFactorDenseBlock(spmat)
         else:
             new_max_depth = None if max_depth is None else max_depth - 1
             block = self.make_child_block(shape_model, spmat, I, J,
                                           new_max_depth)
             if block.is_dense():
-                block = FormFactorDenseBlock(spmat.toarray())
+                block = FormFactorDenseBlock(spmat)
             elif block.is_sparse():
                 block = FormFactorSparseBlock(spmat)
             return block
