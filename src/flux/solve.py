@@ -28,9 +28,9 @@ def _solve_radiosity_jacobi_left(FF, E, rho, tol):
     while True:
         niter += 1
         B1 = E + rho*(FF@B)
-        B = B1
         if abs(B1 - B).max() <= tol:
             break
+        B = B1
     return B, niter
 
 def _solve_radiosity_jacobi_right(FF, E, rho, tol):
@@ -39,9 +39,9 @@ def _solve_radiosity_jacobi_right(FF, E, rho, tol):
     while True:
         niter += 1
         B1 = E + FF@(rho*B)
-        B = B1
         if abs(B1 - B).max() <= tol:
             break
+        B = B1
     return B, niter
 
 def _solve_radiosity_cg_left(FF, E, rho, tol):
