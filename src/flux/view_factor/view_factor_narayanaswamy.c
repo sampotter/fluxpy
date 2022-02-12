@@ -5,10 +5,13 @@
 #include <stddef.h>
 #include <math.h>
 
-#define PI 3.1415926535897932
-#define PI_SQUARED 9.8696044010893584
-#define TWO_PI 6.2831853071795864
-#define FOUR_PI 12.566370614359173
+static double const PI = 3.1415926535897932;
+static double const PI_SQUARED = 9.8696044010893584;
+static double const TWO_PI = 6.2831853071795864;
+static double const FOUR_PI = 12.566370614359173;
+static double const ALMOST_ZERO = 1e-13;
+static double const HALF_TOL = ALMOST_ZERO/2;
+
 
 static void sub(double const u[3], double const v[3], double w[3]) {
 	w[0] = u[0] - v[0];
@@ -22,6 +25,12 @@ static double normalize(double u[3]) {
 	u[1] /= norm;
 	u[2] /= norm;
 	return norm;
+}
+
+void cross(double const u[3], double const v[3], double w[3]) {
+  w[0] = u[1]*v[2] - u[2]*v[1];
+  w[1] = u[2]*v[0] - u[0]*v[2];
+  w[2] = u[0]*v[1] - u[1]*v[0];
 }
 
 static double dot(double const u[3], double const v[3]) {
@@ -41,9 +50,6 @@ static double dist(double const u[3], double const v[3]) {
 
 // function ClausenIntegral = Cl(theta) % Eq.(26) from paper
 static double Cl(double theta) {
-
-//     almostZero = 1e-7;
-	double const almostZero = 1e-7;
 
 //     theta = mod(theta, 2*pi);
 	theta = fmod(theta, TWO_PI);
@@ -92,20 +98,18 @@ static double Cl(double theta) {
 		b_dot_T += b[i]*T[i];
 	}
 
-//      ClausenIntegral = (theta - pi)*(2 + log((pi^2)/2)) + (2*pi - theta)*log((2*pi - theta)*(1 - almostZero) + almostZero) ...
-//          - theta*log(theta*(1 - almostZero) + almostZero) + sum(b.*T);
+//      ClausenIntegral = (theta - pi)*(2 + log((pi^2)/2)) + (2*pi - theta)*log((2*pi - theta)*(1 - ALMOST_ZERO) + ALMOST_ZERO) ...
+//          - theta*log(theta*(1 - ALMOST_ZERO) + ALMOST_ZERO) + sum(b.*T);
 	return (theta - PI)*(2 + log(PI_SQUARED/2)) +
-		(TWO_PI - theta)*log((TWO_PI - theta)*(1 - almostZero) + almostZero) -
-		theta*log(theta*(1 - almostZero) + almostZero) + b_dot_T;
+		(TWO_PI - theta)*log((TWO_PI - theta)*(1 - ALMOST_ZERO) + ALMOST_ZERO) -
+		theta*log(theta*(1 - ALMOST_ZERO) + ALMOST_ZERO) + b_dot_T;
 // end
 }
 
 // function imaginaryPart = imagLi_2(mag, angle) % Eq.(24) from paper
 double imagLi_2(double mag, double angle) {
-//     almostZero = 1e-7;
-	double const almostZero = 1e-7;
-//     if mag > almostZero
-	if (mag > almostZero) {
+//     if mag > ALMOST_ZERO
+	if (mag > ALMOST_ZERO) {
 //         omega = atan2(mag*sin(angle), (1 - mag*cos(angle)));
 		double omega = atan2(mag*sin(angle), (1 - mag*cos(angle)));
 //         imaginaryPart = 0.5*Cl(2*angle) + 0.5*Cl(2*omega) - 0.5*Cl(2*omega + 2*angle) + log(mag)*omega;
@@ -121,10 +125,6 @@ double imagLi_2(double mag, double angle) {
 
 // function F = f(s, l, alpha, cosAlpha, sinAlpha, d) % Eq.(22b) from paper
 double f(double s, double l, double alpha, double cosAlpha, double sinAlpha, double d) {
-
-//     almostZero = 1e-7;
-	double const almostZero = 1e-7;
-
 //     s2 = s^2;
 	double s2 = s*s;
 
@@ -146,16 +146,16 @@ double f(double s, double l, double alpha, double cosAlpha, double sinAlpha, dou
 //     if abs(s + wsqrt) > 0
 //     wdim = s + wsqrt;
 //     else
-//     wdim = almostZero;
+//     wdim = ALMOST_ZERO;
 //     end
-	double wdim = fabs(s + wsqrt) > 0 ? s + wsqrt : almostZero; // TODO: weird
+	double wdim = fabs(s + wsqrt) > 0 ? s + wsqrt : ALMOST_ZERO; // TODO: weird
 
 //     if abs(l + psqrt) > 0
 //     pdim = l + psqrt;
 //     else
-//     pdim = almostZero;
+//     pdim = ALMOST_ZERO;
 //     end
-	double pdim = fabs(l + psqrt) > 0 ? l + psqrt : almostZero; // TODO: weird
+	double pdim = fabs(l + psqrt) > 0 ? l + psqrt : ALMOST_ZERO; // TODO: weird
 
 //     F = (0.5*cosAlpha*(s2 + l2) - s*l)*log(s2 + l2 - 2*s*l*cosAlpha + d2) ...
 //       + s*sinAlpha*wsqrt*atan2(sqrt(s2*sinAlpha2 + d2), (l - s*cosAlpha)) ...
@@ -173,14 +173,10 @@ double f(double s, double l, double alpha, double cosAlpha, double sinAlpha, dou
 
 // function F = fParallel(s, l, d) % Eq.(23) from paper
 double fParallel(double s, double l, double d) {
-
-//     almostZero = 1e-7;
-	double almostZero = 1e-7;
-
 //     if d == 0
-//         d = almostZero;
+//         d = ALMOST_ZERO;
 //     end
-	if (d == 0) d = almostZero;
+	if (d == 0) d = ALMOST_ZERO;
 
 //     sMinusl = s - l;
 	double sMinusl = s - l;
@@ -197,10 +193,13 @@ double fParallel(double s, double l, double d) {
 //     d2 = d^2;
 	double d2 = d*d;
 
+	double acos_arg = fmin(1.0, sMinusl/sqrt(s2 + l2 - 2*s*l + d2));
+	acos_arg = fmax(-1.0, acos_arg);
+
 //     F = 0.5*(sMinusl2 - d2)*log(sMinusl2 + d2) ...
 //       - 2*sMinusl*d*acos(sMinusl/sqrt(s2 + l2 - 2*s*l + d2)) + s*l;
 	return 0.5*(sMinusl2 - d2)*log(sMinusl2 + d2) -
-		2*sMinusl*d*acos(sMinusl/sqrt(s2 + l2 - 2*s*l + d2)) + s*l;
+		2*sMinusl*d*acos(acos_arg) + s*l;
 // end
 }
 
@@ -217,8 +216,6 @@ void edgePairParameters(double const Po[3], double const Pf[3],
 //     % http://geomalgorithms.com/a07-_distance.html
 //     % find shortest distance D between line Po+s*u and Qo+t*v for initial
 //     %  points Po and Qo, parameters s and t, and vectors u and v
-//     almostZero = 1e-7;
-	double const almostZero = 1e-7;
 
 //     u = Pf - Po;
 	double u[3];
@@ -259,9 +256,9 @@ void edgePairParameters(double const Po[3], double const Pf[3],
 	double den = a*c - b*b;
 
 //     % calculate shortest distance between edge rays
-//     if den > almostZero
+//     if den > ALMOST_ZERO
 	double s, l;
-	if (den > almostZero) {
+	if (den > ALMOST_ZERO) {
 //         skew = true;
 		*skew = true;
 //         s = (b*e - c*d)/den;
@@ -270,8 +267,10 @@ void edgePairParameters(double const Po[3], double const Pf[3],
 		l = (a*e - b*d)/den;
 //         D = norm(w + s*u - l*v);
 		*D = 0;
-		for (size_t i = 0; i < 3; ++i)
-			*D += w[i] + s*u[i] - l*v[i];
+		for (size_t i = 0; i < 3; ++i) {
+			double term = w[i] + s*u[i] - l*v[i];
+			*D += term*term;
+		}
 		*D = sqrt(fmax(0, *D));
 //     else % origin is arbitrary if lines are parallel
 	} else {
@@ -285,8 +284,10 @@ void edgePairParameters(double const Po[3], double const Pf[3],
 		l = e/c;
 //         D = norm(w - (e/c)*v);
 		*D = 0;
-		for (size_t i = 0; i < 3; ++i)
-			*D += w[i] - (e/c)*v[i];
+		for (size_t i = 0; i < 3; ++i) {
+			double term = w[i] - (e/c)*v[i];
+			*D += term*term;
+		}
 		*D = sqrt(fmax(0, *D));
 //     end
 	}
@@ -335,19 +336,22 @@ void edgePairParameters(double const Po[3], double const Pf[3],
 }
 
 // function [F_AB] = viewFactor_sfp(tri1, tri2)
-double ff_narayanaswamy_impl(double const tri1[3][3], double const n1[3],
-							 double const tri2[3][3], double area_A) {
-
-//     almostZero = 1e-7;
-	double almostZero = 1e-7;
-
-//     halfTol = almostZero/2;
-	double halfTol = almostZero/2;
-
+double ff_narayanaswamy_impl(double const tri1[3][3], double const tri2[3][3]) {
 //     N = dim_A(1);
 //     M = dim_B(1);
 
 //     % VIEW FACTOR ANALYICAL CALCULATION
+
+	double p1[3];
+	sub(tri1[1], tri1[0], p1);
+
+	double p2[3];
+	sub(tri1[2], tri1[0], p2);
+
+	double n1[3];
+	cross(p1, p2, n1);
+
+	double area_A = normalize(n1)/2;
 
 //     sumTerms = zeros(N,M);  % terms to sum to yield conductance
 	double sumTerms[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
@@ -385,17 +389,17 @@ double ff_narayanaswamy_impl(double const tri1[3][3], double const n1[3],
 			double const *r_j = tri1[j];
 
 //             % check for coincident vertices - nudge polygon B vertices if found
-//             if norm(r_i - r_p) < halfTol || norm(r_j - r_p) < halfTol
-//                 r_p = r_p + almostZero;
-//             elseif norm(r_i - r_q) < halfTol || norm(r_j - r_q) < halfTol
-//                 r_q = r_q + almostZero;
+//             if norm(r_i - r_p) < HALF_TOL || norm(r_j - r_p) < HALF_TOL
+//                 r_p = r_p + ALMOST_ZERO;
+//             elseif norm(r_i - r_q) < HALF_TOL || norm(r_j - r_q) < HALF_TOL
+//                 r_q = r_q + ALMOST_ZERO;
 //             end
-			if (dist(r_i, r_p) < halfTol || dist(r_j, r_p) < halfTol) {
+			if (dist(r_i, r_p) < HALF_TOL || dist(r_j, r_p) < HALF_TOL) {
 				for (size_t k = 0; k < 3; ++k)
-					r_p[k] += almostZero;
-			} else if (dist(r_i, r_q) < halfTol || dist(r_j, r_q) < halfTol) {
+					r_p[k] += ALMOST_ZERO;
+			} else if (dist(r_i, r_q) < HALF_TOL || dist(r_j, r_q) < HALF_TOL) {
 				for (size_t k = 0; k < 3; ++k)
-					r_q[k] += almostZero;
+					r_q[k] += ALMOST_ZERO;
 			}
 
 //             % determine parameterized coordinates for each edge, and minimum
@@ -476,7 +480,7 @@ double ff_narayanaswamy_impl(double const tri1[3][3], double const n1[3],
 	double radUA = 0;
 	for (size_t p = 0; p < 3; ++p)
 		for (size_t i = 0; i < 3; ++i)
-			radUA = sumTerms[i][p];
+			radUA += sumTerms[i][p];
 	radUA = fabs(radUA);
 
 //     % FINAL CALCULATION
