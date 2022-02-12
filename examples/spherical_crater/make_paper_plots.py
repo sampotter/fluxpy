@@ -12,7 +12,7 @@ import sys
 from matplotlib.ticker import AutoMinorLocator
 from pathlib import Path
 
-from plot_style import linewidth, dpi, marker, colors, linestyles
+from plot_style import linewidth, dpi, marker, colors, linestyles, square_figsize
 
 PAPER_PLOT_DIR = sys.argv[1]
 SAVE_PDF_PLOTS = False
@@ -47,8 +47,6 @@ def load_direct_comparison_data_to_dict(path):
         Data['B_rel_l2_errors'] = pickle.load(f)
     with open(path/'T_rel_l2_errors.pickle', 'rb') as f:
         Data['T_rel_l2_errors'] = pickle.load(f)
-    with open(path/'FF_rel_fro_errors.pickle', 'rb') as f:
-        Data['FF_rel_fro_errors'] = pickle.load(f)
     return Data
 
 def get_values_by_key(dicts, key):
@@ -92,8 +90,8 @@ Tols = sorted(Tols, key=lambda tol: float(tol))
 H = get_values_by_key(StatsGt, 'h')
 N = get_values_by_key(StatsGt, 'num_faces')
 
-# Make loglog h vs T rel errors plot_blocks
-plt.figure(figsize=(6, 6))
+# Make loglog N vs T rel errors plot_blocks
+plt.figure(figsize=square_figsize)
 for j, order in enumerate(['max', 'l2', 'l1']):
     plt.loglog(N, get_values_by_key(StatsGt, f'rel_{order}_T_error'),
                linewidth=linewidth, marker='o', c=colors[0],
@@ -112,8 +110,8 @@ if SAVE_PDF_PLOTS:
 plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_rms.png', dpi=dpi)
 plt.close()
 
-# Make loglog h vs T_rel_l2_errors and B_rel_l2_errors plot
-plt.figure(figsize=(6, 6))
+# Make loglog N vs T_rel_l2_errors and B_rel_l2_errors plot
+plt.figure(figsize=square_figsize)
 for i, tol in enumerate(Tols):
     plt.loglog(
         N, GtVsTol[tol]['T_rel_l2_errors'],
@@ -133,24 +131,12 @@ if SAVE_PDF_PLOTS:
 plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_ptwise_errors.png', dpi=dpi)
 plt.close()
 
-# Make loglog h vs FF_rel_fro_errors
-plt.figure(figsize=(6, 6))
-for i, tol in enumerate(Tols):
-    plt.loglog(N, GtVsTol[tol]['FF_rel_fro_errors'],
-               linewidth=linewidth, marker=marker, c=colors[i + 1],
-               linestyle='-',
-               label=r'$\epsilon = %s$' % (tol_to_tex(tol),))
-plt.legend()
-plt.ylabel(r'$\|\mathbf{F}_{gt} - \mathbf{F}\|_{F}/\|\mathbf{F}_{gt}\|_{F}$')
-plt.xlabel(r'$N$')
-plt.tight_layout()
-if SAVE_PDF_PLOTS:
-    plt.savefig(f'{PAPER_PLOT_DIR}/FF_rel_fro_errors.pdf', dpi=dpi)
-plt.savefig(f'{PAPER_PLOT_DIR}/FF_rel_fro_errors.png', dpi=dpi)
-plt.close()
-
-# Make loglog h vs size plot
-plt.figure(figsize=(6, 6))
+# Make loglog N vs size plot
+plt.figure(figsize=square_figsize)
+plt.axline((N[0], get_values_by_key(StatsGt, 'FF_size')[0]), slope=1,
+           linewidth=2, c='palegoldenrod', linestyle='--', label=r'$O(N)$', zorder=0)
+plt.axline((N[0], get_values_by_key(StatsGt, 'FF_size')[0]), slope=2,
+           linewidth=2, c='pink', linestyle='--', label=r'$O(N^2)$', zorder=0)
 plt.loglog(N, get_values_by_key(StatsGt, 'FF_size'),
            linewidth=linewidth, marker=marker, c=colors[0], label='True $F$', zorder=1)
 for i, tol in enumerate(Tols):
@@ -167,8 +153,12 @@ if SAVE_PDF_PLOTS:
 plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_size.png', dpi=dpi)
 plt.close()
 
-# Make loglog h vs compute T time plot
-plt.figure(figsize=(6, 6))
+# Make loglog N vs compute T time plot
+plt.figure(figsize=square_figsize)
+plt.axline((N[0], get_values_by_key(StatsGt, 't_T')[0]), slope=1,
+           linewidth=2, c='palegoldenrod', linestyle='--', label=r'$O(N)$', zorder=0)
+plt.axline((N[0], get_values_by_key(StatsGt, 't_T')[0]), slope=2,
+           linewidth=2, c='pink', linestyle='--', label=r'$O(N^2)$', zorder=0)
 plt.loglog(N, get_values_by_key(StatsGt, 't_T'),
            linewidth=linewidth, marker=marker, c=colors[0], label='True $F$', zorder=1)
 for i, tol in enumerate(Tols):
@@ -185,16 +175,19 @@ if SAVE_PDF_PLOTS:
 plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_T_time.png', dpi=dpi)
 plt.close()
 
-# Make loglog h vs compute B and E time plot
-plt.figure(figsize=(6, 6))
+# Make loglog N vs compute B and E time plot
+plt.figure(figsize=square_figsize)
+plt.axline((N[0], get_values_by_key(StatsGt, 't_E')[0]), slope=1,
+           linewidth=2, c='palegoldenrod', linestyle='--', label=r'$O(N)$', zorder=0)
+plt.axline((N[0], get_values_by_key(StatsGt, 't_E')[0]), slope=2,
+           linewidth=2, c='pink', linestyle='--', label=r'$O(N^2)$', zorder=0)
 plt.loglog(N, get_values_by_key(StatsGt, 't_B'),
            linewidth=linewidth, marker=marker, c=colors[0], label='True $F$', zorder=1)
 plt.loglog(N, get_values_by_key(StatsGt, 't_E'), linewidth=linewidth, marker=marker,
            c=colors[0], linestyle='--',
            label='Compute $E$', zorder=1)
 for i, tol in enumerate(Tols):
-    plt.loglog(get_values_by_key(Stats[tol], 'h'),
-               get_values_by_key(Stats[tol], 't_B'),
+    plt.loglog(N, get_values_by_key(Stats[tol], 't_B'),
                linewidth=linewidth, marker=marker, c=colors[i + 1], linestyle='--',
                label=r'Compressed $F$ ($\epsilon = %s$)' % (tol_to_tex(tol),),
                zorder=2)
@@ -207,8 +200,12 @@ if SAVE_PDF_PLOTS:
 plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_B_and_E_time.png', dpi=dpi)
 plt.close()
 
-# Make loglog h vs assembly time plot
-plt.figure(figsize=(6, 6))
+# Make loglog N vs assembly time plot
+plt.figure(figsize=square_figsize)
+plt.axline((N[0], get_values_by_key(StatsGt, 't_FF')[0]), slope=2,
+           linewidth=2, c='pink', linestyle='--', label=r'$O(N^2)$', zorder=0)
+plt.axline((N[0], get_values_by_key(StatsGt, 't_FF')[0]), slope=3,
+           linewidth=2, c='lightsteelblue', linestyle='--', label=r'$O(N^3)$', zorder=0)
 plt.loglog(N, get_values_by_key(StatsGt, 't_FF'),
            linewidth=linewidth, marker=marker, c=colors[0], label='True $F$', zorder=1)
 for i, tol in enumerate(Tols):
