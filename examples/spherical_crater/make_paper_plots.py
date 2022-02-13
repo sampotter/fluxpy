@@ -91,8 +91,8 @@ H = get_values_by_key(StatsGt, 'h')
 N = get_values_by_key(StatsGt, 'num_faces')
 
 # Make loglog N vs T rel errors plot_blocks
-plt.figure(figsize=square_figsize)
 for j, order in enumerate(['max', 'l2', 'l1']):
+    plt.figure(figsize=square_figsize)
     plt.loglog(N, get_values_by_key(StatsGt, f'rel_{order}_T_error'),
                linewidth=linewidth, marker='o', c=colors[0],
                label='Dense $F$', zorder=1, linestyle=linestyles[0])
@@ -101,14 +101,19 @@ for j, order in enumerate(['max', 'l2', 'l1']):
                    linewidth=linewidth, marker=marker, c=colors[i + 1],
                    label=r'Compressed $F$ ($\epsilon = %s$)' % (tol_to_tex(tol),),
                    zorder=2, linestyle=linestyles[j + 1])
-plt.legend()
-plt.xlabel('$N$')
-plt.ylabel('RMS error in $T$ (shadow)')
-plt.tight_layout()
-if SAVE_PDF_PLOTS:
-    plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_rms.pdf', dpi=dpi)
-plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_rms.png', dpi=dpi)
-plt.close()
+    plt.legend()
+    plt.xlabel('$N$')
+    order_tex = {
+        'max': '$\ell_\infty$',
+        'l2': '$\ell_2$',
+        'l1': '$\ell_1$'
+    }[order]
+    plt.ylabel(r'Relative {order_tex} error in $T$ (shadow)')
+    plt.tight_layout()
+    if SAVE_PDF_PLOTS:
+        plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_{order}.pdf', dpi=dpi)
+    plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_{order}.png', dpi=dpi)
+    plt.close()
 
 # Make loglog N vs T_rel_l2_errors and B_rel_l2_errors plot
 plt.figure(figsize=square_figsize)
