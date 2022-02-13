@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
-PMIN=5
-PMAX=8
+PMIN=6
+PMAX=10
 
-CONTOUR_MODE=1 # contour rim and shadow
-# CONTOUR_MODE=2 # contour rim
+# CONTOUR_MODE=1 # contour rim and shadow
+CONTOUR_MODE=2 # contour rim
 # CONTOUR_MODE=3 # no contouring
 
 # The compression tolerance
-TOLS=(1e-1)
+TOLS=(1e-1 1e-2 1e-3)
 
 PAPER_PLOT_DIR=spherical_crater_plots
 
