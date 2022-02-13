@@ -259,13 +259,13 @@ if __name__ == '__main__':
     l1_T_error = np.linalg.norm(T_error, ord=1)
     print('- l1 T_error: %1.2f K' % (l1_T_error,))
 
-    rel_max_T_error = max_T_error/hc.T_gt
+    rel_max_T_error = max_T_error/abs(T_gt).max()
     print(f'- relative max T_error: {100*rel_max_T_error:1.2f}%')
 
-    rel_l2_T_error = l2_T_error/(hc.T_gt*np.sqrt(F.shape[0]))
+    rel_l2_T_error = l2_T_error/np.linalg.norm(T_gt)
     print(f'- relative l2 T_error: {100*rel_l2_T_error:1.2f}%')
 
-    rel_l1_T_error = l1_T_error/(hc.T_gt*F.shape[0])
+    rel_l1_T_error = l1_T_error/np.linalg.norm(T_gt, ord=1)
     print(f'- relative l1 T_error: {100*rel_l1_T_error:1.2f}%')
 
     B.tofile(os.path.join(args.outdir, 'B.bin'))

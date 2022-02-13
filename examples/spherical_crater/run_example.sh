@@ -26,14 +26,6 @@ do
 	./collect_ingersoll_stats.sh $PMIN $PMAX $TOL $CONTOUR_MODE
 done
 
-# Do comparisons between groundtruth results and results obtained
-# using various compressed form factor matrices
-for TOL in "${TOLS[@]}"
-do
-	echo "doing direct comparison for tol = $TOL"
-	./do_direct_comparisons.py $TOL
-done
-
 # Make block plots
 ./make_block_plots.py
 

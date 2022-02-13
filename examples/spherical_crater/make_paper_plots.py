@@ -108,7 +108,7 @@ for j, order in enumerate(['max', 'l2', 'l1']):
         'l2': '$\ell_2$',
         'l1': '$\ell_1$'
     }[order]
-    plt.ylabel(r'Relative {order_tex} error in $T$ (shadow)')
+    plt.ylabel(rf'Relative {order_tex} error in $T$ (shadow)')
     plt.tight_layout()
     if SAVE_PDF_PLOTS:
         plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_{order}.pdf', dpi=dpi)
