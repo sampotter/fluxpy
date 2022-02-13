@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-MAX_INNER_AREAS=("1.5" "0.75" "0.4")
+MAX_INNER_AREAS=("1.6" "0.8" "0.4" "0.2" "0.1")
 MAX_OUTER_AREA="3.0" # very coarse
 TOLS=(1e-1 1e-2)
 

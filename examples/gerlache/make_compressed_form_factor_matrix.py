@@ -28,7 +28,7 @@ shape_model = CgalTrimeshShapeModel(verts, faces, normals)
 
 # use quadtree by default
 tic()
-FF = CompressedFormFactorMatrix(shape_model, tol=tol, min_size=1024)
+FF = CompressedFormFactorMatrix(shape_model, tol=tol, min_size=16384)
 assembly_time = toc()
 
 with open('FF_assembly_times.txt', 'a') as f:
