@@ -74,13 +74,8 @@ def assemble(args, shape_model, parts=None):
         FF_nbytes = FF.data.nbytes + FF.indptr.nbytes + FF.indices.nbytes
     else:
         tic()
-        if parts is None:
-            FF = CompressedFormFactorMatrix(
-                shape_model, tol=args.tol, RootBlock=FormFactorQuadtreeBlock)
-        else:
-            FF = CompressedFormFactorMatrix(
-                shape_model, tol=args.tol, parts=parts,
-                RootBlock=FormFactorPartitionBlock)
+        FF = CompressedFormFactorMatrix(
+            shape_model, tol=args.tol, RootBlock=FormFactorQuadtreeBlock)
         t_FF = toc()
         FF_nbytes = FF.nbytes
     return FF, t_FF, FF_nbytes
