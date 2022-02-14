@@ -76,14 +76,7 @@ Stats = {
     for path in glob.glob(stats_path_pattern)
 }
 
-# Load direct comparison data
-GtVsTol = {
-    tol_from_path(path): load_direct_comparison_data_to_dict(
-        Path(f'./stats/gt_vs_{tol_from_path(path)}'))
-    for path in glob.glob(comparison_path_pattern)
-}
-
-Tols = list(GtVsTol.keys())
+Tols = list(Stats.keys())
 Tols = sorted(Tols, key=lambda tol: float(tol))
 
 # Get values of H
@@ -114,27 +107,6 @@ for j, order in enumerate(['max', 'l2', 'l1']):
         plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_{order}.pdf', dpi=dpi)
     plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_{order}.png', dpi=dpi)
     plt.close()
-
-# Make loglog N vs T_rel_l2_errors and B_rel_l2_errors plot
-plt.figure(figsize=square_figsize)
-for i, tol in enumerate(Tols):
-    plt.loglog(
-        N, GtVsTol[tol]['T_rel_l2_errors'],
-        linewidth=linewidth, marker=marker, c=colors[i + 1], linestyle='-',
-        label=r'$\|T_{gt} - T\|_2/\|T_{gt}\|_2$ ($\epsilon = %s$)' % (
-            tol_to_tex(tol),))
-    plt.loglog(
-        N, GtVsTol[tol]['B_rel_l2_errors'],
-        linewidth=linewidth, marker=marker, c=colors[i + 1], linestyle='--',
-        label=r'$\|B_{gt} - B\|_2/\|B_{gt}\|_2$ ($\epsilon = %s$)' % (
-            tol_to_tex(tol),))
-plt.legend()
-plt.xlabel('$N$')
-plt.tight_layout()
-if SAVE_PDF_PLOTS:
-    plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_ptwise_errors.pdf', dpi=dpi)
-plt.savefig(f'{PAPER_PLOT_DIR}/n_vs_ptwise_errors.png', dpi=dpi)
-plt.close()
 
 # Make loglog N vs size plot
 plt.figure(figsize=square_figsize)
