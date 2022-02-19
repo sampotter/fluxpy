@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import glob
 
 import json_numpy as json
 import numpy as np
@@ -47,10 +48,10 @@ with open('params.json') as f:
 F0 = params['F0']
 
 # Define time window (it can be done either with dates or with utc0 - initial epoch - and np.linspace of epochs)
-utc0 = '2011 MAR 01 00:00:00.00'
-utc1 = '2011 MAR 29 00:00:00.00'
-stepet = 86400/3 #/100
-sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet)
+utc0 = '2001 JAN 01 00:00:00.00'
+utc1 = '2001 JAN 30 00:01:00.00'
+stepet = 34800 # 86400/3 #/100
+sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet)[:-1]
 t = np.linspace(0, sun_vecs.shape[0]*stepet, sun_vecs.shape[0])
 num_frames = len(t)
 
@@ -106,9 +107,19 @@ for it in range(niter)[from_iter:]:
     # for frame_index, T in tqdm(enumerate(thermal_model), total=D.shape[0]):
     for frame_index, T in enumerate(thermal_model):
         # print(f'time step # + {frame_index + 1}/{D.shape[0]}')
-        path = outdir/f'{max_inner_area_str}_{max_outer_area_str}_{tol_str}'
-        if not path.exists():
-            path.mkdir()
-        path = path/(path_fmt % frame_index)
+        path_dir = outdir/f'{max_inner_area_str}_{max_outer_area_str}_{tol_str}'
+        if not path_dir.exists():
+            path_dir.mkdir()
+        path = path_dir/(path_fmt % frame_index)
         np.save(path, T)
-    T0 = T
+
+    if it == 1:
+        print(f"  * reinitialize all layers to surface T mean over all epochs")
+        Tf = glob.glob(f"{path_dir}/T*_0.npy")
+        Tsurf = []
+        for f in Tf:
+            Tsurf.append(np.load(f)[:,0])
+        T = np.vstack(Tsurf)
+        T0 = np.repeat(np.mean(T,axis=0)[:, np.newaxis], nz + 1, axis=1)
+    else:
+        T0 = T
