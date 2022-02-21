@@ -70,7 +70,7 @@ z = np.hstack([0, z])  # add surface layer
 
 # initialize T from previous run or from scratch
 if from_iter == 0:
-    T0 = 300
+    T0 = 200
 else:
     path_fmt = f'T%0{len(str(num_frames))}d_{from_iter-1}.npy'
     path = outdir / f'{max_inner_area_str}_{max_outer_area_str}_{tol_str}'
@@ -103,7 +103,7 @@ for it in range(niter)[from_iter:]:
 
     path_fmt = f'T%0{len(str(num_frames))}d_{it}.npy'
 
-    print('  * time stepping the thermal model:')
+    print('  * time stepping the thermal model')
     # for frame_index, T in tqdm(enumerate(thermal_model), total=D.shape[0]):
     for frame_index, T in enumerate(thermal_model):
         # print(f'time step # + {frame_index + 1}/{D.shape[0]}')
@@ -113,9 +113,9 @@ for it in range(niter)[from_iter:]:
         path = path_dir/(path_fmt % frame_index)
         np.save(path, T)
 
-    if it == 1:
+    if (it == 5) | (it == 10):
         print(f"  * reinitialize all layers to surface T mean over all epochs")
-        Tf = glob.glob(f"{path_dir}/T*_0.npy")
+        Tf = glob.glob(f"{path_dir}/T*_{it-1}.npy")
         Tsurf = []
         for f in Tf:
             Tsurf.append(np.load(f)[:,0])

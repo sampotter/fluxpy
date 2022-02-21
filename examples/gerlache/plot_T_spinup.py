@@ -58,6 +58,7 @@ if __name__ == '__main__':
 
     # count number of spin-up iterations
     niter = len(glob.glob(f"T_frames/{max_inner_area_str}_{max_outer_area_str}_{tol_str}/T00_*.npy"))
+    print(f"- Processing #{niter} spin-up iterations")
 
     # loop over all spin-up iterations
     Tmean_it = []
