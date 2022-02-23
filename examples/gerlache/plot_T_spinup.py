@@ -8,7 +8,7 @@ from flux.shape import get_centroids
 import colorcet as cc
 
 def plot_on_grid(arr_to_plot, vertices, faces, title='', savefig=False,
-                 figsize=(10, 10), nrows=1, ncols=1, clim=None,
+                 figsize=(10, 10), nrows=1, ncols=1, clim=None, cmap=cc.cm.coolwarm,
                  sharex = False, sharey = False, show=False):
 
     P = get_centroids(vertices, faces)
@@ -18,19 +18,19 @@ def plot_on_grid(arr_to_plot, vertices, faces, title='', savefig=False,
     if nrows*ncols > 1:
         for T, ax in zip(arr_to_plot, axs.ravel()):
             if clim != None:
-                im = ax.tricontourf(*P[:, :2].T, T, extend='both',filled=True, cmap=cc.cm.coolwarm, levels=np.linspace(clim[0],clim[1],20))
+                im = ax.tricontourf(*P[:, :2].T, T, extend='both',filled=True, cmap=cmap, levels=np.linspace(clim[0],clim[1],20))
             else:
-                im = ax.tricontourf(*P[:, :2].T, T, extend='both',filled=True, cmap=cc.cm.coolwarm) #, levels=np.linspace(0,clim[1],20))
+                im = ax.tricontourf(*P[:, :2].T, T, extend='both',filled=True, cmap=cmap) #, levels=np.linspace(0,clim[1],20))
             ax.set_title(title)
             fig.colorbar(im, ax=ax)
             ax.set_aspect('equal')
     else:
         if clim != None:
             im = axs.tricontourf(*P[:, :2].T, arr_to_plot, extend='both', filled=True,
-                            cmap=cc.cm.coolwarm, levels=np.linspace(clim[0],clim[1],20))
+                            cmap=cmap, levels=np.linspace(clim[0],clim[1],20))
         else:
             im = axs.tricontourf(*P[:, :2].T, arr_to_plot, extend='both', filled=True,
-                            cmap=cc.cm.coolwarm)
+                            cmap=cmap)
         axs.set_title(title)
         fig.colorbar(im, ax=axs)
         axs.set_aspect('equal')
@@ -67,7 +67,6 @@ if __name__ == '__main__':
 
         # read T at surface and bottom layer for all epochs
         Tlayer = []
-        Tbottom = []
         for f in Tfiles:
             Tlayer.append(np.load(f)[:,layer])
         Tlayer = np.vstack(Tlayer)
@@ -91,7 +90,7 @@ if __name__ == '__main__':
     save_to = f"T_frames/{max_inner_area_str}_{max_outer_area_str}_{tol_str}/T{layer}_mean_itdiff.png"
     plot_on_grid(arr_to_plot=Tmean_it_diff, vertices=V, faces=F,
                  title='', clim=(-1.,1.),
-                 nrows=3, ncols= 5, figsize=(50,30), sharey=True, sharex= True,
+                 nrows=6, ncols= 5, figsize=(50,60), sharey=True, sharex= True,
                  savefig=save_to)
     print(f'- Tmean differences over iterations saved to {save_to}.')
 

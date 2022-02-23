@@ -1,5 +1,7 @@
 #!/usr/bin/env python
+import csv
 import glob
+import time
 
 import json_numpy as json
 import numpy as np
@@ -50,14 +52,36 @@ F0 = params['F0']
 # Define time window (it can be done either with dates or with utc0 - initial epoch - and np.linspace of epochs)
 utc0 = '2001 JAN 01 00:00:00.00'
 utc1 = '2001 JAN 30 00:01:00.00'
-stepet = 34800 # 86400/3 #/100
+stepet = 34800 # 86400/3 #/100 # 60*30 #
 sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet)[:-1]
 t = np.linspace(0, sun_vecs.shape[0]*stepet, sun_vecs.shape[0])
 num_frames = len(t)
 
+try:
+    # get sub-points for extended Sun
+    extsun_coord = f"../kernels/coordflux_100pts_outline33_centerlast_R1_F1_stdlimbdark.txt"
+    extsun_ = []
+    with open(extsun_coord) as csvDataFile:
+        csvReader = csv.reader(csvDataFile, delimiter=",", quoting=csv.QUOTE_NONNUMERIC)
+        for row in csvReader:
+            extsun_.append([x for x in row if x != ''])
+    extsun_ = np.vstack(extsun_)
+    print(f"# Sun is an extended source (see {extsun_coord})...")
+
+    sun_veccs = np.repeat(sun_vecs,extsun_.shape[0],axis=0)
+    Zs = np.array([0, 0, 1])
+    Us = sun_veccs/np.linalg.norm(sun_veccs,axis=1)[:,np.newaxis]
+    Vs = np.cross(Zs, Us)
+    Ws = np.cross(Us, Vs)
+    Rs = 695700.  # Sun radius, km
+
+    extsun_tiled = np.tile(extsun_,(sun_vecs.shape[0],1))
+    sun_vecs = sun_veccs + Vs * extsun_tiled[:, 0][:, np.newaxis] * Rs + Ws * extsun_tiled[:, 1][:, np.newaxis] * Rs
+except:
+    print("# Sun is treated as a point source (directions file not found)...")
+
 D = sun_vecs/np.linalg.norm(sun_vecs,axis=1)[:,np.newaxis]
 D = D.copy(order='C')
-
 print('  * got sun positions from SPICE')
 
 # set up grid of subsurface layers
@@ -79,6 +103,7 @@ else:
     T0 = np.load(path)
 
 # spin model up for niter iterations
+iter_time = []
 for it in range(niter)[from_iter:]:
 
     print(f'Iter #{it + 1}/{niter}')
@@ -104,6 +129,7 @@ for it in range(niter)[from_iter:]:
     path_fmt = f'T%0{len(str(num_frames))}d_{it}.npy'
 
     print('  * time stepping the thermal model')
+    start = time.time()
     # for frame_index, T in tqdm(enumerate(thermal_model), total=D.shape[0]):
     for frame_index, T in enumerate(thermal_model):
         # print(f'time step # + {frame_index + 1}/{D.shape[0]}')
@@ -123,3 +149,23 @@ for it in range(niter)[from_iter:]:
         T0 = np.repeat(np.mean(T,axis=0)[:, np.newaxis], nz + 1, axis=1)
     else:
         T0 = T
+    end = time.time()
+    print(f"  * spin-up iter ended after {end-start} seconds")
+    iter_time.append(end-start)
+
+stats = {
+    'F0': F0,
+    'num_faces_source': D.shape[0]/t.shape[0],
+    'num_faces_mesh': shape_model.F.shape[0],
+    'time_steps': D.shape[0],
+    't_T': np.mean(np.vstack(iter_time)),
+    'niter': niter,
+    'from_iter': from_iter,
+    'max_inner_area_str': max_inner_area_str,
+    'max_outer_area_str': max_outer_area_str,
+    'tol_str': tol_str
+}
+stats_json_path = f'stats_{max_inner_area_str}_{max_outer_area_str}_{tol_str}_{niter}_{from_iter}.json'
+with open(stats_json_path, 'w') as f:
+    json.dump(stats, f)
+print(f'- wrote stats.json to {stats_json_path}')
