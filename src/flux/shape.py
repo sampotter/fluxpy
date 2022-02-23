@@ -193,7 +193,7 @@ class TrimeshShapeModel(ShapeModel):
             The solar constant. [W/m^2]
 
         Dsun: numpy.ndarray
-            An length 3 vector or Mx3 array of sun directions: vectors
+            A length 3 vector or Mx3 array of sun directions: vectors
             indicating the direction of the sun in world coordinates.
 
         basemesh: same as self, optional
@@ -221,13 +221,20 @@ class TrimeshShapeModel(ShapeModel):
         if Dsun.ndim == 1:
             E = np.zeros(self.num_faces, dtype=self.dtype)
             E[I] = F0*np.maximum(0, self.N[I]@Dsun)
-        elif Dsun.ndim == 2:
+        elif (Dsun.ndim == 2) & (Dsun.shape[0] == self.num_faces): # TODO check if useful and if it still works
             if Dsun.shape[0] != self.num_faces:
                 raise ValueError('need Dsun.shape[0] == num_faces')
             if Dsun.shape[1] != 3:
                 raise ValueError('need Dsun.shape[1] == 3 if Dsun.ndim == 2')
             E = np.zeros(self.num_faces, dtype=self.dtype)
             E[I] = F0*np.maximum(0, (self.N[I]*Dsun[I]).sum(1))
+        elif Dsun.ndim == 2:  # for discretized extended light source
+            if Dsun.shape[1] != 3:
+                raise ValueError('need Dsun.shape[1] == 3 if Dsun.ndim == 2')
+            E = self.N@Dsun.T
+            # E = np.einsum(self.N,[0,1],Dsun,[2,1]) # same as '@', easier to generalize if needed
+            E = np.where(I, E, 0)
+            E = F0*np.maximum(0, np.sum(E,axis=1)/Dsun.shape[0])
         else:
             raise RuntimeError('Dsun.ndim > 2 not implemented yet')
 
@@ -269,14 +276,13 @@ class CgalTrimeshShapeModel(TrimeshShapeModel):
 
     def _is_occluded(self, I, D):
         m = len(I)
-        occluded = np.empty(m, dtype=np.bool_)
         if D.ndim == 1:
+            occluded = np.empty(m, dtype=np.bool_)
             for p, i in enumerate(I):
                 occluded[p] = self.aabb.ray_from_centroid_is_occluded(i, D)
         elif D.ndim == 2:
-            for p, i in enumerate(I):
-                dir_sun = D[i,:].copy(order='C') ##
-                occluded[p] = self.aabb.ray_from_centroid_is_occluded(i, dir_sun)
+            occluded = np.empty((m,D.shape[0]), dtype=np.bool_)
+            occluded[:,:] = self.aabb.ray_from_centroid_is_occluded_2d(I, D)
         return occluded
 
 

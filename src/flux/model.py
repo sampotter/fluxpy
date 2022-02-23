@@ -110,9 +110,8 @@ class ThermalModel:
     def __init__(self, FF, t, D, F0, rho, method='1mvp', **kwargs):
         if D.ndim != 2 or D.shape[1] != 3:
             raise ValueError('sun positions ("D") should be an N x 3 ndarray')
-
-        if len(t) != D.shape[0]:
-            raise ValueError('number of time points ("t") and sun positions ("D") should agree')
+        if np.mod(D.shape[0],t.shape[0]) != 0:
+            raise ValueError('number of sun positions ("D") should be equal or multiple of number of time points ("t")')
 
         self._FF = FF
         self._shape_model = kwargs['shape_model'] \
@@ -121,6 +120,7 @@ class ThermalModel:
         self._D = D
         self._F0 = F0
         self._rho = rho
+        self._source_num_faces = int(self._D.shape[0]/self._t.shape[0])
 
         num_faces = self._shape_model.num_faces
 
@@ -166,7 +166,12 @@ class ThermalModel:
         Fgeotherm = promote_to_array_if_necessary(Fgeotherm, (num_faces,), np.float64)
 
         # provisionalT surf and Q from direct illumination only
-        E0 = self._shape_model.get_direct_irradiance(F0, D[0])
+        # print(D.shape)
+        if self._source_num_faces == 1:
+            E0 = self._shape_model.get_direct_irradiance(F0, D[0])
+        else:
+            E0 = self._shape_model.get_direct_irradiance(F0, D[:self._source_num_faces])
+
         Q0 = (1 - rho)*E0 + Fgeotherm
         self._Tsurf = (Q0/(sigSB*emiss))**0.25
 
@@ -185,11 +190,16 @@ class ThermalModel:
         i = self._iter_count
 
         # stop the iteration if we're out of sun directions
-        if i == self._D.shape[0]:
+        if (self._source_num_faces == 1) & (i == self._D.shape[0]):
+            raise StopIteration()
+        elif (self._source_num_faces > 1) & (self._source_num_faces*i == self._D.shape[0]):
             raise StopIteration()
 
         # get the current sun direction and time
-        d, delta_t = self._D[i], self._t[i] - self._t[i - 1]
+        if self._source_num_faces == 1:
+            d, delta_t = self._D[i], self._t[i] - self._t[i - 1]
+        else:
+            d, delta_t = self._D[i*self._source_num_faces:(i+1)*self._source_num_faces,:], self._t[i] - self._t[i - 1]
 
         # compute the current insolation
         E = self._shape_model.get_direct_irradiance(self._F0, d)
