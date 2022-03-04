@@ -1,15 +1,10 @@
 #!/usr/bin/env python
-
-import colorcet as cc
 import meshpy.triangle as triangle
 import numpy as np
 import sys
+import rioxarray as rio
 
-from osgeo import gdal
-from parula import parula_cmap
-
-path = 'ldem_87s_5mpp'
-npy_path = path + '.npy'
+path = 'ldem_87s_50mpp' # 'LDEM_80S_150M' #
 tif_path = path + '.tif'
 
 max_inner_area_str = sys.argv[1]
@@ -18,23 +13,20 @@ max_outer_area_str = sys.argv[2]
 max_inner_area = float(max_inner_area_str)
 max_outer_area = float(max_outer_area_str)
 
-Rp = 1737.4 # average radius of the moon at the south pole in meters,
-            # I guess?
+Rp = 1737.4
 
-dataset = gdal.Open(tif_path)
-dem = np.lib.format.open_memmap(npy_path) # already in meters
+rds = rio.open_rasterio(tif_path)
 
-x0, x1 = map(int, dataset.GetMetadata()['x#actual_range'][1:-1].split(','))
-y0, y1 = map(int, dataset.GetMetadata()['y#actual_range'][1:-1].split(','))
+xgrid = rds.coords['y'].values*-1.e-3
+ygrid = rds.coords['x'].values*1.e-3
+dem = rds.data[0].T[:,::-1]
 
-dx, dy = x1 - x0, y1 - y0
-nx, ny = dem.shape # NOTE: not sure whether x is axis 0 or 1
+nx = len(xgrid)
+ny = len(ygrid)
+
+dx = rds.coords['x'].attrs["actual_range"][-1] - rds.coords['x'].attrs["actual_range"][0]
+dy = rds.coords['y'].attrs["actual_range"][-1] - rds.coords['y'].attrs["actual_range"][0]
 hx, hy = dx/nx, dy/ny
-
-# points are at pixel centers (see comment on PGDA:
-# https://pgda.gsfc.nasa.gov/products/81)
-xgrid = np.linspace(x0 + hx/2, x1 - hx/2, nx)
-ygrid = np.linspace(y0 + hy/2, y1 - hy/2, ny)
 
 xmin, xmax = xgrid.min(), xgrid.max()
 ymin, ymax = ygrid.min(), ygrid.max()
@@ -98,12 +90,23 @@ def unproject_stereographic(x, y):
 
 def stereo2cart(x, y):
     az, el = unproject_stereographic(x, y)
+    # print("x,y",x,y)
+    # start = time.time()
     dR = getz(x, y)
+    # print("dR call took", time.time()-start)
+    # print(dR)
+    # start = time.time()
+    # xi = xr.DataArray([x], dims="z")
+    # yi = xr.DataArray([y], dims="z")
+    # dR = np.squeeze(rds.interp(x=xi, y=yi).data)
+    # print("rioxarray call took", time.time()-start)
+    # print(dR)
+    # exit()
     r = Rp + dR
     cos_el = np.cos(el)
     return r*np.array([cos_el*np.cos(az), cos_el*np.sin(az), np.sin(el)])
 
-xc_roi, yc_roi = 0, -45
+xc_roi, yc_roi = -45, 0
 r_roi, R_roi = 20, 40
 
 x0_roi, x1_roi = xc_roi - R_roi, xc_roi + R_roi
