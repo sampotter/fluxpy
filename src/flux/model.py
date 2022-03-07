@@ -168,9 +168,9 @@ class ThermalModel:
         # provisionalT surf and Q from direct illumination only
         # print(D.shape)
         if self._source_num_faces == 1:
-            E0 = self._shape_model.get_direct_irradiance(F0, D[0])
+            E0 = self._shape_model.get_direct_irradiance(F0[0], D[0])
         else:
-            E0 = self._shape_model.get_direct_irradiance(F0, D[:self._source_num_faces])
+            E0 = self._shape_model.get_direct_irradiance(F0[:self._source_num_faces], D[:self._source_num_faces])
 
         Q0 = (1 - rho)*E0 + Fgeotherm
         self._Tsurf = (Q0/(sigSB*emiss))**0.25
@@ -197,12 +197,14 @@ class ThermalModel:
 
         # get the current sun direction and time
         if self._source_num_faces == 1:
-            d, delta_t = self._D[i], self._t[i] - self._t[i - 1]
+            f, d, delta_t = self._F0[i], self._D[i], self._t[i] - self._t[i - 1]
         else:
-            d, delta_t = self._D[i*self._source_num_faces:(i+1)*self._source_num_faces,:], self._t[i] - self._t[i - 1]
+            f, d, delta_t = self._F0[i*self._source_num_faces:(i+1)*self._source_num_faces,:], \
+                            self._D[i*self._source_num_faces:(i+1)*self._source_num_faces,:], \
+                            self._t[i] - self._t[i - 1]
 
         # compute the current insolation
-        E = self._shape_model.get_direct_irradiance(self._F0, d)
+        E = self._shape_model.get_direct_irradiance(f, d)
 
         # get the previous fluxes and surface temperature
         Qrefl_prev = 0 if i == 1 else self._Qrefl
