@@ -234,7 +234,7 @@ class TrimeshShapeModel(ShapeModel):
             E = self.N@Dsun.T
             # E = np.einsum(self.N,[0,1],Dsun,[2,1]) # same as '@', easier to generalize if needed
             E = np.where(I, E, 0)
-            E = F0*np.maximum(0, np.sum(E,axis=1)/Dsun.shape[0])
+            E = np.mean(F0)*np.maximum(0, np.sum(E,axis=1)/Dsun.shape[0]) # F0 doesn't varies by <1 W/m2 within discretized source
         else:
             raise RuntimeError('Dsun.ndim > 2 not implemented yet')
 
