@@ -279,10 +279,10 @@ class FormFactorTruncatedCsrBlock(FormFactorSparseBlock):
             dmat = mat.A
         else:
             raise Exception('invalid class for mat: %s' % type(mat))
-        
+
         Sr = self.get_form_factor_truncated(dmat)
         self._spmat = Sr
-        
+
         self.partial_norm = np.power(dmat.flatten(), 2).sum()
         self._sq_resid_sum = np.power((self._spmat - dmat).flatten(), 2).sum()
 
@@ -718,7 +718,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
             if not 'k0' in compression_params.keys():
                 raise RuntimeError('compression_params must include key: k0')
-            
+
             k0 = compression_params["k0"]
             if self.root._add_residuals:
                 compressed_block = self._get_sparse_svd_block(spmat, k0=k0)
@@ -732,7 +732,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
             if not np.array([key in compression_params.keys() for key in ['k0', 'p', 'q']]).all():
                 raise RuntimeError('compression_params must include keys: %s' % ['k0', 'p', 'q'])
-            
+
             k0 = compression_params["k0"]
             p = compression_params["p"]
             q = compression_params["q"]
@@ -749,7 +749,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
             if not 'k0' in compression_params.keys():
                 raise RuntimeError('compression_params must include key: k0')
-            
+
             k0 = compression_params["k0"]
 
             if self.root._add_residuals:
@@ -764,7 +764,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
             if not 'k0' in compression_params.keys():
                 raise RuntimeError('compression_params must include key: k0')
-            
+
             k0 = compression_params["k0"]
 
             if self.root._add_residuals:
@@ -779,7 +779,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
             if not np.array([key in compression_params.keys() for key in ['k0', 'p', 'q']]).all():
                 raise RuntimeError('compression_params must include keys: %s' % ['k0', 'p', 'q'])
-            
+
             k0 = compression_params["k0"]
             p = compression_params["p"]
             q = compression_params["q"]
@@ -1065,7 +1065,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         return _is_sparse(self._blocks).all()
 
     # TODO: disabling toarray and tocsr for now. These can cause
-    # confusion because there are two pays of concatenating the
+    # confusion because there are two ways of concatenating the
     # subblocks together: either we undo the row and column
     # permutations before concatenating, or we don't. The user needs
     # to choose, and it's probably best that they just do this sort of
@@ -1338,9 +1338,10 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
 
     def __init__(self, root, shape_model, parts=None,
                  max_depth=None, force_max_depth=False,
-                 ChildBlock=FormFactorQuadtreeBlock):
+                 ChildBlock=FormFactorQuadtreeBlock, slurm=None):
+
         if parts is None:
-            parts = [np.range(shape_model.num_faces)]
+            parts = [np.arange(shape_model.num_faces)]
 
         I_union = []
         for I in parts:
@@ -1355,19 +1356,50 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
         self._row_block_inds = parts
         self._col_block_inds = parts
 
+        # blocks = []
+        # # can send each of the items of this thread to a different node to parallelize whole mesh (see on github how to call)
+        # for i, I in tqdm(enumerate(parts), total=len(parts), desc="FormFactorPartitionBlock i"):
+        #     row_blocks = []
+        #     for j, J in tqdm(enumerate(parts), total=len(parts), desc="FormFactorPartitionBlock j"):
+        #         spmat = get_form_factor_matrix(shape_model, I, J)
+        #         block = self.make_block(shape_model, I, J, spmat,
+        #                                 max_depth, force_max_depth)
+        #         assert block is not None
+        #         row_blocks.append(block)
+        #     blocks.append(row_blocks)
+        #
+        # self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
+
+        def compute_block(I, J):
+            spmat = get_form_factor_matrix(shape_model, I, J)
+            block = self.make_block(shape_model, I, J, spmat,
+                                    max_depth, force_max_depth,
+                                    compression_type=self._root._compression_type,
+                                    compression_params=self._root._compression_params)
+            return block
+
+        slurm = None
         blocks = []
-        for i, I in enumerate(parts):
-            row_blocks = []
-            for j, J in enumerate(parts):
-                spmat = get_form_factor_matrix(shape_model, I, J)
-                block = self.make_block(shape_model, I, J, spmat,
-                                        max_depth, force_max_depth,
-                                        compression_type=self._root._compression_type,
-                                        compression_params=self._root._compression_params)
-                assert block is not None
-                row_blocks.append(block)
-            blocks.append(row_blocks)
-        self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
+        if slurm != None:
+            slurm.update_parameters(slurm_name="flux_FF")
+            jobs = slurm.map_array(compute_block,it.product(parts, repeat=2))
+                                      # [(f"in/{zip_file.split('/')[-1].split('.')[0]}.stl", 1e-1,
+                                      #   f"in/{zip_file.split('/')[-1].split('.')[0]}_1e-1.bin") for zip_file in zip_files])
+            for job in jobs:
+                print(job.result())
+            exit()
+        else:
+            for I, J in it.product(parts, repeat=2):
+                blocks.append(compute_block(I, J))
+            blocks = np.reshape(blocks, (len(parts), len(parts)))
+            self._blocks = np.array(blocks, dtype=CompressedFormFactorBlock)
+
+            # check indexing and reshape
+            # idx = []
+            # for I, J in it.product(parts, repeat=2):
+                # idx.append(f"{I[0]}_{J[0]}")
+            # print(np.reshape(idx, (len(parts), len(parts))))
+            # exit()
 
     def make_child_block(self, *args):
         return self.ChildBlock(self.root, *args)
