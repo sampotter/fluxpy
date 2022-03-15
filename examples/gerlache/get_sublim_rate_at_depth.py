@@ -9,7 +9,7 @@ import glob
 import sys
 
 import numpy as np
-from plot_T_spinup import plot_on_grid
+from plot_utils import plot_on_grid
 from flux.thermal import setgrid
 import colorcet as cc
 
@@ -42,7 +42,7 @@ def get_ice_depth(filin_path,layers):
     icy_layers = np.where(Ess_z < 100, 1, 0)
     icy_layers = len(zdict)-np.sum(icy_layers,axis=0)
     z_100kg_m2Gyr = np.vectorize(zdict.get)(icy_layers)
-    z_100kg_m2Gyr[np.isnan(z_100kg_m2Gyr)] = zdict[len(zdict)-1]  # clamping no-ice layers to bottom layer
+    z_100kg_m2Gyr[np.isnan(z_100kg_m2Gyr.astype(np.float))] = zdict[len(zdict)-1]  # clamping no-ice layers to bottom layer
 
     return z_100kg_m2Gyr
 

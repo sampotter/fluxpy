@@ -102,9 +102,9 @@ for area_str in area_strs:
         plt.colorbar()
         plt.gca().set_aspect('equal')
         plt.subplot(1, 2, 2)
-        plt.title(r'$T$ (tol = %s)' % tol_str)
-        plt.imshow(T_grid, interpolation='none', extent=extent,
-                   vmin=0, vmax=vmax, cmap=cc.cm.fire, zorder=1)
+        plt.title(r'$T$ (tol = %s - true)' % tol_str)
+        plt.imshow(T_grid-T_true_grid, interpolation='none', extent=extent,
+                   vmin=0, vmax=1, cmap=cc.cm.fire, zorder=1)
         plot_ROI_circle(c='cyan', linewidth=1, linestyle='--', zorder=2)
         plt.ylabel('$x$')
         plt.xlabel('$y$')

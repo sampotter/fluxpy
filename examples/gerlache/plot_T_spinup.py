@@ -2,45 +2,12 @@ import glob
 import sys
 
 import numpy as np
-from flux.thermal import setgrid
-from matplotlib import pyplot as plt
-from flux.shape import get_centroids
 import colorcet as cc
 
-def plot_on_grid(arr_to_plot, vertices, faces, title='', savefig=False,
-                 figsize=(10, 10), nrows=1, ncols=1, clim=None, cmap=cc.cm.coolwarm,
-                 sharex = False, sharey = False, show=False):
-
-    P = get_centroids(vertices, faces)
-
-    fig, axs = plt.subplots(nrows, ncols, sharey=sharey, sharex=sharex, figsize=figsize)
-
-    if nrows*ncols > 1:
-        for T, ax in zip(arr_to_plot, axs.ravel()):
-            if clim != None:
-                im = ax.tricontourf(*P[:, :2].T, T, extend='both',filled=True, cmap=cmap, levels=np.linspace(clim[0],clim[1],20))
-            else:
-                im = ax.tricontourf(*P[:, :2].T, T, extend='both',filled=True, cmap=cmap) #, levels=np.linspace(0,clim[1],20))
-            ax.set_title(title)
-            fig.colorbar(im, ax=ax)
-            ax.set_aspect('equal')
-    else:
-        if clim != None:
-            im = axs.tricontourf(*P[:, :2].T, arr_to_plot, extend='both', filled=True,
-                            cmap=cmap, levels=np.linspace(clim[0],clim[1],20))
-        else:
-            im = axs.tricontourf(*P[:, :2].T, arr_to_plot, extend='both', filled=True,
-                            cmap=cmap)
-        axs.set_title(title)
-        fig.colorbar(im, ax=axs)
-        axs.set_aspect('equal')
-
-    fig.tight_layout()
-    if savefig != False:
-        plt.savefig(savefig)
-    if show:
-        plt.show()
-    plt.close()
+from flux.thermal import setgrid
+from plot_utils import plot_on_grid
+from flux.compressed_form_factors import CompressedFormFactorMatrix
+from get_sublim_rate_at_depth import get_ice_depth
 
 if __name__ == '__main__':
 
@@ -50,6 +17,14 @@ if __name__ == '__main__':
     layer = int(sys.argv[4])
 
     # read SP mesh
+    # path = "/home/sberton2/Lavoro/code/plapp-flux/examples/deGerlache/Moon/FF_Moon_quad_deGerlache_750.bin"
+    # FF = CompressedFormFactorMatrix.from_file(path)
+    # shape_model = FF.shape_model
+    # V = shape_model.V
+    # # V[:,0] = -1. * shape_model.V[:,1]
+    # # V[:,1] = shape_model.V[:,0]
+    #
+    # F = shape_model.F
     vertices_path = f"gerlache_verts_stereo_{max_inner_area_str}_{max_outer_area_str}.npy"
     faces_path = f"gerlache_faces_{max_inner_area_str}_{max_outer_area_str}.npy"
     V = np.load(vertices_path)
@@ -76,8 +51,8 @@ if __name__ == '__main__':
             Tlayer_max = np.max(Tlayer,axis=0) # max along epochs
             save_to = f"T_frames/{max_inner_area_str}_{max_outer_area_str}_{tol_str}/T{layer}_max_{it}.png"
             plot_on_grid(arr_to_plot=Tlayer_max, vertices=V, faces=F,
-                         title='Tlayer_max', # clim=(-100,100),
-                         savefig=save_to)
+                         title='Tlayer_max',  # clim=(-100,100),
+                         save_to=save_to)
             print(f'- Tmax saved to {save_to}.')
 
         # save layerace layer mean T along epochs @ iter
@@ -91,7 +66,7 @@ if __name__ == '__main__':
     plot_on_grid(arr_to_plot=Tmean_it_diff, vertices=V, faces=F,
                  title='', clim=(-1.,1.),
                  nrows=6, ncols= 5, figsize=(50,60), sharey=True, sharex= True,
-                 savefig=save_to)
+                 save_to=save_to)
     print(f'- Tmean differences over iterations saved to {save_to}.')
 
     # plot z(T<110K)
@@ -103,29 +78,32 @@ if __name__ == '__main__':
     zmax = 2.5  # 2.5 for Moon
     print(f"- Considering subsurface layers with nz={nz}, zfac={zfac}, zmax={zmax}.")
     z = np.array([0] + [x for x in setgrid(nz=nz, zfac=zfac, zmax=zmax)])
-    zdict = dict(zip(np.arange(len(z)),z))
+    # zdict = dict(zip(np.arange(len(z)),z))
+    #
+    # zsub_epo = []
+    # for f in Tfiles:
+    #     T = np.load(f)[:,:]
+    #     id, data = np.where(T < 110)
+    #     _ndx = np.argsort(id)
+    #     _id, _pos = np.unique(id[_ndx], return_index=True)
+    #     g_min = np.minimum.reduceat(data[_ndx], _pos)
+    #     z110 = np.vstack([_id,g_min]).T
+    #
+    #     fill = np.vstack([np.arange(T.shape[0]),np.repeat(np.nan,T.shape[0])]).T
+    #     for row in z110:
+    #         fill[row[0],-1] = row[1]
+    #     zsub_epo.append(np.nan_to_num(fill[:,-1], nan=nz))
+    #
+    # zsub = np.vstack(zsub_epo)
+    # zsub = np.max(zsub, axis=0)
+    # zsub = [zdict[j] for j in zsub]
 
-    zsub_epo = []
-    for f in Tfiles:
-        T = np.load(f)[:,:]
-        id, data = np.where(T < 110)
-        _ndx = np.argsort(id)
-        _id, _pos = np.unique(id[_ndx], return_index=True)
-        g_min = np.minimum.reduceat(data[_ndx], _pos)
-        z110 = np.vstack([_id,g_min]).T
-
-        fill = np.vstack([np.arange(T.shape[0]),np.repeat(np.nan,T.shape[0])]).T
-        for row in z110:
-            fill[row[0],-1] = row[1]
-        zsub_epo.append(np.nan_to_num(fill[:,-1], nan=nz))
-
-    zsub = np.vstack(zsub_epo)
-    zsub = np.max(zsub, axis=0)
-    zsub = [zdict[j] for j in zsub]
+    zsub = get_ice_depth(filin_path=Tfiles, layers=z)
 
     save_to = f"T_frames/{max_inner_area_str}_{max_outer_area_str}_{tol_str}/" \
-              f"zice_{max_inner_area_str}_{max_outer_area_str}_{tol_str}.png"
+              f"Ess_{max_inner_area_str}_{max_outer_area_str}_{tol_str}.png"
     plot_on_grid(arr_to_plot=zsub, vertices=V, faces=F,
-                 title='z(T110)', clim=(0, 2.5),
-                 savefig=save_to)
+                 title=f'min_z(E<= 100 kg m-2 Gyr-1), m',
+                 clim=(0, 0.5), cmap=cc.cm.bgyw,
+                 save_to=save_to)
     print(f'- zice saved to {save_to}.')

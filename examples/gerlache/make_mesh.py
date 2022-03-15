@@ -4,7 +4,7 @@ import numpy as np
 import sys
 import rioxarray as rio
 
-path = 'ldem_87s_50mpp' # 'LDEM_80S_150M' #
+path = 'ldem_87s_5mpp' # 'LDEM_80S_150M' #
 tif_path = path + '.tif'
 
 max_inner_area_str = sys.argv[1]
