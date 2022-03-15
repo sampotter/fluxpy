@@ -6,7 +6,7 @@ from flux.thermal import setgrid
 from matplotlib import pyplot as plt
 
 from get_sublim_rate_at_depth import get_ice_depth
-from plot_T_spinup import plot_on_grid
+from plot_utils import plot_on_grid
 from flux.shape import get_centroids
 import colorcet as cc
 
@@ -49,10 +49,16 @@ if __name__ == '__main__':
 
     max_diff = TlayerA_max - TlayerB_max
 
+    P = get_centroids(V, F)
+    print("Applying mask to data (de Gerlache)")
+    mask = (P[:, 1] > -65) & (P[:, 1] < -30) & (P[:, 0] > -20) & (P[:, 0] < 20)
+    F = F[mask]
+    max_diff = max_diff[mask]
+
     save_to = f"T_frames/{max_inner_area_str}_{max_outer_area_str}_{tol_strA}/T{layer}_max_{tol_strA}_vs_{tol_strB}.png"
     plot_on_grid(arr_to_plot=max_diff, vertices=V, faces=F,
-                 title=f'Tlayer max {tol_strA} vs {tol_strB}; max={round(np.max(max_diff),1)} m', clim=(-5,5),
-                 savefig=save_to)
+                 title=f'Tlayer max {tol_strA} vs {tol_strB}, K; max={round(np.max(max_diff),1)} K', clim=(-10,10),
+                 save_to=save_to)
     print(f'- Tmax diff saved to {save_to}.')
 
     nz = 60
@@ -71,6 +77,6 @@ if __name__ == '__main__':
     plot_on_grid(arr_to_plot=ice_depth_diff, vertices=V, faces=F,
                  title=f'min_z(E<= 100 kg m-2 Gyr-1), m, diff {tol_strA} vs {tol_strB}; '
                        f'max={round(np.max(ice_depth_diff),1)} m',
-                 clim=(-0.5, 0.5), # cmap=cc.cm.bgyw,
-                 savefig=save_to)
+                 clim=(-1, 1), # cmap=cc.cm.bgyw,
+                 save_to=save_to)
     print(f'- zice diffs saved to {save_to}.')
