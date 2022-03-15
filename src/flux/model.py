@@ -107,7 +107,7 @@ def update_incoming_radiances_wsvd(E, albedo, emiss, Qrefl, QIR, Tsurf, Vt, w, U
 
 class ThermalModel:
 
-    def __init__(self, FF, t, D, F0, rho, method='1mvp', **kwargs):
+    def __init__(self, FF, t, D, F0, rho, method='1mvp', return_flux=False, **kwargs):
         if D.ndim != 2 or D.shape[1] != 3:
             raise ValueError('sun positions ("D") should be an N x 3 ndarray')
         if np.mod(D.shape[0],t.shape[0]) != 0:
@@ -121,6 +121,7 @@ class ThermalModel:
         self._F0 = F0
         self._rho = rho
         self._source_num_faces = int(self._D.shape[0]/self._t.shape[0])
+        self._return_flux = return_flux
 
         num_faces = self._shape_model.num_faces
 
@@ -227,4 +228,7 @@ class ThermalModel:
         self._QIR = QIR
         self._Tsurf = self._pcc_thermal_model_1d.T[:, 0]
 
-        return self._pcc_thermal_model_1d.T
+        if self._return_flux:
+            return self._pcc_thermal_model_1d.T, E, self._Qrefl, self._QIR
+        else:
+            return self._pcc_thermal_model_1d.T
