@@ -250,6 +250,12 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
         y = self._u@y
         return y
 
+    def is_dense(self):
+        return False
+
+    def is_sparse(self):
+        return False
+
     @property
     def is_empty_leaf(self):
         return False
@@ -311,6 +317,8 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
         size = np.product(shape)
         sparsity = nnz/size
+        sparse_block = self.root.make_sparse_block(spmat)
+        nbytes_sparse = nbytes(spmat)
 
         # First, if the matrix is small enough, we don't want to
         # bother with trying to compress it or recursively descending
@@ -320,33 +328,53 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         # on tiny form factor matrices. Not sure why. But that's
         # another thing to be careful about.
         if size < self._min_size:
+            # See if we can save a few bytes by storing a dense matrix
+            # instead...
+            #
+            # TODO: can compute the dense nbytes without actually
+            # forming the dense block! And should do this check even
+            # if we aren't in this clause!
             dense_block = self.root.make_dense_block(spmat)
-            if dense_block.nbytes < nbytes(spmat):
+            if dense_block.nbytes < nbytes_sparse:
                 return dense_block
             else:
-                return self.root.make_sparse_block(spmat)
+                return sparse_block
 
         # Next, since the block is "big enough", we go ahead and
-        # compress it.
-        block = self.make_compressed_sparse_block(spmat)
+        # attempt to compress it.
+        svd_block = self._get_svd_block(spmat)
+        nbytes_svd = np.inf if svd_block is None else nbytes(svd_block)
 
-        # If we failed to compress the block, we need to be a little
-        # more careful and decide what to do next.
-        if isinstance(block, FormFactorSparseBlock):
-            # If we haven't specified a max depth, or if we haven't
-            # bottomed out yet, then we attempt to descend another
-            # level.
-            if max_depth is None or max_depth > 1:
-                block = self.make_child_block(
-                    shape_model, spmat, I, J,
-                    None if max_depth is None else max_depth - 1)
-            # If all of the child blocks are dense blocks, then
-            # collapse them into a single block and return it.
-            if block.is_dense():
-                return self.root.make_dense_block(spmat)
-            # ... ditto if all the child blocks are sparse blocks.
-            if block.is_sparse():
-                return self.root.make_sparse_block(spmat)
+        # If we haven't specified a max depth, or if we haven't
+        # bottomed out yet, then we attempt to descend another
+        # level.
+        if max_depth is None or max_depth > 1:
+            child_block = self.make_child_block(
+                shape_model, spmat, I, J,
+                None if max_depth is None else max_depth - 1)
+        else:
+            child_block = None
+        nbytes_child = np.inf if child_block is None else nbytes(child_block)
+
+        nbytes_min = min(nbytes_sparse, nbytes_svd, nbytes_child)
+
+        # Select the block with the smallest size
+        if nbytes_sparse == nbytes_min:
+            block = sparse_block
+        elif nbytes_svd == nbytes_min:
+            block = svd_block
+        else:
+            block = child_block
+
+        # Finally, do a little post-processing: if all of the child
+        # blocks are dense blocks, then collapse them into a single
+        # block and return it...
+        if block.is_dense():
+            return self.root.make_dense_block(spmat)
+
+        # ... ditto if all the child blocks are sparse blocks.
+        if block.is_sparse():
+            return self.root.make_sparse_block(spmat)
 
         if isinstance(block, type(self)):
             assert all(_ is not None for _ in block._blocks.ravel())
@@ -357,11 +385,12 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             or isinstance(block, FormFactorSvdBlock)
         return block
 
-    def make_compressed_sparse_block(self, spmat):
+    def _get_svd_block(self, spmat):
         ret = flux.linalg.estimate_rank(
             spmat, self._tol, max_nbytes=nbytes(spmat))
         if ret is None:
-            return self.root.make_sparse_block(spmat)
+            return None
+
         U, S, Vt, tol = ret
         svd_block = self.root.make_svd_block(U, S, Vt)
 
@@ -370,10 +399,10 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         # assert tol != 0
         if tol <= self._tol:
             return svd_block
-        else:
-            logging.warning("""computed a really inaccurate SVD, using
-            a larger sparse block instead...""")
-            return self.root.make_sparse_block(spmat)
+
+        logging.warning("""computed a really inaccurate SVD, using
+        a larger sparse block instead...""")
+        return None
 
     def _matmat(self, x):
         y = np.zeros((self.shape[0], x.shape[1]), dtype=self.dtype)
