@@ -24,9 +24,7 @@ if __name__ == '__main__':
 
     # initialize SPICE
     spice.kclear()
-    spice.furnsh('simple.furnsh')
-    spice.furnsh('kernels/dawn_ceres_SPC151123.tpc')
-    spice.furnsh('kernels/sb_ceres_grv_171219.bsp')
+    spice.furnsh('ceres.furnsh')
 
     # Define time window
     # northern summer solstice, declination +4

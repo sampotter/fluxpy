@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# produces mesh for topo file using grid points as vertices (no interpolation)
+# produces mesh for various topo file formats without interpolation of vertex coordinates
 
 
 import matplotlib.pyplot as plt
@@ -9,7 +9,7 @@ import numpy as np
 import os
 import scipy.interpolate
 import pickle
-#import meshio
+import meshio
 #import trimesh
 
 from flux.plot import tripcolor_vector
@@ -17,6 +17,20 @@ from flux.shape import get_centroids, get_surface_normals
 #from flux.shape import CgalTrimeshShapeModel as MyTrimeshShapeModel
 from flux.shape import EmbreeTrimeshShapeModel as MyTrimeshShapeModel
 
+
+
+def import_obj(get_normals=False):
+    # use meshio to import obj shapefile
+    mesh = meshio.read(filename='/home/norbert/Dawn/PSR2/Gaskell/KNP004.OBJ')
+    # provides
+    # mesh.points = V
+    # mesh.cells = F - 1 (subtracted from all components, not sure why but adding it again generates warnings)
+    V = mesh.points
+    V = V.astype(np.float32)  # embree is anyway single precision
+    V = V[:, :3]
+    F = mesh.cells[0].data
+
+    return V, F
 
 
 def mesh_from_grd():
@@ -82,8 +96,9 @@ def mesh_from_xyz():
 
 if __name__ == '__main__':
 
-    V, F = mesh_from_grd()
+    #V, F = mesh_from_grd()
     #V, F = mesh_from_xyz()
+    V, F = import_obj()
 
     num_faces = F.shape[0]
     num_vertices = V.shape[0]

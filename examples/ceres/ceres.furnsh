@@ -7,6 +7,8 @@
    KERNELS_TO_LOAD = (
                        '$KERNELS_COMMON/naif0012.tls'
                        '$KERNELS_COMMON/de421.bsp'
+		       '$KERNELS_COMMON/dawn_ceres_SPC151123.tpc'
+		       '$KERNELS_COMMON/sb_ceres_grv_171219.bsp'
                      )
 
 \begintext
