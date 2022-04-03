@@ -1,7 +1,7 @@
 import copy
 import itertools as it
 import logging
-
+from tqdm import tqdm
 
 from abc import ABC
 
@@ -1378,11 +1378,11 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
                                     compression_params=self._root._compression_params)
             return block
 
-        slurm = None
+        # slurm = None
         blocks = []
         if slurm != None:
             slurm.update_parameters(slurm_name="flux_FF")
-            jobs = slurm.map_array(compute_block,it.product(parts, repeat=2))
+            jobs = slurm.map_array(compute_block,[I for (I,J) in it.product(parts, repeat=2)],[J for (I,J) in it.product(parts, repeat=2)])
                                       # [(f"in/{zip_file.split('/')[-1].split('.')[0]}.stl", 1e-1,
                                       #   f"in/{zip_file.split('/')[-1].split('.')[0]}_1e-1.bin") for zip_file in zip_files])
             for job in jobs:
