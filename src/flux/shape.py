@@ -156,7 +156,7 @@ class TrimeshShapeModel(ShapeModel):
         # aren't oriented towards each other to False
         if oriented:
             I_, J_ = np.where(vis)
-            mask = ((self.P[J_] - self.P[I_])*self.N[I_]).sum(1) <= 0
+            mask = ((self.P[J[J_]] - self.P[I[I_]])*self.N[I[I_]]).sum(1) <= 0
             for i, j in zip(I_[mask], J_[mask]):
                 vis[i, j] = False
 
