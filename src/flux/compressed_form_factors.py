@@ -1,18 +1,14 @@
 import copy
 import itertools as it
 import logging
-from tqdm import tqdm
 
 from abc import ABC
-
 
 import numpy as np
 import pickle
 import scipy.sparse.linalg
 
-
 import flux.linalg
-
 
 from flux.debug import IndentedPrinter
 from flux.form_factors import get_form_factor_matrix
