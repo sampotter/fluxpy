@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
 import matplotlib.pyplot as plt
-import numpy as np
 #import os
 import pickle
 import scipy
 
-from flux.plot import plot_blocks, tripcolor_vector
+from flux.plot import tripcolor_vector
 from flux.form_factors import get_form_factor_matrix
 
 

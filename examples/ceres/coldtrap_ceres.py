@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-# Calculates equilibrium temperature based on FF for a full rotation
+# Calculates equilibrium temperature for a full rotation
+# reads previously constructed mesh and FF
 
 
 import matplotlib.pyplot as plt
 import numpy as np
 #import os
-import time
 import json
 import pickle
 import spiceypy as spice
@@ -55,11 +55,12 @@ if __name__ == '__main__':
     
     # Define constants used in the simulation:
     F0 = 1365 # Solar constant
-    albedo = 0.1
+    albedo = 0.07
     emiss = 0.98
 
     Emax = np.zeros(F.shape[0])
     Tmax = np.zeros(F.shape[0])
+    Qvis_max = np.zeros(F.shape[0])
     
     for i in range(len(et)):
 
@@ -70,7 +71,6 @@ if __name__ == '__main__':
     
         # Compute the direct irradiance and find the elements which are in shadow.
         E = shape_model.get_direct_irradiance(F0/Rau**2, dir_sun)
-        #I_shadow = E == 0
 
         print(i, np.max(E))
 
@@ -78,8 +78,9 @@ if __name__ == '__main__':
         Emax = np.maximum.reduce([Emax, E])
 
         # Calculate equilibrium temperatures
-        T = compute_steady_state_temp(FF, E, albedo, emiss)
+        T, Qvis, QIR = compute_steady_state_temp(FF, E, albedo, emiss)
         Tmax = np.maximum.reduce([Tmax, T])
+        Qvis_max = np.maximum.reduce([Qvis_max, Qvis])
 
         
     stats = {
@@ -92,17 +93,12 @@ if __name__ == '__main__':
         json.dump(stats, f)
     print('- wrote params.json')
     
-    # Make plot of direct irradiance
-    vv = np.vstack( (V[:,0], V[:,1]) )  # same as V[:,:2].T
-    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-    im = ax.tripcolor(*vv, F, Emax, cmap = 'gray', vmin=0)
-    fig.colorbar(im, ax=ax, label='Maximum incident flux (W/m^2)')
-    ax.set_aspect('equal')
-    fig.savefig('Emax.png')
-    plt.close(fig)
-    print('- wrote Emax.png')
+    # Save maps
+    np.savez('Tmax', V=V, F=F, P=shape_model.P, Tmax=Tmax, Emax=Emax, Qvis_max=Qvis_max)
+    print('- saved Tmax.npz')
     
     # Make plot of maximum temperature
+    vv = np.vstack( (V[:,0], V[:,1]) )  # same as V[:,:2].T
     fig, ax = plt.subplots(1, 1, figsize=(12, 10))
     im = ax.tripcolor(*vv, F, Tmax, cmap = 'jet')
     fig.colorbar(im, ax=ax, label='Maximum Temperature (K)')
@@ -111,4 +107,5 @@ if __name__ == '__main__':
     plt.close(fig)
     print('- wrote Tmax.png')
 
-    
+
+

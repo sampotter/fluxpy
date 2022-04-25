@@ -14,8 +14,8 @@ import meshio
 
 from flux.plot import tripcolor_vector
 from flux.shape import get_centroids, get_surface_normals
-#from flux.shape import CgalTrimeshShapeModel as MyTrimeshShapeModel
-from flux.shape import EmbreeTrimeshShapeModel as MyTrimeshShapeModel
+from flux.shape import CgalTrimeshShapeModel as MyTrimeshShapeModel
+#from flux.shape import EmbreeTrimeshShapeModel as MyTrimeshShapeModel
 
 
 
