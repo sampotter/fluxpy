@@ -1,4 +1,4 @@
-def get_sunvec(utc0, utc1=0, stepet=1, et_linspace=None):
+def get_sunvec(utc0, target, observer, frame, utc1=0, stepet=1, et_linspace=None):
     '''This script uses SPICE to compute a trajectory for the sun, loads a
         shape model discretizing a patch of the lunar south pole (made using
         lsp_make_obj.py), and a compressed form factor matrix for that
@@ -28,7 +28,7 @@ def get_sunvec(utc0, utc1=0, stepet=1, et_linspace=None):
     # TODO I would usually do this, maybe you want to
     # TODO add something similar to the thermal model options/config?
     # possun = spice.spkpos('SUN', et, FluxOpt.get("frame"), 'LT+S', FluxOpt.get("body"))[0]
-    possun = spice.spkpos('SUN', et, 'MOON_ME', 'LT+S', 'MOON')[0]
+    possun = spice.spkpos(target, et, frame, 'LT+S', observer)[0]
     possun = possun
 
     # TODO why am I doing this conversion to lon/lat if then I'm reconstructing the cartesian version?

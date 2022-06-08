@@ -17,7 +17,7 @@ cdef extern from "aabb_wrapper.h":
     bool cgal_aabb_test_face_to_face_vis(const cgal_aabb *aabb,
                                          size_t i, size_t j) nogil except +
     bool cgal_aabb_ray_from_centroid_is_occluded(const cgal_aabb *aabb,
-                                                 size_t i, double d[3]) except +
+                                                 size_t i, double d[3]) nogil except +
     bool cgal_aabb_intersect1(const cgal_aabb *aabb, const double x[3], const double d[3],
                               size_t *i, double xt[3]) except +
 
@@ -71,3 +71,18 @@ cdef class AABB:
 
     def ray_from_centroid_is_occluded(self, size_t i, double[::1] d):
         return cgal_aabb_ray_from_centroid_is_occluded(self.aabb, i, &d[0])
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def ray_from_centroid_is_occluded_2d(self, long[::1] I, double[:,::1] D):
+        cdef size_t m = len(I)
+        cdef size_t n = D.shape[0]
+        #cdef double[::1] d
+        cdef bool[:, ::1] occ = np.zeros((m, n), dtype=np.bool_)
+        cdef size_t i, j
+
+        for i in prange(m, nogil=True): # run outer loop in parallel
+            for j in range(n):
+                #d = D[j,:]
+                occ[i,j] = cgal_aabb_ray_from_centroid_is_occluded(self.aabb, i, &D[j,0])
+        return occ

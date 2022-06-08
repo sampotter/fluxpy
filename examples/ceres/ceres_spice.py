@@ -4,9 +4,9 @@ import numpy as np
 import spiceypy as spice
 
 spice.kclear()
-spice.furnsh('simple.furnsh')
-spice.furnsh('kernels/dawn_ceres_SPC151123.tpc')
-spice.furnsh('kernels/sb_ceres_grv_171219.bsp')
+spice.furnsh('ceres.furnsh')
+#spice.furnsh('kernels/dawn_ceres_SPC151123.tpc')
+#spice.furnsh('kernels/sb_ceres_grv_171219.bsp')
 
 # Define time window
 

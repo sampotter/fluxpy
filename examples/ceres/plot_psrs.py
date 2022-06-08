@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 R = 470  # nominal radius of Ceres
 
 a = np.load('emax.npz')
+#a = np.load('SPG_North/emax_embree_SPG180_north.npz')
 
 V = a['V']
 F = a['F']
@@ -35,6 +36,8 @@ kpsr = np.where(Emax==0)[0]
 im2 = ax.tripcolor( *vv , F[kpsr], Emax[kpsr], cmap = 'jet_r')
 ax.set_xlim( np.min(vv[0,:]), np.max(vv[0,:]) )
 ax.set_ylim( np.min(vv[1,:]), np.max(vv[1,:]) )
+ax.set_xlabel('X [km]')
+ax.set_ylabel('Y [km]')
 fig.tight_layout()
 
 # draw lines of equal latitude

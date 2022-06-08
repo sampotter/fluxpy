@@ -98,7 +98,7 @@ for tol_str in tol_strs + ['true']:
                label=f'assembly ({tol_str})')
 for tol_str in tol_strs + ['true']:
     plt.loglog(num_faces, df_T_times[tol_str], marker='*', linestyle='--',
-               label=f'compute T ({tol_str}')
+               label=f'compute T ({tol_str})')
 plt.ylabel('Time [s]')
 plt.xlabel('$N$')
 plt.legend()
