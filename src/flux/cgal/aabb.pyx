@@ -19,7 +19,7 @@ cdef extern from "aabb_wrapper.h":
     bool cgal_aabb_ray_from_centroid_is_occluded(const cgal_aabb *aabb,
                                                  size_t i, double d[3]) nogil except +
     bool cgal_aabb_intersect1(const cgal_aabb *aabb, const double x[3], const double d[3],
-                              size_t *i, double xt[3]) except +
+                              size_t *i, double xt[3]) nogil except +
 
 cdef class AABB:
     cdef cgal_aabb *aabb
@@ -50,6 +50,27 @@ cdef class AABB:
         cdef double xt[3]
         if cgal_aabb_intersect1(self.aabb, &x[0], &d[0], &i, &xt[0]):
             return i, np.array([xt[0], xt[1], xt[2]])
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def intersect1_2d(self, double[:,::1] X, double[:,::1] D):
+        cdef size_t m = X.shape[0]
+        cdef size_t n = D.shape[0]
+        cdef size_t l
+        cdef double xt[3]
+
+        if m != n:
+            raise RuntimeError('intersect1_2d expects input centers and directions with the same length')
+
+        cdef long[:] fint = np.zeros((m), dtype=np.int_)
+        cdef size_t[:] i = np.zeros((m), dtype=np.uint)
+
+        for l in prange(m, nogil=True): # run outer loop in parallel
+                if cgal_aabb_intersect1(self.aabb, &X[l,0], &D[l,0], &i[l], &xt[0]):
+                    fint[l] = i[l]
+                else:
+                    fint[l] = -1
+        return np.asarray(fint)
 
     def test_face_to_face_vis(self, size_t i, size_t j):
         return cgal_aabb_test_face_to_face_vis(self.aabb, i, j)

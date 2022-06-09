@@ -135,6 +135,15 @@ class TrimeshShapeModel(ShapeModel):
         '''
         return self._intersect1(x, d)
 
+    def intersect1_2d(self, X, D):
+        '''Trace a single ray starting from `X` and in the direction `D`.  If
+        there is a hit, return the index (`i`) of the hit and a
+        parameter `t` such that the hit point is given by `X(t) = X +
+        t*D`.
+
+        '''
+        return self._intersect1_2d(X, D)
+
     def get_visibility(self, I, J, oriented=False):
 
         '''Compute the visibility mask for pairs of indices (i, j) taken from
@@ -156,7 +165,7 @@ class TrimeshShapeModel(ShapeModel):
         # aren't oriented towards each other to False
         if oriented:
             I_, J_ = np.where(vis)
-            mask = ((self.P[J_] - self.P[I_])*self.N[I_]).sum(1) <= 0
+            mask = ((self.P[J[J_]] - self.P[I[I_]])*self.N[I[I_]]).sum(1) <= 0
             for i, j in zip(I_[mask], J_[mask]):
                 vis[i, j] = False
 
@@ -268,6 +277,9 @@ class CgalTrimeshShapeModel(TrimeshShapeModel):
 
     def _intersect1(self, x, d):
         return self.aabb.intersect1(x, d)
+
+    def _intersect1_2d(self, X, D):
+        return self.aabb.intersect1_2d(X, D)
 
     def _get_visibility(self, I, J):
         if not isinstance(I, np.ndarray):
