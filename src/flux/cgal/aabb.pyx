@@ -56,16 +56,20 @@ cdef class AABB:
     def intersect1_2d(self, double[:,::1] X, double[:,::1] D):
         cdef size_t m = X.shape[0]
         cdef size_t n = D.shape[0]
-        cdef size_t i, l
+        cdef size_t l
         cdef double xt[3]
 
         if m != n:
             raise RuntimeError('intersect1_2d expects input centers and directions with the same length')
 
         cdef long[:] fint = np.zeros((m), dtype=np.int_)
+        cdef size_t[:] i = np.zeros((m), dtype=np.uint)
+
         for l in prange(m, nogil=True): # run outer loop in parallel
-                if cgal_aabb_intersect1(self.aabb, &X[l,0], &D[l,0], &i, &xt[0]):
-                    fint[l] = i
+                if cgal_aabb_intersect1(self.aabb, &X[l,0], &D[l,0], &i[l], &xt[0]):
+                    fint[l] = i[l]
+                else:
+                    fint[l] = -1
         return np.asarray(fint)
 
     def test_face_to_face_vis(self, size_t i, size_t j):
