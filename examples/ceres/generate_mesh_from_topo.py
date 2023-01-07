@@ -7,24 +7,24 @@ import matplotlib.pyplot as plt
 import netCDF4
 import numpy as np
 import os
-import scipy.interpolate
 import pickle
 import meshio
 #import trimesh
+import scipy.spatial
+import sys
 
 from flux.plot import tripcolor_vector
 from flux.shape import get_centroids, get_surface_normals
-from flux.shape import CgalTrimeshShapeModel as MyTrimeshShapeModel
-#from flux.shape import EmbreeTrimeshShapeModel as MyTrimeshShapeModel
+#from flux.shape import CgalTrimeshShapeModel as MyTrimeshShapeModel
+from flux.shape import EmbreeTrimeshShapeModel as MyTrimeshShapeModel
 
 
 
-def import_obj(get_normals=False):
+def import_obj(fn):
     # use meshio to import obj shapefile
-    mesh = meshio.read(filename='/home/norbert/Dawn/PSR2/Gaskell/KNP004.OBJ')
-    # provides
-    # mesh.points = V
-    # mesh.cells = F - 1 (subtracted from all components, not sure why but adding it again generates warnings)
+    fn_with_path = os.path.join('/home/norbert/Dawn/PSR2/Gaskell/',fn)
+    #mesh = meshio.read(filename='/home/norbert/Dawn/PSR2/Gaskell/KNP004.OBJ')
+    mesh = meshio.read(filename=fn_with_path)
     V = mesh.points
     V = V.astype(np.float32)  # embree is anyway single precision
     V = V[:, :3]
@@ -68,7 +68,7 @@ def mesh_from_xyz():
     # Load DEM with (x,y,z) columns
     pathfn = os.path.join('/arsia/Dawn/DWNCHSPG_2/DATA', 'tmp.xyz')
     # Or load a DEM stored as a icq file (Gaskell file format)
-    #pathfn = os.path.join('/home/norbert/Dawn/PSR2/', 'tmp.topo')
+    #pathfn = os.path.join('/home/norbert/Dawn/PSR2/', 'tmp_south.topo')
     
     a = np.loadtxt(pathfn)
     print('loaded',pathfn)
@@ -88,7 +88,7 @@ def mesh_from_xyz():
 
     V = np.row_stack([V.T, Z]).T
     
-    assert np.linalg.norm(V-a) == 0.
+    assert np.linalg.norm(V-a) == 0. # make sure vertex locations are preserved
     
     return V, F
 
@@ -96,9 +96,11 @@ def mesh_from_xyz():
 
 if __name__ == '__main__':
 
+    #arg = sys.argv[1] # command line argument
+    #print(arg)
     #V, F = mesh_from_grd()
-    #V, F = mesh_from_xyz()
-    V, F = import_obj()
+    V, F = mesh_from_xyz()
+    #V, F = import_obj(fn=arg)
 
     num_faces = F.shape[0]
     num_vertices = V.shape[0]
@@ -106,9 +108,9 @@ if __name__ == '__main__':
     
     # Make plot of topography
     fig, ax = tripcolor_vector(V, F, V[:,2], cmap='jet')
-    fig.savefig('topo2.png')
+    fig.savefig('topo.png')
     plt.close(fig)
-    print('- wrote topo2.png')
+    print('- wrote topo.png')
 
     # Let's use another Python library (meshio) to save the triangle
     # mesh as an OBJ file (optional).

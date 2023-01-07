@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 #import os
 import pickle
 import scipy
+import sys
 
 from flux.plot import tripcolor_vector
 from flux.form_factors import get_form_factor_matrix
@@ -11,8 +12,10 @@ from flux.form_factors import get_form_factor_matrix
 
 if __name__ == '__main__':
 
+    arg = sys.argv[1] # command line argument
+    
     # Load a DEM stored as mesh.bin (e.g. use generate_FF_from_topo.py)
-    with open('mesh.bin', 'rb') as f:   # enter file name here
+    with open(arg, 'rb') as f:   # enter file name here
         shape_model = pickle.load(f)
 
     V = shape_model.V

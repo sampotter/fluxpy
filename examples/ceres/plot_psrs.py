@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 
 R = 470  # nominal radius of Ceres
 
-a = np.load('emax.npz')
-#a = np.load('SPG_North/emax_embree_SPG180_north.npz')
+#a = np.load('emax.npz')
+a = np.load('SPG_North/emax_embree_SPG180_north.npz')
 
 V = a['V']
 F = a['F']
@@ -33,17 +33,14 @@ ax.set_aspect('equal')
 
 # Plot PSRs in different color on top
 kpsr = np.where(Emax==0)[0]
-im2 = ax.tripcolor( *vv , F[kpsr], Emax[kpsr], cmap = 'jet_r')
-ax.set_xlim( np.min(vv[0,:]), np.max(vv[0,:]) )
-ax.set_ylim( np.min(vv[1,:]), np.max(vv[1,:]) )
-ax.set_xlabel('X [km]')
-ax.set_ylabel('Y [km]')
-fig.tight_layout()
+if len(kpsr) > 0:
+    im2 = ax.tripcolor( *vv , F[kpsr], Emax[kpsr], cmap = 'jet_r')
+    ax.set_xlim( np.min(vv[0,:]), np.max(vv[0,:]) )
+    ax.set_ylim( np.min(vv[1,:]), np.max(vv[1,:]) )
+    ax.set_xlabel('X [km]')
+    ax.set_ylabel('Y [km]')
+    fig.tight_layout()
 
-# draw lines of equal latitude
-levs = np.deg2rad(np.arange(60,90,5))
-lat = np.arctan2( V[:,2] , np.sqrt(V[:,0]**2 + V[:,1]**2) )
-ax.tricontour( *vv, F, lat, levs, colors = 'k')
 
 
 plt.show()

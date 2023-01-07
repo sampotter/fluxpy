@@ -13,6 +13,9 @@ import spiceypy as spice
 from flux.plot import tripcolor_vector
 
 
+    
+NT = 180  #  number of time steps
+
 def latitude_extent(P):
     x = P[:,0]; y = P[:,1]; z = P[:,2]
     latloc = np.arctan( z / np.sqrt(x**2 + y**2) )
@@ -20,6 +23,8 @@ def latitude_extent(P):
           np.rad2deg(np.min(latloc)), np.rad2deg(np.max(latloc)) )
     
 
+
+    
 if __name__ == '__main__':
 
     # initialize SPICE
@@ -33,15 +38,22 @@ if __name__ == '__main__':
     # southern summer solstice, declination -4
     #et0 = spice.str2et('2017 DEC 23 05:00:00.00')
     #et1 = spice.str2et('2017 DEC 23 15:00:00.00')
+    
+    et = np.linspace(et0, et1, NT, endpoint=False)
 
-    et = np.linspace(et0, et1, 180, endpoint=False)
-
+    # multipe days
+    et = np.concatenate(
+        (np.linspace(spice.str2et('2015 JUL 24 08:00:00.00'), spice.str2et('2015 JUL 24 18:00:00.00'), NT, endpoint=False),
+         np.linspace(spice.str2et('2016 NOV 13 12:00:00.00'), spice.str2et('2016 NOV 13 20:00:00.00'), NT, endpoint=False),
+         np.linspace(spice.str2et('2017 DEC 23 05:00:00.00'), spice.str2et('2017 DEC 23 15:00:00.00'), NT, endpoint=False)
+         ))
+    
     # Sun positions over time period
     possun = spice.spkpos('SUN', et, 'CERES_FIXED', 'LT+S', 'CERES')[0]
     radsun = np.sqrt(np.sum(possun[:, :3]**2, axis=1))
     AU = 149.59787e6 # km
     print('distance range (AU)', np.min(radsun)/AU, np.max(radsun)/AU )
-    
+
     # load topo 
     with open('mesh.bin', 'rb') as f:   # enter file name here
         shape_model = pickle.load(f)
@@ -63,7 +75,7 @@ if __name__ == '__main__':
         
         # Direction of sun
         dir_sun = possun[i,:] / radsun[i]
-        
+
         # Compute the direct irradiance and find the elements which are in shadow.
         E = shape_model.get_direct_irradiance(F0/Rau**2, dir_sun)
         #I_shadow = E == 0
@@ -73,7 +85,7 @@ if __name__ == '__main__':
         Emax = np.maximum.reduce([Emax, E])
         
         # output snapshots (consumes a lot of memory and time)
-        if len(et)<=10:
+        if NT<=10:
             fn = 'E' + str(i) + '.png'
             fig, ax = tripcolor_vector(V, F, E, cmap='jet')
             fig.savefig(fn)
@@ -88,8 +100,8 @@ if __name__ == '__main__':
     print('PSR area:', shape_model.A[kpsr].sum() )
 
     # Save map
-    np.savez('emax', V=V, F=F, P=shape_model.P, Emax=Emax, areas=shape_model.A)
-
+    np.savez('emax', V=V, F=F, P=shape_model.P, N=shape_model.N, Emax=Emax, areas=shape_model.A)
+    
     # Make plot of maximum direct irradiance
     fig, ax = tripcolor_vector(V, F, Emax, cmap='gray')
     fig.savefig('Emax.png')
