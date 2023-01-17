@@ -7,7 +7,9 @@ void tridag(double a[], double b[], double c[], double r[],
 /* Tridiagonal solver */
 {
    unsigned long j;
-   double bet, gam[n+1];
+   double bet;
+
+   double *gam = malloc((n + 1)*sizeof(double));
 
    if (b[1] == 0.0) {
       fprintf(stderr,"%s\n","tridag: rewrite equations");
@@ -26,5 +28,7 @@ void tridag(double a[], double b[], double c[], double r[],
    }
    for (j=n-1; j>=1; j--)
       u[j] -= gam[j+1]*u[j+1];
+
+   free(gam);
 }
 /* based on Numerical Recipes' tridag.c, but heavily modified */
