@@ -10,8 +10,7 @@ static double const PI_SQUARED = 9.8696044010893584;
 static double const TWO_PI = 6.2831853071795864;
 static double const FOUR_PI = 12.566370614359173;
 static double const ALMOST_ZERO = 1e-13;
-static double const HALF_TOL = ALMOST_ZERO/2;
-
+static double const HALF_TOL = 0.5e-13; // == ALMOST_ZERO/2;
 
 static void sub(double const u[3], double const v[3], double w[3]) {
 	w[0] = u[0] - v[0];
