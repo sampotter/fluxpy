@@ -53,7 +53,7 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	// in a workspace or allocate on the heap (preferably the former)
 	int i, iter;
 	const double sigSB = 5.6704e-8;
-	double k1, gamma, Tr;
+	double k1, Tr;
 	double arad, brad, ann, annp1, bn, buf, dz, beta;
 
 	double a = malloc((nz + 1)*sizeof(double));
