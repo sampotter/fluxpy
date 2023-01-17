@@ -1,4 +1,5 @@
 #include "thrmlLib.h"
+
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
@@ -52,10 +53,17 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	// in a workspace or allocate on the heap (preferably the former)
 	int i, iter;
 	const double sigSB = 5.6704e-8;
-	double a[nz+1], b[nz+1], c[nz+1], r[nz+1];
-	double k[nz+1], k1, alpha[nz+1], gamma[nz+1], Tr;
+	double k1, gamma, Tr;
 	double arad, brad, ann, annp1, bn, buf, dz, beta;
-	double Told[nz+1];
+
+	double a = malloc((nz + 1)*sizeof(double));
+	double b = malloc((nz + 1)*sizeof(double));
+	double c = malloc((nz + 1)*sizeof(double));
+	double r = malloc((nz + 1)*sizeof(double));
+	double k = malloc((nz + 1)*sizeof(double));
+	double alpha = malloc((nz + 1)*sizeof(double));
+	double gamma = malloc((nz + 1)*sizeof(double));
+	double Told = malloc((nz + 1)*sizeof(double));
 
 	/* set some constants */
 	for (i=1; i<=nz; i++) {
@@ -166,4 +174,13 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 
 	*Fsurf = -k[1] * (T[1] - T[0]) / z[1];  // heat flux into surface
 
+
+	free(a);
+	free(b);
+	free(c);
+	free(r);
+	free(k);
+	free(alpha);
+	free(gamma);
+	free(Told);
 } /* conductionQ */
