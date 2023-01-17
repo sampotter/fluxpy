@@ -56,14 +56,14 @@ void conductionQ(int nz, double z[], double dt, double Qn, double Qnp1,
 	double k1, Tr;
 	double arad, brad, ann, annp1, bn, buf, dz, beta;
 
-	double a = malloc((nz + 1)*sizeof(double));
-	double b = malloc((nz + 1)*sizeof(double));
-	double c = malloc((nz + 1)*sizeof(double));
-	double r = malloc((nz + 1)*sizeof(double));
-	double k = malloc((nz + 1)*sizeof(double));
-	double alpha = malloc((nz + 1)*sizeof(double));
-	double gamma = malloc((nz + 1)*sizeof(double));
-	double Told = malloc((nz + 1)*sizeof(double));
+	double *a = malloc((nz + 1)*sizeof(double));
+	double *b = malloc((nz + 1)*sizeof(double));
+	double *c = malloc((nz + 1)*sizeof(double));
+	double *r = malloc((nz + 1)*sizeof(double));
+	double *k = malloc((nz + 1)*sizeof(double));
+	double *alpha = malloc((nz + 1)*sizeof(double));
+	double *gamma = malloc((nz + 1)*sizeof(double));
+	double *Told = malloc((nz + 1)*sizeof(double));
 
 	/* set some constants */
 	for (i=1; i<=nz; i++) {
