@@ -38,7 +38,7 @@ def assemble_compression(args, shape_model, parts=None):
 
 def assemble(shape_model, parts=None):
     tic() #starting a timer
-    FF = get_form_factor_matrix(shape_model) #form factor matrix is calculated given shape model
+    FF = get_form_factor_matrix(shape_model, eps=0) #form factor matrix is calculated given shape model
     t_FF = toc() #calculated time it takes to make form factor matrix
     FF_nbytes = FF.data.nbytes + FF.indptr.nbytes + FF.indices.nbytes 
     return FF, t_FF, FF_nbytes #returns matrix, time of calculated, bytes needed
@@ -55,6 +55,7 @@ def obj_to_shapemodel(filename, outdir):
     # Compute the normals
     N_t = get_surface_normals(V_t, F_t)
     # Flip an upside down triangles
+    F_t[N_t[:, 2] < 0, :] = F_t[N_t[:, 2] < 0][:, [0, 2, 1]]
     N_t[N_t[:, 2] < 0] *= -1
     # Create the shape model
     shape_model_t = CgalTrimeshShapeModel(V_t, F_t, N_t)
@@ -67,7 +68,7 @@ if __name__ == '__main__':
         os.mkdir(outdir)
     
     # Loading the OBJ File
-    filename = 'hemispherical_mesh_5.obj'
+    filename = 'hemispherical_mesh_6.obj'
     shape_model = obj_to_shapemodel(filename, outdir)
     
     # Compute Form Factor Matrix
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     # When using compressed matrices, tolarance will come into play
     # Ensure to readd the args section from collect_data.py
     tol = None
-    filename = 'FF_midpoint_5.npz'
+    filename = 'FF_midpoint_6.npz'
     if tol is None:
         scipy.sparse.save_npz(os.path.join(outdir, filename), FF)
         print('- wrote ' + filename)

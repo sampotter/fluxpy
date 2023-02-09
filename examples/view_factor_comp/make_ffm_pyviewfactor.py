@@ -48,12 +48,14 @@ def make_ffm_pvf(shape_model):
     for i in range(num_faces):
         ind_ptr.append(indptr)
         c_face = V[F][i]
-        current_triangle = pv.Triangle([c_face[0], c_face[1], c_face[2]])
+        c_point_list = [c_face[0], c_face[1], c_face[2]]
+        current_triangle = pv.Triangle(c_point_list)
         for j in range(num_faces):
             o_face = V[F][j]
-            other_triangle = pv.Triangle([o_face[0], o_face[1], o_face[2]])
+            o_point_list = [o_face[0], o_face[1], o_face[2]]
+            other_triangle = pv.Triangle(o_point_list)
             if pvf.get_visibility(current_triangle, other_triangle):
-                vf = pvf.compute_viewfactor(current_triangle, other_triangle)
+                vf = pvf.compute_viewfactor(other_triangle, current_triangle, epsilon=1e-8) #change epsilon to 1e-6
                 data.append(vf)
                 indices.append(j)
                 indptr +=1
@@ -69,7 +71,7 @@ if __name__ == '__main__':
         os.mkdir(outdir)
     
     # Loading the OBJ File
-    filename_mesh = 'hemispherical_mesh_5.obj'
+    filename_mesh = 'hemispherical_mesh_6.obj'
     shape_model = obj_to_shapemodel(filename_mesh, outdir)
     
     # Compute Form Factor Matrix
@@ -80,7 +82,7 @@ if __name__ == '__main__':
     # When using compressed matrices, tolarance will come into play
     # Ensure to readd the args section from collect_data.py
     tol = None
-    filename_FF = 'FF_pvf_5.npz'
+    filename_FF = 'FF_pvf_6_correct.npz'
     if tol is None:
         scipy.sparse.save_npz(os.path.join(outdir, filename_FF), FF)
         print('- wrote ' + filename_FF)

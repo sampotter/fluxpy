@@ -93,7 +93,7 @@ if __name__ == '__main__':
     print('- created tri. mesh with %d faces' % (F.shape[0],))
 
     # Write the mesh to disk as an OBJ file
-    filename = 'hemispherical_mesh_6.obj'
+    filename = 'hemispherical_mesh_6_ex.obj'
     trimesh.Trimesh(V, F).export(os.path.join(args.outdir, filename))
     print('- wrote ' + filename)
     
