@@ -9,7 +9,7 @@ the [directions at this link](https://github.com/bycloudai/InstallVSBuildToolsWi
 an installation of MSVC, Windows SDK, and C++ CMake tools for Windows followed by adding MSBuild Tools
 to your system path.
 
-### Setting up a conda environment ###
+### Setting up a virtual environment ###
 
 Using [Anaconda](https://www.anaconda.com/),
 a virtual environment management tool for Python, create and activate a new conda environment and download
@@ -19,8 +19,9 @@ conda create --name radiosity
 conda activate radiosity
 conda install -c anaconda pip
 ```
-Activating the radiosity environment means that all python and pip operations will be
-managed using the packages installed into the environment. Therefore, the command `conda activate radiosity`
+Alternatively, run `python -m venv .` to create a virtual environment in standard Python without using Anaconda. Activating the virtual 
+environment (via `conda activate radiosity` or `source bin/activate`) means that all python and pip operations will be
+managed using the packages installed into the environment. Therefore, the command
 must be run before proceeding to the next steps (and before running any code).
 
 ### Getting the dependencies ###
@@ -46,7 +47,7 @@ pip install -r requirements.txt
 ```
 Install the latest versions of [Boost](https://www.boost.org/) 
 and [CGAL](https://www.cgal.org/download.html) from the corresponding websites. Finally,
-place the CGAL and boost folders into the `python-flux/src/flux/cgal` subdirectory.
+link the CGAL and boost directories in `python-flux/setup.py` (via the `include_dirs` argument of the `flux.cgal.aabb` extension).
 
 ### Installing this package ###
 
