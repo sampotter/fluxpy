@@ -4,38 +4,49 @@
 
 ## Installation ##
 
-### Set up a virtual environment and clone the repository ###
+If using Windows, first install Microsoft Visual Studio C++ Build Tools following 
+the [directions at this link](https://github.com/bycloudai/InstallVSBuildToolsWindows). This includes
+an installation of MSVC, Windows SDK, and C++ CMake tools for Windows followed by adding MSBuild Tools
+to your system path.
 
-Make a new directory and clone this repository to it. Then, inside the
-directory that you've just created, run `python -m venv .`. This will
-create a "virtual environment", which is a useful tool that Python
-provides for managing dependencies for projects. The new directory
-"contains" the virtual environment.
+### Setting up a conda environment ###
 
-### Activate the virtual environment ###
-
-To activate the virtual environment, run `source bin/activate` from
-the directory containing it. Make sure to do this before doing
-anything else below.
+Using [Anaconda](https://www.anaconda.com/),
+a virtual environment management tool for Python, create and activate a new conda environment and download
+pip via the anaconda channel by running:
+``` shell
+conda create --name radiosity
+conda activate radiosity
+conda install -c anaconda pip
+```
+Activating the radiosity environment means that all python and pip operations will be
+managed using the packages installed into the environment. Therefore, the command `conda activate radiosity`
+must be run before proceeding to the next steps (and before running any code).
 
 ### Getting the dependencies ###
 
 First, install
 [python-embree](https://github.com/sampotter/python-embree) in this
-virtual environment:
+conda environment. Begin by installing Embree from the [Embree website](https://www.embree.org/). Typically, the Embree binaries,
+headers, and libraries will all be installed to C:\Program Files\Intel\Embree3 by default. Then, clone, build, and install python-embree
+to the radiosity conda environment:
 ``` shell
 git clone https://github.com/sampotter/python-embree
 cd python-embree
+python setup.py build_ext -I "/c/Program\ Files/Intel/Embree3/include" -L "/c/Program\ Files/Intel/Embree3/lib"
 python setup.py install
-cd -
+cd ..
 ```
 
-Next, install the rest of the dependencies:
+Next, clone this repository and install the rest of the dependencies, including Boost and CGAL.
 ``` shell
 git clone https://github.com/sampotter/python-flux
 cd python-flux
 pip install -r requirements.txt
 ```
+Install the latest versions of [Boost](https://www.boost.org/) 
+and [CGAL](https://www.cgal.org/download.html) from the corresponding websites. Finally,
+place the CGAL and boost folders into the `python-flux/src/flux/cgal` subdirectory.
 
 ### Installing this package ###
 
