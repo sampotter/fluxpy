@@ -96,7 +96,7 @@ utc0 = '2011 MAR 01 00:00:00.00'
 utc1 = '2011 MAR 02 00:00:00.00'
 num_frames = 100
 stepet = 86400/100
-sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet,
+sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet, path_to_furnsh="simple.furnsh",
                       target='SUN', observer='MOON', frame='MOON_ME')
 t = np.linspace(0, 86400, num_frames + 1)
 
