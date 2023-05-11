@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import glob
 
 import json_numpy as json
 import matplotlib.pyplot as plt
@@ -22,12 +23,15 @@ from util import *
 # ymax = -35
 # extent = [xmin, xmax, ymin, ymax]
 
-with open('equil_T_data.json') as f:
-    data = json.load(f)
+# with open('equil_T_data.json') as f:
+#     data = json.load(f)
 
-FF_paths = [_ for _ in data.keys() if _[-4:] == '.bin']
-FF_true_paths = [_ for _ in data.keys() if _[-4:] == '.npz']
-assert len(FF_paths) + len(FF_true_paths) == len(data)
+FF_paths = glob.glob("FF_*_*_*-1.bin")[1:] # [_ for _ in data.keys() if _[-4:] == '.bin']
+FF_true_paths = glob.glob("FF_*_*.npz")[1:] # [_ for _ in data.keys() if _[-4:] == '.npz']
+# assert len(FF_paths) + len(FF_true_paths) == len(data)
+print(FF_paths)
+print(FF_true_paths)
+
 
 # get list of area strings sorted in decreasing order of max inner
 # area (i.e., in increasing order of problem size and mesh fineness)
@@ -43,7 +47,9 @@ tol_strs = sorted(tol_strs, key=float, reverse=True)
 
 T_frames_path = Path('T_frames')
 T_frame_dirs = list(T_frames_path.iterdir())
-frame_names = [_.name for _ in T_frame_dirs[0].glob('T*.npy')]
+frame_names = [_.name for _ in T_frame_dirs[0].glob('T*_29.npy')]
+frame_names = sorted(frame_names, key=lambda _:float(_.split('_')[0].split('T')[-1]))
+print(frame_names)
 
 rel_l2_errors = dict()
 T_avgs = dict()
@@ -113,7 +119,7 @@ for linestyle, tol_str in zip(linestyles, tol_strs):
 plt.legend()
 plt.title(f'Relative $\ell_2$ error in temperature field')
 plt.ylabel(r'$\|\hat{T}_n - T_n\|_2/\|T_n\|$')
-plt.xlabel('$n$ (Iteration)')
+plt.xlabel('$n$ (time-step)')
 plt.savefig('gerlache_plots/time_dep_error.png')
 
 plt.figure()
@@ -126,5 +132,5 @@ for linestyle, tol_str in zip(linestyles, tol_strs):
 plt.legend()
 plt.title(f'Average temperature [K]')
 plt.ylabel(r'$<T_n>$')
-plt.xlabel('$n$ (Iteration)')
+plt.xlabel('$n$ (time-step)')
 plt.savefig('gerlache_plots/time_dep_T_avg.png')

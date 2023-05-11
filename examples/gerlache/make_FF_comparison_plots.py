@@ -52,9 +52,12 @@ for area_str in area_strs:
     FF_nbytes[area_str] = dict()
 
     for tol_str in tol_strs:
-        path = next(_ for _ in FF_paths if area_str in _ and tol_str in _)
-        FF = CompressedFormFactorMatrix.from_file(path)
-        FF_nbytes[area_str][tol_str] = FF.nbytes
+        try:
+            path = next(_ for _ in FF_paths if area_str in _ and tol_str in _)
+            FF = CompressedFormFactorMatrix.from_file(path)
+            FF_nbytes[area_str][tol_str] = FF.nbytes
+        except:
+            print(f"Failed for {tol_str}")
 
     path = next(_ for _ in FF_true_paths if area_str in _)
     FF = scipy.sparse.load_npz(path)
@@ -86,19 +89,29 @@ FF_T_times = dict()
 for area_str in area_strs:
     FF_T_times[area_str] = dict()
     for tol_str in tol_strs:
-        path = next(_ for _ in FF_paths if area_str in _ and tol_str in _)
-        FF_T_times[area_str][tol_str] = data[path]['time_T']
+        try:
+            path = next(_ for _ in FF_paths if area_str in _ and tol_str in _)
+            FF_T_times[area_str][tol_str] = data[path]['time_T']
+        except:
+            print(f"Failed on FFtim {tol_str}")
     path = next(_ for _ in FF_true_paths if area_str in _)
     FF_T_times[area_str]['true'] = data[path]['time_T']
 df_T_times = pandas.DataFrame(FF_T_times).T
 
 plt.clf()
 for tol_str in tol_strs + ['true']:
-    plt.loglog(num_faces, df_assembly_times[tol_str], marker='*',
-               label=f'assembly ({tol_str})')
+    try:
+        plt.loglog(num_faces, df_assembly_times[tol_str], marker='*',
+                label=f'assembly ({tol_str})')
+    except:
+        print(f"Failed on FFtim plot {tol_str}")
 for tol_str in tol_strs + ['true']:
-    plt.loglog(num_faces, df_T_times[tol_str], marker='*', linestyle='--',
+    try:
+        print(tol_str, num_faces, df_T_times[tol_str])
+        plt.loglog(num_faces, df_T_times[tol_str], marker='*', linestyle='--',
                label=f'compute T ({tol_str})')
+    except:
+        print(f"Failed on Ttim plot {tol_str}")
 plt.ylabel('Time [s]')
 plt.xlabel('$N$')
 plt.legend()

@@ -55,6 +55,7 @@ def get_data(shape_model, shape_model_st, FF, xgrid, ygrid):
 
     T = compute_steady_state_temp(FF, E, rho, emiss)
     time_T = toc()
+    print(time_T)
 
     T_grid = get_values_using_raytracing(T)
 
@@ -72,9 +73,11 @@ data = dict()
 
 # get data for compressed FF matrices
 
+# FF_paths = glob.glob('FF_0.8_3.0_1e-2.bin')
 FF_paths = glob.glob('FF_*_*_*.bin')
 
-for path in FF_paths:
+for path in FF_paths[:]:
+
     max_inner_area_str, max_outer_area_str, tol_str = path[3:-4].split('_')
     print(max_inner_area_str, max_outer_area_str, tol_str)
 
@@ -99,9 +102,10 @@ for path in FF_paths:
 
 # get data from true FF matrices
 
-FF_true_paths = glob.glob('FF_*.npz')
+# FF_true_paths = glob.glob('FF_0.8_3.0.npz')
+FF_true_paths = glob.glob('FF_*_*.npz')
 
-for path in FF_true_paths:
+for path in FF_true_paths[:]:
     max_inner_area, max_outer_area = map(float, areas_str.split('_'))
     print(max_inner_area, max_outer_area)
 
