@@ -101,7 +101,7 @@ if __name__ == '__main__':
     max_inner_area_str = sys.argv[1]
     max_outer_area_str = sys.argv[2]
     tol_str = sys.argv[3]
-    niter = 20
+    niter = 2
     # nsteps = 863
 
     path_to_remove = f"T_frames/{max_inner_area_str}_{max_outer_area_str}_{tol_str}/"
@@ -163,33 +163,33 @@ if __name__ == '__main__':
 
     # .astype(float)
 
-    # vmax = max(Tmax_grid.max(), Tavg_grid.max())
-    # with open('params.json') as f:
-    #     params = json.load(f)
-    #
-    # xmin = params['xmin']
-    # xmax = params['xmax']
-    # ymin = params['ymin']
-    # ymax = params['ymax']
-    # extent = xmin, xmax, ymin, ymax
-    #
-    # plt.figure(figsize=(12, 5))
-    # plt.subplot(1, 2, 1)
-    # plt.title('$T$ (true)')
-    # plt.imshow(Tmax_grid, interpolation='none', extent=extent,
-    #            vmin=0, vmax=Tmax_grid.max(), cmap=cc.cm.fire)
-    # plt.ylabel('$x$')
-    # plt.xlabel('$y$')
-    # plt.colorbar()
-    # plt.gca().set_aspect('equal')
-    # plt.subplot(1, 2, 2)
-    # plt.title(r'$T$ (tol = %s - true)' % tol_str)
-    # plt.imshow(Tavg_grid, interpolation='none', extent=extent,
-    #            vmin=0, vmax=Tavg_grid.max(), cmap=cc.cm.fire, zorder=1)
-    # plt.ylabel('$x$')
-    # plt.xlabel('$y$')
-    # plt.colorbar()
-    # plt.gca().set_aspect('equal')
-    # plt.tight_layout()
-    # plt.show()
-    # plt.close()
+    vmax = max(Tmax_grid.max(), Tavg_grid.max())
+    with open('params.json') as f:
+        params = json.load(f)
+
+    xmin = params['xmin']
+    xmax = params['xmax']
+    ymin = params['ymin']
+    ymax = params['ymax']
+    extent = xmin, xmax, ymin, ymax
+
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 2, 1)
+    plt.title('$T$ (true)')
+    plt.imshow(Tmax_grid, interpolation='none', extent=extent,
+               vmin=0, vmax=Tmax_grid.max(), cmap=cc.cm.fire)
+    plt.ylabel('$x$')
+    plt.xlabel('$y$')
+    plt.colorbar()
+    plt.gca().set_aspect('equal')
+    plt.subplot(1, 2, 2)
+    plt.title(r'$T$ (tol = %s - true)' % tol_str)
+    plt.imshow(Tavg_grid, interpolation='none', extent=extent,
+               vmin=0, vmax=Tavg_grid.max(), cmap=cc.cm.fire, zorder=1)
+    plt.ylabel('$x$')
+    plt.xlabel('$y$')
+    plt.colorbar()
+    plt.gca().set_aspect('equal')
+    plt.tight_layout()
+    plt.show()
+    plt.close()
