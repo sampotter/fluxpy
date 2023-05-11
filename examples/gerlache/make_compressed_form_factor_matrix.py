@@ -9,6 +9,8 @@ from flux.compressed_form_factors import CompressedFormFactorMatrix, FormFactorP
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 from flux.util import tic, toc
 
+# produce compressed FF from shapemodel produced by make_mesh.py
+
 max_inner_area_str = sys.argv[1]
 max_outer_area_str = sys.argv[2]
 
@@ -28,14 +30,14 @@ normals[normals[:, 2] > 0] *= -1
 shape_model = CgalTrimeshShapeModel(verts, faces, normals)
 
 # take 4 parts among faces
-parts = np.array_split(range(faces.shape[0]),4,axis=0)
+# parts = np.array_split(range(faces.shape[0]),4,axis=0)
 # parts = None
 
 # use quadtree by default
 tic()
 if parts is None:
     FF = CompressedFormFactorMatrix(
-        shape_model, tol=tol, min_size=16384)
+        shape_model, tol=tol, min_size=16384) #, max_depth=5) #, force_max_depth=True)
 else:
     FF = CompressedFormFactorMatrix(
         shape_model, tol=tol, parts=parts, min_size=16384,

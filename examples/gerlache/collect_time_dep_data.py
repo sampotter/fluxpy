@@ -4,49 +4,16 @@ import scipy.sparse
 import sys
 import glob
 import pyvista as pv
-import os
+from pathlib import Path
 
 import meshio
 import numpy as np
 from tqdm import tqdm
 
 from spice_util import get_sunvec
-from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix
+from flux.compressed_form_factors import CompressedFormFactorMatrix
 from flux.model import ThermalModel
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
-
-import argparse
-import arrow
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--compression_type', type=str, default="svd",choices=["nmf","snmf","wsnmf",
-    "svd","ssvd",
-    "rand_svd","rand_ssvd","rand_snmf",
-    "saca","sbrp","rand_sid",
-    "stoch_radiosity",
-    "true_model"])
-parser.add_argument('--max_inner_area', type=float, default=0.8)
-parser.add_argument('--max_outer_area', type=float, default=3.0)
-parser.add_argument('--tol', type=float, default=1e-1)
-
-parser.add_argument('--min_depth', type=int, default=1)
-parser.add_argument('--max_depth', type=int, default=0)
-
-parser.add_argument('--nmf_max_iters', type=int, default=int(1e4))
-parser.add_argument('--nmf_tol', type=float, default=1e-2)
-
-parser.add_argument('--k0', type=int, default=40)
-
-parser.add_argument('--p', type=int, default=5)
-parser.add_argument('--q', type=int, default=1)
-
-parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
-
-parser.add_argument('--roi', action='store_true')
-
-parser.set_defaults(feature=False)
-
-args = parser.parse_args()
 
 # some useful routines
 # transform cartesian to spherical (meters, radians)
@@ -88,89 +55,17 @@ def project_stereographic(lon, lat, lon0, lat0, R=1):
 
 # ============================================================
 # main code
+outdir = Path('T_frames')
+if not outdir.exists():
+    outdir.mkdir()
 
-compression_type = args.compression_type
-max_inner_area_str = str(args.max_inner_area)
-max_outer_area_str = str(args.max_outer_area)
-tol_str = "{:.0e}".format(args.tol)
-
-max_depth = args.max_depth if args.max_depth != 0 else None
-
-
-if compression_type == "true_model":
-    FF_dir = "true_{}_{}".format(max_inner_area_str, max_outer_area_str)
-
-elif compression_type == "stoch_radiosity":
-    FF_dir = "stoch_rad_{}_{}_{}k0".format(max_inner_area_str, max_outer_area_str,
-        args.k0)
-
-elif compression_type == "svd":
-    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
-        args.k0)
-
-elif compression_type == "ssvd":
-    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
-        args.k0)
-
-elif compression_type == "rand_svd":
-    FF_dir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
-        args.p, args.q, args.k0)
-
-elif compression_type == "rand_ssvd":
-    FF_dir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
-        args.p, args.q, args.k0)
-
-elif compression_type == "nmf":
-    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", max_inner_area_str, max_outer_area_str, args.tol,
-        args.nmf_max_iters, args.nmf_tol, args.k0)
-
-elif compression_type == "snmf":
-    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", max_inner_area_str, max_outer_area_str, args.tol,
-        args.nmf_max_iters, args.nmf_tol, args.k0)
-
-elif compression_type == "rand_snmf":
-    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
-        args.nmf_max_iters, args.nmf_tol, args.p, args.q, args.k0)
-
-elif compression_type == "wsnmf":
-    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", max_inner_area_str, max_outer_area_str, args.tol,
-        args.nmf_max_iters, args.nmf_tol, args.k0)
-
-elif compression_type == "saca":
-    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
-        args.k0)
-
-elif compression_type == "sbrp":
-    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
-        args.k0)
-
-elif compression_type == "rand_sid":
-    FF_dir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
-        args.p, args.q, args.k0)
-
-
-if not (compression_type == "true_model" or compression_type == "stoch_radiosity") and args.min_depth != 1:
-    FF_dir += "_{}mindepth".format(args.min_depth)
-
-if not (compression_type == "true_model" or compression_type == "stoch_radiosity") and max_depth is not None:
-    FF_dir += "_{}maxdepth".format(max_depth)
-
-if args.roi:
-    FF_dir = "roi_" + FF_dir
-
-
-FF_dir = "results/"+FF_dir
-if not os.path.exists(FF_dir):
-    print("PATH DOES NOT EXIST "+FF_dir)
-    assert False
-savedir = FF_dir + "/T_frames"
-if not os.path.exists(savedir):
-    os.mkdir(savedir)
-
+max_inner_area_str = sys.argv[1]
+max_outer_area_str = sys.argv[2]
+tol_str = sys.argv[3]
 
 # read shapemodel and form-factor matrix generated by make_compressed_form_factor_matrix.py
-if compression_type == 'true_model' or compression_type == 'stoch_radiosity':
-    path = FF_dir+f'/FF_{max_inner_area_str}_{max_outer_area_str}.npz'
+if tol_str == 'true':
+    path = f'FF_{max_inner_area_str}_{max_outer_area_str}.npz'
     FF = scipy.sparse.load_npz(path)
     V = np.load(f'gerlache_verts_{max_inner_area_str}_{max_outer_area_str}.npy')
     F = np.load(f'gerlache_faces_{max_inner_area_str}_{max_outer_area_str}.npy')
@@ -178,7 +73,7 @@ if compression_type == 'true_model' or compression_type == 'stoch_radiosity':
     N[N[:, 2] > 0] *= -1
     shape_model = CgalTrimeshShapeModel(V, F, N)
 else:
-    path = FF_dir+f'/FF_{max_inner_area_str}_{max_outer_area_str}_{tol_str}_{compression_type}.bin'
+    path = f'FF_{max_inner_area_str}_{max_outer_area_str}_{tol_str}.bin'
     FF = CompressedFormFactorMatrix.from_file(path)
     shape_model = FF.shape_model
 
@@ -188,24 +83,22 @@ print('  * loaded form factor matrix and (cartesian) shape model')
 with open('params.json') as f:
     params = json.load(f)
 
+F0 = params['F0']
+
+frames_per_second = 0.3  # 30
+animation_time = 86400*30 # s
+num_frames = int(frames_per_second*animation_time + 1)
+t = np.linspace(0, animation_time, num_frames)
 
 # Define time window (it can be done either with dates or with utc0 - initial epoch - and np.linspace of epochs)
 
-# utc0 = '2011 MAR 01 00:00:00.00'
-# utc1 = '2011 MAR 02 00:00:00.00'
-# num_frames = 100
-# stepet = 86400/100
-# sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet, path_to_furnsh="simple.furnsh",
-#                       target='SUN', observer='MOON', frame='MOON_ME')
-# t = np.linspace(0, 86400, num_frames + 1)
-
 utc0 = '2011 MAR 01 00:00:00.00'
-utc1 = '2011 MAR 31 00:00:00.00'
-num_frames = 3000
-stepet = 2592000/3000
-sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet, path_to_furnsh="simple.furnsh",
+utc1 = '2011 MAR 02 00:00:00.00'
+num_frames = 100
+stepet = 86400/100
+sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet,
                       target='SUN', observer='MOON', frame='MOON_ME')
-t = np.linspace(0, 2592000, num_frames + 1)
+t = np.linspace(0, 86400, num_frames + 1)
 
 D = sun_vecs/np.linalg.norm(sun_vecs, axis=1)[:, np.newaxis]
 D = D.copy(order='C')
@@ -224,18 +117,19 @@ thermal_model = ThermalModel(
 Tmin, Tmax = np.inf, -np.inf
 vmin, vmax = 90, 310
 
-sim_start_time = arrow.now()
+path_fmt = f'T%0{len(str(num_frames))}d.npy'
+
 for frame_index, T in tqdm(enumerate(thermal_model), total=D.shape[0], desc='thermal models time-steps'):
     # print(f'    + {frame_index + 1}/{D.shape[0]}')
-    path = savedir+"/T{:03d}.npy".format(frame_index)
+    path = outdir/f'{max_inner_area_str}_{max_outer_area_str}_{tol_str}'
+    if not path.exists():
+        path.mkdir()
+    path = path/(path_fmt % frame_index)
     np.save(path, T)
-sim_duration = (arrow.now()-sim_start_time).total_seconds()
-print('  * thermal model run completed in {:.2f} seconds'.format(sim_duration))
-
-np.save(savedir+f'/sim_duration.npy', np.array(sim_duration))
+print('  * thermal model run completed')
 
 # retrieve T at surface for all epochs and compute max and mean along epochs
-Tfiles = glob.glob(savedir+f"/T*.npy")
+Tfiles = glob.glob(f"T_frames/{max_inner_area_str}_{max_outer_area_str}_{tol_str}/T*.npy")
 
 Tsurf = []
 for f in Tfiles:
