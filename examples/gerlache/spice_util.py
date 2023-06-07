@@ -1,4 +1,4 @@
-def get_sunvec(utc0, target, observer, frame, utc1=0, stepet=1, et_linspace=None):
+def get_sunvec(utc0, target, observer, frame, utc1=0, stepet=1, et_linspace=None, path_to_furnsh='aux/simple.furnsh'):
     '''This script uses SPICE to compute a trajectory for the sun, loads a
         shape model discretizing a patch of the lunar south pole (made using
         lsp_make_obj.py), and a compressed form factor matrix for that
@@ -14,7 +14,7 @@ def get_sunvec(utc0, target, observer, frame, utc1=0, stepet=1, et_linspace=None
     clktol = '10:000'
     spice.kclear()
 
-    spice.furnsh(f'simple.furnsh')
+    spice.furnsh(path_to_furnsh)
     et0 = spice.str2et(utc0)
     if np.max(et_linspace) == None:
         et1 = spice.str2et(utc1)

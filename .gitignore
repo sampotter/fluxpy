@@ -2,12 +2,14 @@
 *.avi
 *.bin
 *.egg-info
+*.ipynb
 *.ipynb_checkpoints
 *.json
 *.npy
 *.npz
 *.obj
 *.pdf
+*.ply
 *.png
 *.so
 *.tif
@@ -27,4 +29,6 @@ dist
 src/flux/cgal/aabb.cpp
 src/flux/thermal.c
 src/flux/view_factor/view_factor.c
+src/flux/cgal/CGAL/
+src/flux/cgal/boost/
 stats
