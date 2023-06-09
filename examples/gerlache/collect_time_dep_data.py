@@ -19,7 +19,7 @@ import argparse
 import arrow
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--compression_type', type=str, default="nmf",choices=["nmf","snmf","wsnmf","svd","true_model"])
+parser.add_argument('--compression_type', type=str, default="nmf",choices=["nmf","snmf","wsnmf","svd","ssvd","true_model"])
 parser.add_argument('--max_inner_area', type=float, default=0.8)
 parser.add_argument('--max_outer_area', type=float, default=3.0)
 parser.add_argument('--tol', type=float, default=1e-1)
@@ -28,6 +28,8 @@ parser.add_argument('--nmf_max_iters', type=int, default=int(1e4))
 parser.add_argument('--nmf_tol', type=float, default=1e-2)
 
 parser.add_argument('--k0', type=int, default=40)
+
+parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
 
 parser.set_defaults(feature=False)
 
@@ -87,16 +89,20 @@ elif compression_type == "svd":
     FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, args.tol,
         args.k0)
 
+elif compression_type == "ssvd":
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, args.tol,
+        args.k0)
+
 elif compression_type == "nmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", args.max_inner_area, args.max_outer_area, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 elif compression_type == "snmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", args.max_inner_area, args.max_outer_area, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 elif compression_type == "wsnmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", args.max_inner_area, args.max_outer_area, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 

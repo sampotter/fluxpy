@@ -51,7 +51,71 @@ def estimate_rank(spmat, tol, max_nbytes=None, k0=40):
         k *= 2
 
 
-def fit_nmf(spmat, k, max_iters=int(1e3), tol=1e-4):
+def estimate_sparsity_svd(spmat, tol, max_nbytes=None, k0=40):
+    assert tol < 1
+
+    if spmat.shape[0] == 0 or spmat.shape[1] == 0:
+        return 0
+
+    if spmat.shape == (1, 1):
+        return 1
+
+    prev_k = 0
+    prev_nbytes = np.inf
+    Sr_prev = np.zeros(spmat.shape)
+    
+    m, k = min(spmat.shape), k0
+    while True:
+        k = min(k, m)
+        
+        if not k >= 1:
+            raise RuntimeError('bad value of k')
+        
+        U, S, Vt = sparse_svd(spmat, k)
+        
+        for kk in range(prev_k+1,k+1):
+            
+            Uk, Sk, Vtk = U[:, :kk], S[:kk], Vt[:kk, :]
+            resid = (spmat - (Uk @ (Vtk.T * np.diag(Sk)).T)).A
+
+            num_resids = resid.shape[0] * resid.shape[1]
+            nnz_resid = np.count_nonzero(resid)
+
+            sorted_resid_idx = np.unravel_index(np.argsort(abs(resid), axis=None), resid.shape)
+
+            target = np.power(np.linalg.norm(resid, ord='fro'), 2) - np.power(tol*scipy.sparse.linalg.norm(spmat, ord='fro'), 2)
+
+            if target <= 0:
+                Sr = np.zeros_like(resid)
+                Sr = scipy.sparse.csr_matrix(Sr)
+
+            else:
+                cumulative_residual = np.cumsum(np.power(resid[sorted_resid_idx[0], sorted_resid_idx[1]][::-1], 2))
+                keep_resids = (cumulative_residual > target).nonzero()[0][0] + 1
+
+                Sr = np.copy(resid)
+                Sr[sorted_resid_idx[0][:num_resids-keep_resids], sorted_resid_idx[1][:num_resids-keep_resids]] = 0.
+                Sr = scipy.sparse.csr_matrix(Sr)
+
+            sparse_svd_nbytes = nbytes(Uk) + nbytes(Sk) + nbytes(Vtk) + nbytes(Sr)
+
+            if sparse_svd_nbytes >= prev_nbytes:
+                return U[:, :kk-1], S[:kk-1], Vt[:kk-1, :], Sr_prev
+
+            if max_nbytes is not None and sparse_svd_nbytes >= max_nbytes:
+                return None
+            
+            if kk == m:
+                return U[:, :kk], S[:kk], Vt[:kk-1, :], Sr_prev
+
+            prev_nbytes = sparse_svd_nbytes
+            Sr_prev = Sr
+
+        prev_k = k
+        k *= 2
+
+
+def fit_nmf(spmat, k, max_iters=int(1e3), tol=1e-4, beta_loss=2, init='svd'):
     # with IndentedPrinter() as _:
     #     _.print('nmf(%d x %d, %d)' % (*spmat.shape, k))
     #     wrapped_spmat = DebugLinearOperator(spmat)
@@ -61,7 +125,10 @@ def fit_nmf(spmat, k, max_iters=int(1e3), tol=1e-4):
     #     H = nmf.components_
     #     wrapped_spmat.debug_print()
 
-    nmf = NMF(k,init='nndsvd', solver='cd', tol=tol, max_iter=max_iters)
+    if beta_loss == 2:
+        nmf = NMF(k,init='nndsvd' if init=='svd' else 'random', solver='cd', tol=tol, max_iter=max_iters, beta_loss=beta_loss)
+    elif beta_loss == 1:
+        nmf = NMF(k,init='nndsvdar' if init=='svd' else 'random', solver='mu', tol=tol, max_iter=max_iters, beta_loss=beta_loss)
     W = nmf.fit_transform(spmat)
     H = nmf.components_
     
@@ -100,7 +167,7 @@ def fit_nmf(spmat, k, max_iters=int(1e3), tol=1e-4):
 #     return W, H
 
 
-def estimate_rank_nmf(spmat, tol, max_nbytes=None, k0=40, max_iters=int(1e3), nmf_tol=1e-2):
+def estimate_rank_nmf(spmat, tol, max_nbytes=None, k0=40, max_iters=int(1e3), nmf_tol=1e-2, beta_loss=2):
     assert tol < 1
 
     if spmat.shape[0] == 0 or spmat.shape[1] == 0:
@@ -116,7 +183,7 @@ def estimate_rank_nmf(spmat, tol, max_nbytes=None, k0=40, max_iters=int(1e3), nm
         k = min(k, m)
         if not k >= 1:
             raise RuntimeError('bad value of k')
-        W, H = fit_nmf(spmat, k, max_iters=max_iters, tol=nmf_tol)
+        W, H = fit_nmf(spmat, k, max_iters=max_iters, tol=nmf_tol, beta_loss=beta_loss)
         nmf_nbytes = nbytes(W) + nbytes(H)
         if max_nbytes is not None and nmf_nbytes >= max_nbytes:
             return None
@@ -127,7 +194,7 @@ def estimate_rank_nmf(spmat, tol, max_nbytes=None, k0=40, max_iters=int(1e3), nm
 
 
 
-def estimate_sparsity_nmf(spmat, tol, max_nbytes=None, k0=5, max_iters=int(1e3), nmf_tol=1e-2):
+def estimate_sparsity_nmf(spmat, tol, max_nbytes=None, k0=5, max_iters=int(1e3), nmf_tol=1e-2, beta_loss=2):
     assert tol < 1
 
     if spmat.shape[0] == 0 or spmat.shape[1] == 0:
@@ -136,7 +203,12 @@ def estimate_sparsity_nmf(spmat, tol, max_nbytes=None, k0=5, max_iters=int(1e3),
     if spmat.shape == (1, 1):
         return 1
 
-    W, H = fit_nmf(spmat, k0, max_iters=max_iters, tol=nmf_tol)
+    # _U, _S, _V = scipy.sparse.linalg.svds(spmat, k0)
+    # if _S[0] < 1e-5:
+    #     W, H = fit_nmf(spmat, k0, max_iters=max_iters, tol=nmf_tol, beta_loss=beta_loss, init='svd')
+    # else:
+    W, H = fit_nmf(spmat, k0, max_iters=max_iters, tol=nmf_tol, beta_loss=beta_loss, init='random')
+    
     resid = (spmat - (W@H)).A
 
     num_resids = resid.shape[0] * resid.shape[1]
@@ -186,7 +258,7 @@ def estimate_sparsity_nmf(spmat, tol, max_nbytes=None, k0=5, max_iters=int(1e3),
 
 
 
-def estimate_sparsity_nmf_weighted(spmat, FF_weights, tol, max_nbytes=None, k0=5, max_iters=int(1e3), nmf_tol=1e-2):
+def estimate_sparsity_nmf_weighted(spmat, FF_weights, tol, max_nbytes=None, k0=5, max_iters=int(1e3), nmf_tol=1e-2, beta_loss=2):
     assert tol < 1
 
     if spmat.shape[0] == 0 or spmat.shape[1] == 0:
@@ -195,7 +267,7 @@ def estimate_sparsity_nmf_weighted(spmat, FF_weights, tol, max_nbytes=None, k0=5
     if spmat.shape == (1, 1):
         return 1
 
-    W, H = fit_nmf(spmat, k, max_iters=max_iters, tol=nmf_tol)
+    W, H = fit_nmf(spmat, k, max_iters=max_iters, tol=nmf_tol, beta_loss=beta_loss)
     resid = (spmat - (W@H)).A
 
     num_resids = resid.shape[0] * resid.shape[1]

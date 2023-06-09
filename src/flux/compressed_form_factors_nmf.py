@@ -276,6 +276,60 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
         return 0 if size == 0 else (u_nnz + v_nnz + self._k)/size
 
 
+class FormFactorSparseSvdBlock(FormFactorLeafBlock,
+                         scipy.sparse.linalg.LinearOperator):
+
+    def __init__(self, root, u, s, vt, sr):
+        shape = (u.shape[0], vt.shape[1])
+        super().__init__(root, shape)
+
+        self._k = s.size
+        self._s = s
+
+        u_csr = scipy.sparse.csr_matrix(u)
+        self._u = u if nbytes(u) < nbytes(u_csr) else u_csr
+
+        vt_csr = scipy.sparse.csr_matrix(vt)
+        self._vt = vt if nbytes(vt) < nbytes(vt_csr) else vt_csr
+
+        sr_csr = scipy.sparse.csr_matrix(sr)
+        self._sr = sr if nbytes(sr) < nbytes(sr_csr) else sr_csr
+
+    def _matmat(self, x):
+        y = self._vt@x
+        y = (y.T*self._s).T
+        y = self._u@y
+        y = y + (self._sr@x)
+        return y
+
+    def is_dense(self):
+        return False
+
+    def is_sparse(self):
+        return False
+
+    @property
+    def is_empty_leaf(self):
+        return False
+
+    @property
+    def nbytes(self):
+        return nbytes(self._u) + nbytes(self._s) + nbytes(self._vt) + nbytes(self._sr)
+
+    @property
+    def compressed(self):
+        return isinstance(self._u, scipy.sparse.spmatrix) \
+            or isinstance(self._vt, scipy.sparse.spmatrix) \
+            or isinstance(self._sr, scipy.sparse.spmatrix)
+
+    def _get_sparsity(self, tol=None):
+        u_nnz = flux.linalg.nnz(self._u, tol)
+        v_nnz = flux.linalg.nnz(self._vt, tol)
+        sr_nnz = flux.linalg.nnz(self._sr, tol)
+        size = self._u.size + self._vt.size + self._k + self._sr.size
+        return 0 if size == 0 else (u_nnz + v_nnz + self._k + sr_nnz)/size
+
+
 class FormFactorNmfBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
@@ -468,13 +522,44 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             else:
                 block = child_block
 
+
+        elif compression_type == "ssvd":
+            
+            k0 = compression_params["k0"]
+
+            sparse_svd_block = self._get_sparse_svd_block(spmat, k0=k0)
+            nbytes_sparse_svd = np.inf if sparse_svd_block is None else nbytes(sparse_svd_block)
+
+            # If we haven't specified a max depth, or if we haven't
+            # bottomed out yet, then we attempt to descend another
+            # level.
+            if max_depth is None or max_depth > 1:
+                child_block = self.make_child_block(
+                    shape_model, spmat, I, J,
+                    None if max_depth is None else max_depth - 1)
+            else:
+                child_block = None
+            nbytes_child = np.inf if child_block is None else nbytes(child_block)
+
+            nbytes_min = min(nbytes_sparse, nbytes_sparse_svd, nbytes_child)
+
+            # Select the block with the smallest size
+            if nbytes_sparse == nbytes_min:
+                block = sparse_block
+            elif nbytes_sparse_svd == nbytes_min:
+                block = sparse_svd_block
+            else:
+                block = child_block
+
+
         elif compression_type == "nmf":
             
             max_iters = compression_params["max_iters"]
             nmf_tol = compression_params["nmf_tol"]
             k0 = compression_params["k0"]
+            beta_loss = compression_params["beta_loss"]
             
-            nmf_block = self._get_nmf_block(spmat, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0)
+            nmf_block = self._get_nmf_block(spmat, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
             nbytes_nmf = np.inf if nmf_block is None else nbytes(nmf_block)
 
             # If we haven't specified a max depth, or if we haven't
@@ -504,8 +589,9 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             max_iters = compression_params["max_iters"]
             nmf_tol = compression_params["nmf_tol"]
             k0 = compression_params["k0"]
+            beta_loss = compression_params["beta_loss"]
 
-            sparse_nmf_block = self._get_sparse_nmf_block(spmat, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0)
+            sparse_nmf_block = self._get_sparse_nmf_block(spmat, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
             nbytes_sparse_nmf = np.inf if sparse_nmf_block is None else nbytes(sparse_nmf_block)
 
             # If we haven't specified a max depth, or if we haven't
@@ -535,10 +621,11 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             max_iters = compression_params["max_iters"]
             nmf_tol = compression_params["nmf_tol"]
             k0 = compression_params["k0"]
+            beta_loss = compression_params["beta_loss"]
 
             FF_weights = self._root._FF_weights[I][:,J]
 
-            sparse_nmf_block = self._get_weighted_sparse_nmf_block(spmat, FF_weights, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0)
+            sparse_nmf_block = self._get_weighted_sparse_nmf_block(spmat, FF_weights, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
             nbytes_sparse_nmf = np.inf if sparse_nmf_block is None else nbytes(sparse_nmf_block)
 
             # If we haven't specified a max depth, or if we haven't
@@ -583,6 +670,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         # should either be an instance of ChildBlock or an SVD block.
         assert isinstance(block, type(self)) \
             or isinstance(block, FormFactorSvdBlock) \
+            or isinstance(block, FormFactorSparseSvdBlock) \
             or isinstance(block, FormFactorNmfBlock) \
             or isinstance(block, FormFactorSparseNmfBlock)
         return block
@@ -607,10 +695,32 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         a larger sparse block instead...""")
         return None
 
-    def _get_nmf_block(self, spmat, max_iters=int(1e3), nmf_tol=1e-2, k0=40):
+    def _get_sparse_svd_block(self, spmat, k0=40):
+        ret = flux.linalg.estimate_sparsity_svd(
+            spmat, self._tol, max_nbytes=nbytes(spmat),
+            k0=k0)
+        if ret is None:
+            return None
+
+        U, S, Vt, Sr = ret
+        s_svd_block = self.root.make_sparse_svd_block(U, S, Vt, Sr)
+
+        return s_svd_block
+
+        # If the tolerance estimated this way doesn't satisfy
+        # the requested tolerance, return the sparse block
+        # assert tol != 0
+        if tol <= self._tol:
+            return s_svd_block
+
+        logging.warning("""computed a really inaccurate SVD, using
+        a larger sparse block instead...""")
+        return None
+
+    def _get_nmf_block(self, spmat, max_iters=int(1e3), nmf_tol=1e-2, k0=40, beta_loss=2):
         ret = flux.linalg.estimate_rank_nmf(
             spmat, self._tol, max_nbytes=nbytes(spmat),
-            max_iters=max_iters, nmf_tol=nmf_tol, k0=k0)
+            max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
         if ret is None:
             return None
 
@@ -627,10 +737,10 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         a larger sparse block instead...""")
         return None
 
-    def _get_sparse_nmf_block(self, spmat, max_iters=int(1e3), nmf_tol=1e-2, k0=5):
+    def _get_sparse_nmf_block(self, spmat, max_iters=int(1e3), nmf_tol=1e-2, k0=5, beta_loss=2):
         ret = flux.linalg.estimate_sparsity_nmf(
             spmat, self._tol, max_nbytes=nbytes(spmat),
-            max_iters=max_iters, nmf_tol=nmf_tol, k0=k0)
+            max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
         if ret is None:
             return None
 
@@ -649,10 +759,10 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         a larger sparse block instead...""")
         return None
 
-    def _get_weighted_sparse_nmf_block(self, spmat, FF_weights, max_iters=int(1e3), nmf_tol=1e-2, k0=5):
+    def _get_weighted_sparse_nmf_block(self, spmat, FF_weights, max_iters=int(1e3), nmf_tol=1e-2, k0=5, beta_loss=2):
         ret = flux.linalg.estimate_sparsity_nmf_weighted(
             spmat, FF_weights, self._tol, max_nbytes=nbytes(spmat),
-            max_iters=max_iters, nmf_tol=nmf_tol, k0=k0)
+            max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
         if ret is None:
             return None
 
@@ -1081,6 +1191,9 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def make_svd_block(self, *args):
         return FormFactorSvdBlock(self, *args)
+
+    def make_sparse_svd_block(self, *args):
+        return FormFactorSparseSvdBlock(self, *args)
 
     def make_nmf_block(self, *args):
         return FormFactorNmfBlock(self, *args)
