@@ -16,12 +16,20 @@ parser.add_argument('--max_inner_area', type=float, default=0.8)
 parser.add_argument('--max_outer_area', type=float, default=3.0)
 parser.add_argument('--tol', type=float, default=1e-1)
 
+parser.add_argument('--min_depth', type=int, default=1)
+parser.add_argument('--max_depth', type=int, default=0)
+
 parser.add_argument('--nmf_max_iters', type=int, default=int(1e4))
 parser.add_argument('--nmf_tol', type=float, default=1e-2)
 
 parser.add_argument('--k0', type=int, default=40)
 
+parser.add_argument('--p', type=int, default=5)
+parser.add_argument('--q', type=int, default=1)
+
 parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
+
+parser.add_argument('--plot_labels', action='store_true')
 
 parser.set_defaults(feature=False)
 
@@ -83,6 +91,9 @@ def plot_blocks(block, fig, **kwargs):
                     continue
                 else:
                     raise Exception('TODO: add %s to _plot_block' % type(child))
+
+                if args.plot_labels:
+                    ax.text(c[0] + 0.5*w, c[1] + 0.5*h, "{:.0e}".format(np.prod(child.shape)), transform=ax.transAxes, fontsize=8, verticalalignment='center', horizontalalignment='center')
             else:
                 add_rects(child, c, w, h)
 
@@ -103,6 +114,8 @@ compression_type = args.compression_type
 max_inner_area_str = str(args.max_inner_area)
 max_outer_area_str = str(args.max_outer_area)
 
+max_depth = args.max_depth if args.max_depth != 0 else None
+
 if compression_type == "true_model":
     FF_dir = "true_{:.1f}_{:.1f}".format(args.max_inner_area, args.max_outer_area)
 
@@ -114,6 +127,14 @@ elif compression_type == "ssvd":
     FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, args.tol,
         args.k0)
 
+elif compression_type == "rand_svd":
+    savedir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, tol,
+        args.p, args.q, args.k0)
+
+elif compression_type == "rand_ssvd":
+    savedir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, tol,
+        args.p, args.q, args.k0)
+
 elif compression_type == "nmf":
     FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", args.max_inner_area, args.max_outer_area, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
@@ -122,9 +143,21 @@ elif compression_type == "snmf":
     FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", args.max_inner_area, args.max_outer_area, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
+elif compression_type == "rand_snmf":
+    savedir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, tol,
+        args.nmf_max_iters, args.nmf_tol, args.p, args.q args.k0)
+
 elif compression_type == "wsnmf":
     FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", args.max_inner_area, args.max_outer_area, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
+
+
+if not compression_type == "true_model" and args.min_depth != 1:
+    FF_dir += "_{}mindepth".format(args.min_depth)
+
+if not compression_type == "true_model" and max_depth is not None:
+    FF_dir += "_{}maxdepth".format(max_depth)
+
 
 if compression_type == 'true_model':
     FF_path = 'results/' + FF_dir + f'/FF_{max_inner_area_str}_{max_outer_area_str}.npz'
@@ -143,5 +176,8 @@ else:
 fig = plt.figure(figsize=(18, 6))  # , figsize=(18, 6))
 print(f'- {FF_path}')
 fig, ax = plot_blocks(FF._root, fig)
-fig.savefig("results/"+FF_dir+"/block_plot.png")
+if args.plot_labels:
+    fig.savefig("results/"+FF_dir+"/block_plot_labeled.png")
+else:
+    fig.savefig("results/"+FF_dir+"/block_plot.png")
 plt.close(fig)

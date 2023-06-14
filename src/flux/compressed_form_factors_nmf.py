@@ -492,65 +492,40 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             else:
                 return sparse_block
 
+
         # Next, since the block is "big enough", we go ahead and
         # attempt to compress it.
         if compression_type == "svd":
             
             k0 = compression_params["k0"]
 
-            svd_block = self._get_svd_block(spmat, k0=k0)
-            nbytes_svd = np.inf if svd_block is None else nbytes(svd_block)
-
-            # If we haven't specified a max depth, or if we haven't
-            # bottomed out yet, then we attempt to descend another
-            # level.
-            if max_depth is None or max_depth > 1:
-                child_block = self.make_child_block(
-                    shape_model, spmat, I, J,
-                    None if max_depth is None else max_depth - 1)
-            else:
-                child_block = None
-            nbytes_child = np.inf if child_block is None else nbytes(child_block)
-
-            nbytes_min = min(nbytes_sparse, nbytes_svd, nbytes_child)
-
-            # Select the block with the smallest size
-            if nbytes_sparse == nbytes_min:
-                block = sparse_block
-            elif nbytes_svd == nbytes_min:
-                block = svd_block
-            else:
-                block = child_block
-
+            compressed_block = self._get_svd_block(spmat, k0=k0)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
         elif compression_type == "ssvd":
             
             k0 = compression_params["k0"]
 
-            sparse_svd_block = self._get_sparse_svd_block(spmat, k0=k0)
-            nbytes_sparse_svd = np.inf if sparse_svd_block is None else nbytes(sparse_svd_block)
+            compressed_block = self._get_sparse_svd_block(spmat, k0=k0)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
-            # If we haven't specified a max depth, or if we haven't
-            # bottomed out yet, then we attempt to descend another
-            # level.
-            if max_depth is None or max_depth > 1:
-                child_block = self.make_child_block(
-                    shape_model, spmat, I, J,
-                    None if max_depth is None else max_depth - 1)
-            else:
-                child_block = None
-            nbytes_child = np.inf if child_block is None else nbytes(child_block)
+        elif compression_type == "rand_svd":
+            
+            k0 = compression_params["k0"]
+            p = compression_params["p"]
+            q = compression_params["q"]
 
-            nbytes_min = min(nbytes_sparse, nbytes_sparse_svd, nbytes_child)
+            compressed_block = self._get_random_svd_block(spmat, k0=k0, p=p, q=q)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
-            # Select the block with the smallest size
-            if nbytes_sparse == nbytes_min:
-                block = sparse_block
-            elif nbytes_sparse_svd == nbytes_min:
-                block = sparse_svd_block
-            else:
-                block = child_block
+        elif compression_type == "rand_ssvd":
+            
+            k0 = compression_params["k0"]
+            p = compression_params["p"]
+            q = compression_params["q"]
 
+            compressed_block = self._get_sparse_random_svd_block(spmat, k0=k0, p=p, q=q)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
         elif compression_type == "nmf":
             
@@ -559,30 +534,8 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             k0 = compression_params["k0"]
             beta_loss = compression_params["beta_loss"]
             
-            nmf_block = self._get_nmf_block(spmat, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
-            nbytes_nmf = np.inf if nmf_block is None else nbytes(nmf_block)
-
-            # If we haven't specified a max depth, or if we haven't
-            # bottomed out yet, then we attempt to descend another
-            # level.
-            if max_depth is None or max_depth > 1:
-                child_block = self.make_child_block(
-                    shape_model, spmat, I, J,
-                    None if max_depth is None else max_depth - 1)
-            else:
-                child_block = None
-            nbytes_child = np.inf if child_block is None else nbytes(child_block)
-
-            nbytes_min = min(nbytes_sparse, nbytes_nmf, nbytes_child)
-
-            # Select the block with the smallest size
-            if nbytes_sparse == nbytes_min:
-                block = sparse_block
-            elif nbytes_nmf == nbytes_min:
-                block = nmf_block
-            else:
-                block = child_block
-
+            compressed_block = self._get_nmf_block(spmat, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
         elif compression_type == "snmf":
 
@@ -591,30 +544,19 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             k0 = compression_params["k0"]
             beta_loss = compression_params["beta_loss"]
 
-            sparse_nmf_block = self._get_sparse_nmf_block(spmat, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
-            nbytes_sparse_nmf = np.inf if sparse_nmf_block is None else nbytes(sparse_nmf_block)
+            compressed_block = self._get_sparse_nmf_block(spmat, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
-            # If we haven't specified a max depth, or if we haven't
-            # bottomed out yet, then we attempt to descend another
-            # level.
-            if max_depth is None or max_depth > 1:
-                child_block = self.make_child_block(
-                    shape_model, spmat, I, J,
-                    None if max_depth is None else max_depth - 1)
-            else:
-                child_block = None
-            nbytes_child = np.inf if child_block is None else nbytes(child_block)
+        elif compression_type == "rand_snmf":
 
-            nbytes_min = min(nbytes_sparse, nbytes_sparse_nmf, nbytes_child)
+            max_iters = compression_params["max_iters"]
+            nmf_tol = compression_params["nmf_tol"]
+            k0 = compression_params["k0"]
+            p = compression_params["p"]
+            q = compression_params["q"]
 
-            # Select the block with the smallest size
-            if nbytes_sparse == nbytes_min:
-                block = sparse_block
-            elif nbytes_sparse_nmf == nbytes_min:
-                block = sparse_nmf_block
-            else:
-                block = child_block
-
+            compressed_block = self._get_sparse_random_nmf_block(spmat, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, p=p, q=q)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
         elif compression_type == "wsnmf":
 
@@ -625,33 +567,34 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
             FF_weights = self._root._FF_weights[I][:,J]
 
-            sparse_nmf_block = self._get_weighted_sparse_nmf_block(spmat, FF_weights, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
-            nbytes_sparse_nmf = np.inf if sparse_nmf_block is None else nbytes(sparse_nmf_block)
-
-            # If we haven't specified a max depth, or if we haven't
-            # bottomed out yet, then we attempt to descend another
-            # level.
-            if max_depth is None or max_depth > 1:
-                child_block = self.make_child_block(
-                    shape_model, spmat, I, J,
-                    None if max_depth is None else max_depth - 1)
-            else:
-                child_block = None
-            nbytes_child = np.inf if child_block is None else nbytes(child_block)
-
-            nbytes_min = min(nbytes_sparse, nbytes_sparse_nmf, nbytes_child)
-
-            # Select the block with the smallest size
-            if nbytes_sparse == nbytes_min:
-                block = sparse_block
-            elif nbytes_sparse_nmf == nbytes_min:
-                block = sparse_nmf_block
-            else:
-                block = child_block
-
+            compressed_block = self._get_weighted_sparse_nmf_block(spmat, FF_weights, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
         else:
             raise RuntimeError('invalid compression_type: %d' % compression_type)
+
+
+        # If we haven't specified a max depth, or if we haven't
+        # bottomed out yet, then we attempt to descend another
+        # level.
+        if max_depth is None or max_depth > 1:
+            child_block = self.make_child_block(
+                shape_model, spmat, I, J,
+                None if max_depth is None else max_depth - 1)
+        else:
+            child_block = None
+        nbytes_child = np.inf if child_block is None else nbytes(child_block)
+
+        nbytes_min = min(nbytes_sparse, nbytes_compressed, nbytes_child)
+
+        # Select the block with the smallest size
+        if nbytes_sparse == nbytes_min:
+            block = sparse_block
+        elif nbytes_compressed == nbytes_min:
+            block = compressed_block
+        else:
+            block = child_block
+
 
         # Finally, do a little post-processing: if all of the child
         # blocks are dense blocks, then collapse them into a single
@@ -672,13 +615,34 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             or isinstance(block, FormFactorSvdBlock) \
             or isinstance(block, FormFactorSparseSvdBlock) \
             or isinstance(block, FormFactorNmfBlock) \
-            or isinstance(block, FormFactorSparseNmfBlock)
+            or isinstance(block, FormFactorSparseNmfBlock) \
+            or isinstance(block, FormFactorQuadtreeBlock)
         return block
 
     def _get_svd_block(self, spmat, k0=40):
         ret = flux.linalg.estimate_rank(
             spmat, self._tol, max_nbytes=nbytes(spmat),
             k0=k0)
+        if ret is None:
+            return None
+
+        U, S, Vt, tol = ret
+        svd_block = self.root.make_svd_block(U, S, Vt)
+
+        # If the tolerance estimated this way doesn't satisfy
+        # the requested tolerance, return the sparse block
+        # assert tol != 0
+        if tol <= self._tol:
+            return svd_block
+
+        logging.warning("""computed a really inaccurate SVD, using
+        a larger sparse block instead...""")
+        return None
+
+    def _get_random_svd_block(self, spmat, k0=40, p=5, q=1):
+        ret = flux.linalg.estimate_rank_random_svd(
+            spmat, self._tol, max_nbytes=nbytes(spmat),
+            k0=k0, p=p, q=q)
         if ret is None:
             return None
 
@@ -707,15 +671,17 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
         return s_svd_block
 
-        # If the tolerance estimated this way doesn't satisfy
-        # the requested tolerance, return the sparse block
-        # assert tol != 0
-        if tol <= self._tol:
-            return s_svd_block
+    def _get_sparse_random_svd_block(self, spmat, k0=40, p=5, q=1):
+        ret = flux.linalg.estimate_sparsity_random_svd(
+            spmat, self._tol, max_nbytes=nbytes(spmat),
+            k0=k0, p=p, q=q)
+        if ret is None:
+            return None
 
-        logging.warning("""computed a really inaccurate SVD, using
-        a larger sparse block instead...""")
-        return None
+        U, S, Vt, Sr = ret
+        s_svd_block = self.root.make_sparse_svd_block(U, S, Vt, Sr)
+
+        return s_svd_block
 
     def _get_nmf_block(self, spmat, max_iters=int(1e3), nmf_tol=1e-2, k0=40, beta_loss=2):
         ret = flux.linalg.estimate_rank_nmf(
@@ -749,15 +715,17 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
         return s_nmf_block
 
-        # If the tolerance estimated this way doesn't satisfy
-        # the requested tolerance, return the sparse block
-        # assert tol != 0
-        if tol <= self._tol:
-            return s_nmf_block
+    def _get_sparse_random_nmf_block(self, spmat, max_iters=int(1e3), nmf_tol=1e-2, k0=5, p=5, q=1):
+        ret = flux.linalg.estimate_sparsity_random_nmf(
+            spmat, self._tol, max_nbytes=nbytes(spmat),
+            max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, p=p, q=q)
+        if ret is None:
+            return None
 
-        logging.warning("""computed a really inaccurate sparse NMF, using
-        a larger sparse block instead...""")
-        return None
+        W, H, Sr = ret
+        s_nmf_block = self.root.make_sparse_nmf_block(W, H, Sr)
+
+        return s_nmf_block
 
     def _get_weighted_sparse_nmf_block(self, spmat, FF_weights, max_iters=int(1e3), nmf_tol=1e-2, k0=5, beta_loss=2):
         ret = flux.linalg.estimate_sparsity_nmf_weighted(
@@ -1017,6 +985,32 @@ class FormFactorQuadtreeBlock(FormFactor2dTreeBlock):
         PJ = P[:, :2] if J is None else P[J, :2]
         self._col_block_inds = [J for J in get_quadrant_order(PJ)]
 
+class FormFactorMinDepthQuadtreeBlock(FormFactorQuadtreeBlock):
+    """A form factor matrix block corresponding to a quadtree
+    partition which goes down at least min_depth levels. Only
+    for use as a root block.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _set_block_inds(self, shape_model, I, J):
+        P = shape_model.P
+
+        PI = P[:, :2]
+        prev_level_block_inds = [I for I in get_quadrant_order(PI)]
+
+        for _ in range(1, self._root._min_depth):
+            current_level_block_inds = []
+            for i in range(len(prev_level_block_inds)):
+                PI = P[prev_level_block_inds[i], :2]
+                current_level_block_inds += [I for I in get_quadrant_order(PI)]
+            prev_level_block_inds = current_level_block_inds
+
+        self._row_block_inds = prev_level_block_inds
+        self._col_block_inds = prev_level_block_inds
+
 class FormFactorOctreeBlock(FormFactor2dTreeBlock):
 
     def __init__(self, *args, **kwargs):
@@ -1086,7 +1080,7 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def __init__(self, shape_model, tol=1e-5,
                  min_size=16384, max_depth=None, force_max_depth=False, compression_type="svd", compression_params={},
-                 RootBlock=FormFactorQuadtreeBlock, **kwargs):
+                 RootBlock=FormFactorQuadtreeBlock, min_depth=None, **kwargs):
         """Create a new CompressedFormFactorMatrix.
 
         Parameters
@@ -1121,6 +1115,7 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         self._force_max_depth = force_max_depth
         self._compression_type = compression_type
         self._compression_params = compression_params
+        self._min_depth = min_depth
 
         if compression_type == "wsnmf":
 
