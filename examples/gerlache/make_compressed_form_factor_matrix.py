@@ -128,7 +128,7 @@ elif compression_type == "rand_snmf":
     }
 
     savedir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, tol,
-        args.nmf_max_iters, args.nmf_tol, args.p, args.q args.k0)
+        args.nmf_max_iters, args.nmf_tol, args.p, args.q, args.k0)
 
 
 elif compression_type == "wsnmf":

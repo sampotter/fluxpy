@@ -338,8 +338,8 @@ def estimate_sparsity_random_nmf(spmat, tol, max_nbytes=None, k0=5, max_iters=in
 
     target = np.power(scipy.sparse.linalg.norm((W@H) - spmat, ord='fro'), 2) - np.power(tol*scipy.sparse.linalg.norm(spmat, ord='fro'), 2)
 
-        Sr = np.zeros_like(resid)
     if target <= 0:
+        Sr = np.zeros_like(resid)
         Sr = scipy.sparse.csr_matrix(Sr)
 
     else:
