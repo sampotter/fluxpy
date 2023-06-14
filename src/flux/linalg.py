@@ -282,6 +282,8 @@ def randomized_HALS(X, Q, k, tol=1e-4, max_iters=1e4):
         
         H_norm = new_H_norm
             
+    W = scipy.sparse.csr_matrix(W)
+    H = scipy.sparse.csr_matrix(H)
     return W, H
 
 
