@@ -291,7 +291,6 @@ def randomized_svd(B, Q, k):
     _U, S, Vt = np.linalg.svd(B, full_matrices=False)
     U = Q @ _U
 
-    U, S, Vt = scipy.sparse.linalg.svds(wrapped_spmat, k)
     U = scipy.sparse.csr_matrix(U)
     Vt = scipy.sparse.csr_matrix(Vt)
     return U, S, Vt

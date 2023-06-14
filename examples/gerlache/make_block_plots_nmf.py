@@ -11,7 +11,10 @@ import os
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--compression_type', type=str, default="nmf",choices=["nmf","snmf","wsnmf","svd","ssvd","true_model"])
+parser.add_argument('--compression_type', type=str, default="svd",choices=["nmf","snmf","wsnmf",
+    "svd","ssvd",
+    "rand_svd","rand_ssvd","rand_snmf",
+    "true_model"])
 parser.add_argument('--max_inner_area', type=float, default=0.8)
 parser.add_argument('--max_outer_area', type=float, default=3.0)
 parser.add_argument('--tol', type=float, default=1e-1)
@@ -128,11 +131,11 @@ elif compression_type == "ssvd":
         args.k0)
 
 elif compression_type == "rand_svd":
-    savedir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, args.tol,
         args.p, args.q, args.k0)
 
 elif compression_type == "rand_ssvd":
-    savedir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, args.tol,
         args.p, args.q, args.k0)
 
 elif compression_type == "nmf":
@@ -144,7 +147,7 @@ elif compression_type == "snmf":
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 elif compression_type == "rand_snmf":
-    savedir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, args.max_inner_area, args.max_outer_area, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.p, args.q, args.k0)
 
 elif compression_type == "wsnmf":
