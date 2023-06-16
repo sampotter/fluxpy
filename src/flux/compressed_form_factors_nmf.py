@@ -1005,7 +1005,7 @@ class FormFactorMinDepthQuadtreeBlock(FormFactorQuadtreeBlock):
             current_level_block_inds = []
             for i in range(len(prev_level_block_inds)):
                 PI = P[prev_level_block_inds[i], :2]
-                current_level_block_inds += [I for I in get_quadrant_order(PI)]
+                current_level_block_inds += [prev_level_block_inds[i][I] for I in get_quadrant_order(PI)]
             prev_level_block_inds = current_level_block_inds
 
         self._row_block_inds = prev_level_block_inds
