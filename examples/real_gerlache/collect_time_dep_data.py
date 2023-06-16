@@ -94,38 +94,38 @@ max_depth = args.max_depth if args.max_depth != 0 else None
 
 
 if compression_type == "true_model":
-    FF_dir = "true_{:.1f}_{:.1f}".format(max_inner_area_str, max_outer_area_str)
+    FF_dir = "true_{}_{}".format(max_inner_area_str, max_outer_area_str)
 
 elif compression_type == "svd":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
         args.k0)
 
 elif compression_type == "ssvd":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
         args.k0)
 
 elif compression_type == "rand_svd":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
         args.p, args.q, args.k0)
 
 elif compression_type == "rand_ssvd":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
         args.p, args.q, args.k0)
 
 elif compression_type == "nmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", max_inner_area_str, max_outer_area_str, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 elif compression_type == "snmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", max_inner_area_str, max_outer_area_str, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 elif compression_type == "rand_snmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.p, args.q, args.k0)
 
 elif compression_type == "wsnmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", max_inner_area_str, max_outer_area_str, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 
