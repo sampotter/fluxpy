@@ -94,38 +94,38 @@ max_depth = args.max_depth if args.max_depth != 0 else None
 
 
 if compression_type == "true_model":
-    FF_dir = "true_{:.1f}_{:.1f}".format(max_inner_area_str, max_outer_area_str)
+    FF_dir = "true_{:.1f}_{:.1f}".format(args.max_inner_area_str, max_outer_area_str)
 
 elif compression_type == "svd":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}k0".format(compression_type, args.max_inner_area_str, max_outer_area_str, args.tol,
         args.k0)
 
 elif compression_type == "ssvd":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}k0".format(compression_type, args.max_inner_area_str, max_outer_area_str, args.tol,
         args.k0)
 
 elif compression_type == "rand_svd":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, args.max_inner_area_str, max_outer_area_str, args.tol,
         args.p, args.q, args.k0)
 
 elif compression_type == "rand_ssvd":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{}p_{}q_{}k0".format(compression_type, args.max_inner_area_str, max_outer_area_str, args.tol,
         args.p, args.q, args.k0)
 
 elif compression_type == "nmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", args.max_inner_area_str, max_outer_area_str, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 elif compression_type == "snmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", args.max_inner_area_str, max_outer_area_str, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 elif compression_type == "rand_snmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, args.max_inner_area_str, max_outer_area_str, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.p, args.q, args.k0)
 
 elif compression_type == "wsnmf":
-    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", max_inner_area_str, max_outer_area_str, args.tol,
+    FF_dir = "{}_{:.1f}_{:.1f}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", args.max_inner_area_str, max_outer_area_str, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 
@@ -149,8 +149,8 @@ if not os.path.exists(savedir):
 if compression_type == 'true_model':
     path = FF_dir+f'/FF_{max_inner_area_str}_{max_outer_area_str}.npz'
     FF = scipy.sparse.load_npz(path)
-    V = np.load(f'gerlache_verts_{max_inner_area_str}_{max_outer_area_str}.npy')
-    F = np.load(f'gerlache_faces_{max_inner_area_str}_{max_outer_area_str}.npy')
+    V = np.load(f'faustini_verts_{max_inner_area_str}_{max_outer_area_str}.npy')
+    F = np.load(f'faustini_faces_{max_inner_area_str}_{max_outer_area_str}.npy')
     N = get_surface_normals(V, F)
     N[N[:, 2] > 0] *= -1
     shape_model = CgalTrimeshShapeModel(V, F, N)
@@ -232,7 +232,7 @@ shape_model_st = CgalTrimeshShapeModel(V_st.copy(order='C'), shape_model.F)
 
 # save mesh to file
 mesh = meshio.Mesh(shape_model_st.V, [('triangle', shape_model_st.F)])
-fout = f'gerlache_{max_inner_area_str}_{max_outer_area_str}_st.ply'
+fout = f'faustini_{max_inner_area_str}_{max_outer_area_str}_st.ply'
 mesh.write(fout)
 
 # read with pyvista and plot Tmax and Tmean at surface

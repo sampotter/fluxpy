@@ -157,8 +157,8 @@ if not os.path.exists(savedir):
     os.mkdir(savedir)
 
 
-verts = np.load(f'gerlache_verts_{max_inner_area_str}_{max_outer_area_str}.npy')
-faces = np.load(f'gerlache_faces_{max_inner_area_str}_{max_outer_area_str}.npy')
+verts = np.load(f'faustini_verts_{max_inner_area_str}_{max_outer_area_str}.npy')
+faces = np.load(f'faustini_faces_{max_inner_area_str}_{max_outer_area_str}.npy')
 
 # convert verts from km to m
 verts *= 1e3
