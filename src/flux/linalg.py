@@ -66,7 +66,7 @@ def estimate_sparsity_svd(spmat, tol, max_nbytes=None, k0=40):
     
     m, k = min(spmat.shape), k0
     while True:
-        k = min(k, m)
+        k = min(k, m - 1)
         
         if not k >= 1:
             raise RuntimeError('bad value of k')
