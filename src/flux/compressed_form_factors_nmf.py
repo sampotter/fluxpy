@@ -428,6 +428,150 @@ class FormFactorSparseNmfBlock(FormFactorLeafBlock,
         return 0 if size == 0 else (w_nnz + h_nnz + sr_nnz)/size
 
 
+class FormFactorSparseAcaBlock(FormFactorLeafBlock,
+                         scipy.sparse.linalg.LinearOperator):
+
+    def __init__(self, root, a, b, sr):
+        shape = (a.shape[0], b.shape[1])
+        super().__init__(root, shape)
+
+        a_csr = scipy.sparse.csr_matrix(a)
+        self._a = a if nbytes(a) < nbytes(a_csr) else a_csr
+
+        b_csr = scipy.sparse.csr_matrix(b)
+        self._b = b if nbytes(b) < nbytes(b_csr) else b_csr
+
+        sr_csr = scipy.sparse.csr_matrix(sr)
+        self._sr = sr if nbytes(sr) < nbytes(sr_csr) else sr_csr
+
+    def _matmat(self, x):
+        y = self._b@x
+        y = self._a@y
+        y = y + (self._sr@x)
+        return y
+
+    def is_dense(self):
+        return False
+
+    def is_sparse(self):
+        return False
+
+    @property
+    def is_empty_leaf(self):
+        return False
+
+    @property
+    def nbytes(self):
+        return nbytes(self._a) + nbytes(self._b) + nbytes(self._sr)
+
+    @property
+    def compressed(self):
+        return isinstance(self._a, scipy.sparse.spmatrix) \
+            or isinstance(self._b, scipy.sparse.spmatrix) \
+            or isinstance(self._sr, scipy.sparse.spmatrix)
+
+    def _get_sparsity(self, tol=None):
+        a_nnz = flux.linalg.nnz(self._a, tol)
+        b_nnz = flux.linalg.nnz(self._b, tol)
+        sr_nnz = flux.linalg.nnz(self._sr, tol)
+        size = self._a.size + self._b.size + self._sr.size
+        return 0 if size == 0 else (a_nnz + b_nnz + sr_nnz)/size
+
+
+class FormFactorSparseBrpBlock(FormFactorLeafBlock,
+                         scipy.sparse.linalg.LinearOperator):
+
+    def __init__(self, root, l, sr):
+        shape = (l.shape[0], l.shape[1])
+        super().__init__(root, shape)
+
+        l_csr = scipy.sparse.csr_matrix(l)
+        self._l = l if nbytes(l) < nbytes(l_csr) else l_csr
+
+        sr_csr = scipy.sparse.csr_matrix(sr)
+        self._sr = sr if nbytes(sr) < nbytes(sr_csr) else sr_csr
+
+    def _matmat(self, x):
+        y = self._l@x
+        y = y + (self._sr@x)
+        return y
+
+    def is_dense(self):
+        return False
+
+    def is_sparse(self):
+        return False
+
+    @property
+    def is_empty_leaf(self):
+        return False
+
+    @property
+    def nbytes(self):
+        return nbytes(self._l) + nbytes(self._sr)
+
+    @property
+    def compressed(self):
+        return isinstance(self._l, scipy.sparse.spmatrix) \
+            or isinstance(self._sr, scipy.sparse.spmatrix)
+
+    def _get_sparsity(self, tol=None):
+        l_nnz = flux.linalg.nnz(self._l, tol)
+        sr_nnz = flux.linalg.nnz(self._sr, tol)
+        size = self._l.size + self._sr.size
+        return 0 if size == 0 else (l_nnz + sr_nnz)/size
+
+
+class FormFactorSparseIdBlock(FormFactorLeafBlock,
+                         scipy.sparse.linalg.LinearOperator):
+
+    def __init__(self, root, c, v, sr):
+        shape = (c.shape[0], v.shape[1])
+        super().__init__(root, shape)
+
+        c_csr = scipy.sparse.csr_matrix(c)
+        self._c = c if nbytes(c) < nbytes(c_csr) else c_csr
+
+        v_csr = scipy.sparse.csr_matrix(v)
+        self._v = v if nbytes(v) < nbytes(v_csr) else v_csr
+
+        sr_csr = scipy.sparse.csr_matrix(sr)
+        self._sr = sr if nbytes(sr) < nbytes(sr_csr) else sr_csr
+
+    def _matmat(self, x):
+        y = self._v@x
+        y = self._c@y
+        y = y + (self._sr@x)
+        return y
+
+    def is_dense(self):
+        return False
+
+    def is_sparse(self):
+        return False
+
+    @property
+    def is_empty_leaf(self):
+        return False
+
+    @property
+    def nbytes(self):
+        return nbytes(self._c) + nbytes(self._v) + nbytes(self._sr)
+
+    @property
+    def compressed(self):
+        return isinstance(self._c, scipy.sparse.spmatrix) \
+            or isinstance(self._v, scipy.sparse.spmatrix) \
+            or isinstance(self._sr, scipy.sparse.spmatrix)
+
+    def _get_sparsity(self, tol=None):
+        c_nnz = flux.linalg.nnz(self._c, tol)
+        v_nnz = flux.linalg.nnz(self._v, tol)
+        sr_nnz = flux.linalg.nnz(self._sr, tol)
+        size = self._c.size + self._v.size + self._sr.size
+        return 0 if size == 0 else (c_nnz + v_nnz + sr_nnz)/size
+
+
 class FormFactorBlockMatrix(CompressedFormFactorBlock,
                             scipy.sparse.linalg.LinearOperator):
 
@@ -570,6 +714,29 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             compressed_block = self._get_weighted_sparse_nmf_block(spmat, FF_weights, max_iters=max_iters, nmf_tol=nmf_tol, k0=k0, beta_loss=beta_loss)
             nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
+        elif compression_type == "saca":
+            
+            k0 = compression_params["k0"]
+
+            compressed_block = self._get_sparse_aca_block(spmat, k0=k0)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
+
+        elif compression_type == "sbrp":
+            
+            k0 = compression_params["k0"]
+
+            compressed_block = self._get_sparse_brp_block(spmat, k0=k0)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
+
+        elif compression_type == "rand_sid":
+            
+            k0 = compression_params["k0"]
+            p = compression_params["p"]
+            q = compression_params["q"]
+
+            compressed_block = self._get_sparse_random_id_block(spmat, k0=k0, p=p, q=q)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
+
         else:
             raise RuntimeError('invalid compression_type: %d' % compression_type)
 
@@ -616,6 +783,9 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             or isinstance(block, FormFactorSparseSvdBlock) \
             or isinstance(block, FormFactorNmfBlock) \
             or isinstance(block, FormFactorSparseNmfBlock) \
+            or isinstance(block, FormFactorSparseAcaBlock) \
+            or isinstance(block, FormFactorSparseBrpBlock) \
+            or isinstance(block, FormFactorSparseIdBlock) \
             or isinstance(block, FormFactorQuadtreeBlock)
         return block
 
@@ -746,6 +916,42 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         logging.warning("""computed a really inaccurate weighted sparse NMF, using
         a larger sparse block instead...""")
         return None
+
+    def _get_sparse_aca_block(self, spmat, k0=40):
+        ret = flux.linalg.estimate_sparsity_aca(
+            spmat, self._tol, max_nbytes=nbytes(spmat),
+            k0=k0)
+        if ret is None:
+            return None
+
+        A, B, Sr = ret
+        s_aca_block = self.root.make_sparse_aca_block(A, B, Sr)
+
+        return s_aca_block
+
+    def _get_sparse_brp_block(self, spmat, k0=40):
+        ret = flux.linalg.estimate_sparsity_brp(
+            spmat, self._tol, max_nbytes=nbytes(spmat),
+            k0=k0)
+        if ret is None:
+            return None
+
+        L, Sr = ret
+        s_brp_block = self.root.make_sparse_brp_block(L, Sr)
+
+        return s_brp_block
+
+    def _get_sparse_random_id_block(self, spmat, k0=40, p=5, q=1):
+        ret = flux.linalg.estimate_sparsity_random_id(
+            spmat, self._tol, max_nbytes=nbytes(spmat),
+            k0=k0, p=p, q=q)
+        if ret is None:
+            return None
+
+        C, V, Sr = ret
+        s_id_block = self.root.make_sparse_id_block(C, V, Sr)
+
+        return s_id_block
 
     def _matmat(self, x):
         y = np.zeros((self.shape[0], x.shape[1]), dtype=self.dtype)
@@ -1195,6 +1401,15 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def make_sparse_nmf_block(self, *args):
         return FormFactorSparseNmfBlock(self, *args)
+
+    def make_sparse_aca_block(self, *args):
+        return FormFactorSparseAcaBlock(self, *args)
+
+    def make_sparse_brp_block(self, *args):
+        return FormFactorSparseBrpBlock(self, *args)
+
+    def make_sparse_id_block(self, *args):
+        return FormFactorSparseIdBlock(self, *args)
 
     def make_quadtree_block(self, *args):
         return FormFactorQuadtreeBlock(self, *args)

@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--compression_type', type=str, default="svd",choices=["nmf","snmf","wsnmf",
     "svd","ssvd",
     "rand_svd","rand_ssvd","rand_snmf",
+    "saca","sbrp","rand_sid",
     "true_model"])
 parser.add_argument('--max_inner_area', type=float, default=0.8)
 parser.add_argument('--max_outer_area', type=float, default=3.0)
@@ -141,6 +142,35 @@ elif compression_type == "wsnmf":
 
     savedir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", max_inner_area_str, max_outer_area_str, tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
+
+
+elif compression_type == "saca":
+    compression_params = {
+        "k0": args.k0
+    }
+
+    savedir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, tol,
+        args.k0)
+
+
+elif compression_type == "sbrp":
+    compression_params = {
+        "k0": args.k0
+    }
+
+    savedir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, tol,
+        args.k0)
+
+
+elif compression_type == "rand_sid":
+    compression_params = {
+        "k0": args.k0,
+        "p": args.p,
+        "q": args.q
+    }
+
+    savedir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, tol,
+        args.p, args.q, args.k0)
 
 
 if not compression_type == "true_model" and args.min_depth != 1:

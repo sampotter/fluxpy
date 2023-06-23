@@ -6,6 +6,10 @@ from flux.debug import DebugLinearOperator, IndentedPrinter
 from flux.util import nbytes
 
 
+
+
+# SVD ALGORITHMS
+
 def sparse_svd(spmat, k):
     with IndentedPrinter() as _:
         _.print('svds(%d x %d, %d)' % (*spmat.shape, k))
@@ -116,6 +120,8 @@ def estimate_sparsity_svd(spmat, tol, max_nbytes=None, k0=40):
 
 
 
+
+# NMF ALGORITHMS
 
 def fit_nmf(spmat, k, max_iters=int(1e3), tol=1e-4, beta_loss=2, init='svd'):
     if beta_loss == 2:
@@ -239,6 +245,281 @@ def estimate_sparsity_nmf_weighted(spmat, FF_weights, tol, max_nbytes=None, k0=5
 
 
 
+
+# ACA ALGORITHMS
+
+def cross_approximation_full(M, k):
+    A = np.empty((M.shape[0], 0))
+    B = np.empty((0, M.shape[1]))
+    F_hat = A @ B
+    
+    nu = 1
+    while nu <= k:
+        i_star, j_star = np.unravel_index(np.argmax(abs(M - F_hat)), M.shape)
+        delta = M[i_star,j_star] - F_hat[i_star,j_star]
+        
+        if delta == 0:
+            return A, B
+        
+        a_nu = (M[:, j_star] - F_hat[:,j_star]).reshape(-1,1)
+        b_nu = ((M[i_star, :] - F_hat[i_star,:]) / delta).reshape(-1,1)
+        
+        A = np.concatenate([A, a_nu], axis=1)
+        B = np.concatenate([B, b_nu.T], axis=0)
+        F_hat = A @ B
+                   
+        nu += 1
+    
+    return scipy.sparse.csr_matrix(A), scipy.sparse.csr_matrix(B)
+
+
+def estimate_sparsity_aca(spmat, tol, max_nbytes=None, k0=40):
+    assert tol < 1
+
+    if spmat.shape[0] == 0 or spmat.shape[1] == 0:
+        return 0
+
+    if spmat.shape == (1, 1):
+        return 1
+
+    prev_k = 0
+    prev_nbytes = np.inf
+    Sr_prev = np.zeros(spmat.shape)
+    
+    m, k = min(spmat.shape), k0
+    while True:
+        k = min(k, m)
+        
+        if not k >= 1:
+            raise RuntimeError('bad value of k')
+
+        A, B = cross_approximation_full(spmat.A, k)
+        
+        for kk in range(prev_k+1,k+1):
+            
+            Ak, Bk = A[:, :kk], B[:kk, :]
+            resid = (spmat - (Ak @ Bk)).A
+
+            num_resids = resid.shape[0] * resid.shape[1]
+            nnz_resid = np.count_nonzero(resid)
+
+            sorted_resid_idx = np.unravel_index(np.argsort(abs(resid), axis=None), resid.shape)
+
+            target = np.power(np.linalg.norm(resid, ord='fro'), 2) - np.power(tol*scipy.sparse.linalg.norm(spmat, ord='fro'), 2)
+
+            if target <= 0:
+                Sr = np.zeros_like(resid)
+                Sr = scipy.sparse.csr_matrix(Sr)
+
+            else:
+                cumulative_residual = np.cumsum(np.power(resid[sorted_resid_idx[0], sorted_resid_idx[1]][::-1], 2))
+                keep_resids = (cumulative_residual > target).nonzero()[0][0] + 1
+
+                Sr = np.copy(resid)
+                Sr[sorted_resid_idx[0][:num_resids-keep_resids], sorted_resid_idx[1][:num_resids-keep_resids]] = 0.
+                Sr = scipy.sparse.csr_matrix(Sr)
+
+            sparse_aca_nbytes = nbytes(Ak) + nbytes(Bk) + nbytes(Sr)
+
+            if sparse_aca_nbytes >= prev_nbytes:
+                return A[:, :kk-1], B[:kk-1, :], Sr_prev
+
+            if max_nbytes is not None and sparse_aca_nbytes >= max_nbytes:
+                return None
+            
+            if kk == m:
+                return A[:, :kk], B[:kk, :], Sr
+
+            prev_nbytes = sparse_aca_nbytes
+            Sr_prev = Sr
+
+        prev_k = k
+        k *= 2
+
+
+
+
+# BRP ALGORITHMS
+
+def bilateral_random_projection(X, k):
+    
+    m, n = X.shape
+    
+    A1 = np.random.normal(loc=0.0, scale=1.0, size=(n,k))
+    Y1 = X @ A1
+    
+    A2 = np.copy(Y1)
+    Y2 = X.T @ A2
+    
+    A1 = np.copy(Y2)
+    Y1 = X @ A1
+    
+    L = Y1 @ np.linalg.inv(A2.T @ Y1) @ Y2.T
+    
+    return scipy.sparse.csr_matrix(L)
+
+
+def estimate_sparsity_brp(spmat, tol, max_nbytes=None, k0=5):
+    assert tol < 1
+
+    if spmat.shape[0] == 0 or spmat.shape[1] == 0:
+        return 0
+
+    if spmat.shape == (1, 1):
+        return 1
+
+    prev_k = 0
+    prev_nbytes = np.inf
+    Sr_prev = np.zeros(spmat.shape)
+    
+    m, k = min(spmat.shape), k0
+    while True:
+        k = min(k, m)
+        
+        if not k >= 1:
+            raise RuntimeError('bad value of k')
+
+        L = bilateral_random_projection(spmat.A, k)
+        
+        resid = (spmat - L).A
+
+        num_resids = resid.shape[0] * resid.shape[1]
+        nnz_resid = np.count_nonzero(resid)
+
+        sorted_resid_idx = np.unravel_index(np.argsort(abs(resid), axis=None), resid.shape)
+
+        target = np.power(np.linalg.norm(resid, ord='fro'), 2) - np.power(tol*scipy.sparse.linalg.norm(spmat, ord='fro'), 2)
+
+        if target <= 0:
+            Sr = np.zeros_like(resid)
+            Sr = scipy.sparse.csr_matrix(Sr)
+
+        else:
+            cumulative_residual = np.cumsum(np.power(resid[sorted_resid_idx[0], sorted_resid_idx[1]][::-1], 2))
+            keep_resids = (cumulative_residual > target).nonzero()[0][0] + 1
+
+            Sr = np.copy(resid)
+            Sr[sorted_resid_idx[0][:num_resids-keep_resids], sorted_resid_idx[1][:num_resids-keep_resids]] = 0.
+            Sr = scipy.sparse.csr_matrix(Sr)
+
+        sparse_brp_nbytes = nbytes(L) + nbytes(Sr)
+
+        if sparse_brp_nbytes >= prev_nbytes:
+            return L_prev, Sr_prev
+
+        if max_nbytes is not None and sparse_brp_nbytes >= max_nbytes:
+            return None
+        
+        if k == m:
+            return L, Sr
+
+        prev_nbytes = sparse_brp_nbytes
+        L_prev = L
+        Sr_prev = Sr
+        prev_k = k
+        k += 5
+
+
+
+
+# RANDOM ID ALGORITHMS
+
+'''
+Adapted from Ristretto: https://github.com/erichson/ristretto
+'''
+
+def interpolative_decomp_index_set(A, k):
+
+    m, n = A.shape
+
+    Q, R, P = scipy.linalg.qr(A, mode='economic', overwrite_a=False, pivoting=True,
+                        check_finite=False)
+
+    C = A[:, P[:k]]
+
+    T =  scipy.linalg.pinv(R[:k, :k]).dot(R[:k, k:n])
+    V = np.bmat([[np.eye(k), T]])
+    V = V[:, np.argsort(P)]
+
+    return P[:k], V
+
+
+def random_interpolative_decomp(A, k, p=5, q=5):
+
+    Q = simple_range_finder(A, k, p=p, q=q)
+    B = Q.T @ A
+
+    J, V = interpolative_decomp_index_set(B, k)
+    J = J[:k]
+
+    return scipy.sparse.csr_matrix(A[:, J]), scipy.sparse.csr_matrix(V)
+
+
+def estimate_sparsity_random_id(spmat, tol, max_nbytes=None, k0=40, p=5, q=5):
+    assert tol < 1
+
+    if spmat.shape[0] == 0 or spmat.shape[1] == 0:
+        return 0
+
+    if spmat.shape == (1, 1):
+        return 1
+
+    prev_k = 0
+    prev_nbytes = np.inf
+    Sr_prev = np.zeros(spmat.shape)
+    
+    m, k = min(spmat.shape), k0
+    while True:
+        k = min(k, m)
+        
+        if not k >= 1:
+            raise RuntimeError('bad value of k')
+
+        C, V = random_interpolative_decomp(spmat.A, k, p=p, q=q)
+        
+        resid = (spmat - (C @ V)).A
+
+        num_resids = resid.shape[0] * resid.shape[1]
+        nnz_resid = np.count_nonzero(resid)
+
+        sorted_resid_idx = np.unravel_index(np.argsort(abs(resid), axis=None), resid.shape)
+
+        target = np.power(np.linalg.norm(resid, ord='fro'), 2) - np.power(tol*scipy.sparse.linalg.norm(spmat, ord='fro'), 2)
+
+        if target <= 0:
+            Sr = np.zeros_like(resid)
+            Sr = scipy.sparse.csr_matrix(Sr)
+
+        else:
+            cumulative_residual = np.cumsum(np.power(resid[sorted_resid_idx[0], sorted_resid_idx[1]][::-1], 2))
+            keep_resids = (cumulative_residual > target).nonzero()[0][0] + 1
+
+            Sr = np.copy(resid)
+            Sr[sorted_resid_idx[0][:num_resids-keep_resids], sorted_resid_idx[1][:num_resids-keep_resids]] = 0.
+            Sr = scipy.sparse.csr_matrix(Sr)
+
+        sparse_id_nbytes = nbytes(C) + nbytes(V) + nbytes(Sr)
+
+        if sparse_id_nbytes >= prev_nbytes:
+            return C_prev, V_prev, Sr_prev
+
+        if max_nbytes is not None and sparse_id_nbytes >= max_nbytes:
+            return None
+        
+        if k == m:
+            return C, V, Sr
+
+        prev_nbytes = sparse_id_nbytes
+        C_prev = C
+        V_prev = V
+        Sr_prev = Sr
+        prev_k = k
+        k += 5
+
+
+
+
+# OTHER RANDOM ALGORITHMS
 
 def randomized_HALS(X, Q, k, tol=1e-4, max_iters=1e4):
     m,n = X.shape
@@ -451,7 +732,7 @@ def estimate_sparsity_random_svd(spmat, tol, max_nbytes=None, k0=40, p=5, q=1):
                 return None
             
             if kk == m:
-                return U[:, :kk], S[:kk], Vt[:kk-1, :], Sr_prev
+                return U[:, :kk], S[:kk], Vt[:kk, :], Sr
 
             prev_nbytes = sparse_svd_nbytes
             Sr_prev = Sr
