@@ -97,6 +97,9 @@ class FormFactorNullBlock(FormFactorLeafBlock,
         new_shape = (self.shape[0], x.shape[1])
         return np.empty(new_shape, dtype=self.dtype)
 
+    def __add__(self, x):
+        return np.empty(self.shape, dtype=self.dtype)
+
     def is_dense(self):
         return True
 
@@ -125,6 +128,9 @@ class FormFactorZeroBlock(FormFactorLeafBlock,
         m = self.shape[0]
         y_shape = (m,) if x.ndim == 1 else (m, x.shape[1])
         return np.zeros(y_shape, dtype=self.dtype)
+
+    def __add__(self, x):
+        return x
 
     def is_dense(self):
         return False
@@ -175,6 +181,9 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
     def _matmat(self, x):
         return self._mat@x
 
+    def __add__(self, x):
+        return self._mat+x
+
     def _get_sparsity(self, tol=None):
         nnz = flux.linalg.nnz(self._mat, tol)
         size = self._mat.size
@@ -192,6 +201,9 @@ class FormFactorSparseBlock(FormFactorLeafBlock,
 
     def _matmat(self, x):
         return np.array(self._spmat@x)
+
+    def __add__(self, x):
+        return np.array(self._spmat+x)
 
     def is_dense(self):
         return False
@@ -250,6 +262,9 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
         y = self._u@y
         return y
 
+    def __add__(self, x):
+        return (self._u @ np.diag(self._s) @ self._vt) + x
+
     def is_dense(self):
         return False
 
@@ -302,6 +317,9 @@ class FormFactorSparseSvdBlock(FormFactorLeafBlock,
         y = y + (self._sr@x)
         return y
 
+    def __add__(self, x):
+        return (self._u @ np.diag(self._s) @ self._vt) + self._sr + x
+
     def is_dense(self):
         return False
 
@@ -349,6 +367,9 @@ class FormFactorNmfBlock(FormFactorLeafBlock,
         y = self._h@x
         y = self._w@y
         return y
+
+    def __add__(self, x):
+        return self._w@self._h + x
 
     def is_dense(self):
         return False
@@ -400,6 +421,9 @@ class FormFactorSparseNmfBlock(FormFactorLeafBlock,
         y = y + (self._sr@x)
         return y
 
+    def __add__(self, x):
+        return self._w@self._h + self._sr + x
+
     def is_dense(self):
         return False
 
@@ -450,6 +474,9 @@ class FormFactorSparseAcaBlock(FormFactorLeafBlock,
         y = y + (self._sr@x)
         return y
 
+    def __add__(self, x):
+        return self._a@self._b + self._sr + x
+
     def is_dense(self):
         return False
 
@@ -495,6 +522,9 @@ class FormFactorSparseBrpBlock(FormFactorLeafBlock,
         y = self._l@x
         y = y + (self._sr@x)
         return y
+
+    def __add__(self, x):
+        return self._l + self._sr + x
 
     def is_dense(self):
         return False
@@ -543,6 +573,9 @@ class FormFactorSparseIdBlock(FormFactorLeafBlock,
         y = self._c@y
         y = y + (self._sr@x)
         return y
+
+    def __add__(self, x):
+        return self._c@self._v + self._sr + x
 
     def is_dense(self):
         return False
@@ -960,6 +993,18 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 block = self._blocks[i, j]
                 if block.is_empty_leaf: continue
                 y[row_inds] += block@x[col_inds]
+        return y
+
+    def __add__(self, x):
+        if x.shape != self.shape:
+            raise ValueError('cannot add %r and %r shape object: shape mismatch' % (self, x.shape))
+        y = np.zeros((self.shape[0], self.shape[1]), dtype=self.dtype)
+        for i, row_inds in enumerate(self._row_block_inds):
+            for j, col_inds in enumerate(self._col_block_inds):
+                block = self._blocks[i, j]
+                if block.is_empty_leaf: continue
+                update_inds = np.ix_(row_inds, col_inds)
+                y[update_inds] = block + x[update_inds]
         return y
 
     @property
@@ -1423,6 +1468,9 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def _matmat(self, x):
         return self._root@x
+
+    def __add__(self, x):
+        return self._root+x
 
     def get_blocks_at_depth(self, depth):
         if depth > self.depth:
