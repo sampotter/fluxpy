@@ -130,6 +130,9 @@ def fit_nmf(spmat, k, max_iters=int(1e3), tol=1e-4, beta_loss=2, init='svd'):
         nmf = NMF(k,init='nndsvdar' if init=='svd' else 'random', solver='mu', tol=tol, max_iter=max_iters, beta_loss=beta_loss)
     W = nmf.fit_transform(spmat)
     H = nmf.components_
+
+    if np.isnan(W).any() or np.isnan(H).any():
+        return None, None
     
     W = scipy.sparse.csr_matrix(W)
     H = scipy.sparse.csr_matrix(H)
@@ -171,11 +174,10 @@ def estimate_sparsity_nmf(spmat, tol, max_nbytes=None, k0=5, max_iters=int(1e3),
     if spmat.shape == (1, 1):
         return 1
 
-    # _U, _S, _V = scipy.sparse.linalg.svds(spmat, k0)
-    # if _S[0] < 1e-5:
-    #     W, H = fit_nmf(spmat, k0, max_iters=max_iters, tol=nmf_tol, beta_loss=beta_loss, init='svd')
-    # else:
     W, H = fit_nmf(spmat, k0, max_iters=max_iters, tol=nmf_tol, beta_loss=beta_loss, init='random')
+
+    if W is None:
+        return None
     
     resid = (spmat - (W@H)).A
 
@@ -353,10 +355,8 @@ def bilateral_random_projection(X, k):
     
     A1 = np.copy(Y2)
     Y1 = X @ A1
-    
-    L = Y1 @ np.linalg.inv(A2.T @ Y1) @ Y2.T
-    
-    return scipy.sparse.csr_matrix(L)
+
+    return scipy.sparse.csr_matrix(Y1), scipy.sparse.csr_matrix(np.linalg.inv(A2.T @ Y1)), scipy.sparse.csr_matrix(Y2)
 
 
 def estimate_sparsity_brp(spmat, tol, max_nbytes=None, k0=5):
@@ -379,9 +379,9 @@ def estimate_sparsity_brp(spmat, tol, max_nbytes=None, k0=5):
         if not k >= 1:
             raise RuntimeError('bad value of k')
 
-        L = bilateral_random_projection(spmat.A, k)
+        Y1, D, Y2 = bilateral_random_projection(spmat.A, k)
         
-        resid = (spmat - L).A
+        resid = (spmat - (Y1 @ D @ Y2.T)).A
 
         num_resids = resid.shape[0] * resid.shape[1]
         nnz_resid = np.count_nonzero(resid)
@@ -402,19 +402,21 @@ def estimate_sparsity_brp(spmat, tol, max_nbytes=None, k0=5):
             Sr[sorted_resid_idx[0][:num_resids-keep_resids], sorted_resid_idx[1][:num_resids-keep_resids]] = 0.
             Sr = scipy.sparse.csr_matrix(Sr)
 
-        sparse_brp_nbytes = nbytes(L) + nbytes(Sr)
+        sparse_brp_nbytes = nbytes(Y1) + nbytes(D) + nbytes(Y2) + nbytes(Sr)
 
         if sparse_brp_nbytes >= prev_nbytes:
-            return L_prev, Sr_prev
+            return Y1_prev, D_prev, Y2_prev, Sr_prev
 
         if max_nbytes is not None and sparse_brp_nbytes >= max_nbytes:
             return None
         
         if k == m:
-            return L, Sr
+            return Y1, D, Y2, Sr
 
         prev_nbytes = sparse_brp_nbytes
-        L_prev = L
+        Y1_prev = Y1
+        D_prev = D
+        Y2_prev = Y2
         Sr_prev = Sr
         prev_k = k
         k += 5
@@ -562,6 +564,9 @@ def randomized_HALS(X, Q, k, tol=1e-4, max_iters=1e4):
             criterion = False
         
         H_norm = new_H_norm
+
+        if np.isnan(W).any() or np.isnan(H).any():
+            return None, None
             
     W = scipy.sparse.csr_matrix(W)
     H = scipy.sparse.csr_matrix(H)
@@ -610,6 +615,9 @@ def estimate_sparsity_random_nmf(spmat, tol, max_nbytes=None, k0=5, max_iters=in
 
     Q = simple_range_finder(spmat, k0, p=p, q=q)
     W, H = randomized_HALS(spmat, Q, k0, tol=nmf_tol, max_iters=max_iters)
+
+    if W is None:
+        return None
     
     resid = (spmat - (W@H)).A
 

@@ -508,23 +508,31 @@ class FormFactorSparseAcaBlock(FormFactorLeafBlock,
 class FormFactorSparseBrpBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, l, sr):
-        shape = (l.shape[0], l.shape[1])
+    def __init__(self, root, y1, d, y2, sr):
+        shape = (sr.shape[0], sr.shape[1])
         super().__init__(root, shape)
 
-        l_csr = scipy.sparse.csr_matrix(l)
-        self._l = l if nbytes(l) < nbytes(l_csr) else l_csr
+        y1_csr = scipy.sparse.csr_matrix(y1)
+        self._y1 = y1 if nbytes(y1) < nbytes(y1_csr) else y1_csr
+
+        d_csr = scipy.sparse.csr_matrix(d)
+        self._d = d if nbytes(d) < nbytes(d_csr) else d_csr
+
+        y2_csr = scipy.sparse.csr_matrix(y2)
+        self._y2 = y2 if nbytes(y2) < nbytes(y2_csr) else y2_csr
 
         sr_csr = scipy.sparse.csr_matrix(sr)
         self._sr = sr if nbytes(sr) < nbytes(sr_csr) else sr_csr
 
     def _matmat(self, x):
-        y = self._l@x
+        y = self._y2.T@x
+        y = self._d@y
+        y = self._y1@y
         y = y + (self._sr@x)
         return y
 
     def __add__(self, x):
-        return self._l + self._sr + x
+        return (self._y1 @ self._d @ self._y2.T) + self._sr + x
 
     def is_dense(self):
         return False
@@ -538,18 +546,22 @@ class FormFactorSparseBrpBlock(FormFactorLeafBlock,
 
     @property
     def nbytes(self):
-        return nbytes(self._l) + nbytes(self._sr)
+        return nbytes(self._y1) + nbytes(self._d) + nbytes(self._y2) + nbytes(self._sr)
 
     @property
     def compressed(self):
-        return isinstance(self._l, scipy.sparse.spmatrix) \
+        return isinstance(self._y1, scipy.sparse.spmatrix) \
+            or isinstance(self._d, scipy.sparse.spmatrix) \
+            or isinstance(self._y2, scipy.sparse.spmatrix)
             or isinstance(self._sr, scipy.sparse.spmatrix)
 
     def _get_sparsity(self, tol=None):
-        l_nnz = flux.linalg.nnz(self._l, tol)
+        y1_nnz = flux.linalg.nnz(self._y1, tol)
+        d_nnz = flux.linalg.nnz(self._d, tol)
+        y2_nnz = flux.linalg.nnz(self._y2, tol)
         sr_nnz = flux.linalg.nnz(self._sr, tol)
-        size = self._l.size + self._sr.size
-        return 0 if size == 0 else (l_nnz + sr_nnz)/size
+        size = self._y1.size + self._d.size + self._y2.size + self._sr.size
+        return 0 if size == 0 else (y1_nnz + d_nnz + y2_nnz + sr_nnz)/size
 
 
 class FormFactorSparseIdBlock(FormFactorLeafBlock,
@@ -969,8 +981,8 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         if ret is None:
             return None
 
-        L, Sr = ret
-        s_brp_block = self.root.make_sparse_brp_block(L, Sr)
+        Y1, D, Y2, Sr = ret
+        s_brp_block = self.root.make_sparse_brp_block(Y1, D, Y2, Sr)
 
         return s_brp_block
 
