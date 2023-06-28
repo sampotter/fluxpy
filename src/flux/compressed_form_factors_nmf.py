@@ -552,7 +552,7 @@ class FormFactorSparseBrpBlock(FormFactorLeafBlock,
     def compressed(self):
         return isinstance(self._y1, scipy.sparse.spmatrix) \
             or isinstance(self._d, scipy.sparse.spmatrix) \
-            or isinstance(self._y2, scipy.sparse.spmatrix)
+            or isinstance(self._y2, scipy.sparse.spmatrix) \
             or isinstance(self._sr, scipy.sparse.spmatrix)
 
     def _get_sparsity(self, tol=None):
