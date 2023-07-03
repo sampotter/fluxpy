@@ -17,7 +17,7 @@ import flux.linalg
 from flux.debug import IndentedPrinter
 from flux.form_factors import get_form_factor_matrix
 from flux.octree import get_octant_order
-from flux.quadtree import get_quadrant_order
+from flux.quadtree import get_quadrant_order, get_quadrant_order_roi
 from flux.util import nbytes, get_sunvec
 
 
@@ -1274,6 +1274,23 @@ class FormFactorMinDepthQuadtreeBlock(FormFactorQuadtreeBlock):
         self._row_block_inds = prev_level_block_inds
         self._col_block_inds = prev_level_block_inds
 
+class FormFactorROIQuadtreeBlock(FormFactorQuadtreeBlock):
+    """A form factor matrix block corresponding to a quadtree
+    partition which goes down at least min_depth levels. Only
+    for use as a root block.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _set_block_inds(self, shape_model, I, J):
+        P = shape_model.P
+
+        top_level_block_inds = [I for I in get_quadrant_order_roi(P[:, :2], self._root._roi_c, self._root._roi_r)]
+        self._row_block_inds = top_level_block_inds
+        self._col_block_inds = top_level_block_inds
+
 class FormFactorOctreeBlock(FormFactor2dTreeBlock):
 
     def __init__(self, *args, **kwargs):
@@ -1343,7 +1360,7 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def __init__(self, shape_model, tol=1e-5,
                  min_size=16384, max_depth=None, force_max_depth=False, compression_type="svd", compression_params={},
-                 RootBlock=FormFactorQuadtreeBlock, min_depth=None, **kwargs):
+                 RootBlock=FormFactorQuadtreeBlock, min_depth=None, roi_c=None, roi_r=None, **kwargs):
         """Create a new CompressedFormFactorMatrix.
 
         Parameters
@@ -1379,6 +1396,8 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         self._compression_type = compression_type
         self._compression_params = compression_params
         self._min_depth = min_depth
+        self._roi_c = roi_c
+        self._roi_r = roi_r
 
         if compression_type == "wsnmf":
 

@@ -4,7 +4,7 @@ import numpy as np
 import scipy.sparse
 
 from flux.form_factors import get_form_factor_matrix
-from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix, FormFactorMinDepthQuadtreeBlock
+from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix, FormFactorMinDepthQuadtreeBlock, FormFactorROIQuadtreeBlock
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 
 import argparse
@@ -33,6 +33,8 @@ parser.add_argument('--p', type=int, default=5)
 parser.add_argument('--q', type=int, default=1)
 
 parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
+
+parser.add_argument('--roi', action='store_true')
 
 parser.set_defaults(feature=False)
 
@@ -179,6 +181,9 @@ if not compression_type == "true_model" and args.min_depth != 1:
 if not compression_type == "true_model" and max_depth is not None:
     savedir += "_{}maxdepth".format(max_depth)
 
+if args.roi:
+    savedir = "roi_" + savedir
+
 
 savedir = "results/"+savedir
 if not os.path.exists('results'):
@@ -207,6 +212,10 @@ elif args.min_depth != 1:
     FF = CompressedFormFactorMatrix(
         shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params,
         min_depth=args.min_depth, RootBlock=FormFactorMinDepthQuadtreeBlock)
+elif args.roi:
+    FF = CompressedFormFactorMatrix(
+        shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params,
+        roi_c=verts.mean(axis=0)[:2], roi_r=1e4, RootBlock=FormFactorROIQuadtreeBlock)
 else:
     FF = CompressedFormFactorMatrix(
         shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params)

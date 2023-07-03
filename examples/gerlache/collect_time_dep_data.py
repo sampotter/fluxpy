@@ -41,6 +41,8 @@ parser.add_argument('--q', type=int, default=1)
 
 parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
 
+parser.add_argument('--roi', action='store_true')
+
 parser.set_defaults(feature=False)
 
 args = parser.parse_args()
@@ -147,6 +149,9 @@ if not compression_type == "true_model" and args.min_depth != 1:
 
 if not compression_type == "true_model" and max_depth is not None:
     FF_dir += "_{}maxdepth".format(max_depth)
+
+if args.roi:
+    FF_dir = "roi_" + FF_dir
 
 
 FF_dir = "results/"+FF_dir
