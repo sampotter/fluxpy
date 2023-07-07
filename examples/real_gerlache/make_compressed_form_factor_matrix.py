@@ -59,7 +59,8 @@ if compression_type == "true_model":
 elif compression_type == "stoch_radiosity":
     compression_params = {}
 
-    savedir = "stoch_rad_{}_{}".format(max_inner_area_str, max_outer_area_str)
+    savedir = "stoch_rad_{}_{}_{}k0".format(max_inner_area_str, max_outer_area_str,
+        args.k0)
 
 
 elif compression_type == "svd":
@@ -213,8 +214,8 @@ if args.compression_type == "true_model":
 elif args.compression_type == "stoch_radiosity":
     path = f'results/true_{max_inner_area_str}_{max_outer_area_str}/FF_{max_inner_area_str}_{max_outer_area_str}.npz'
     full_sparse_FF = scipy.sparse.load_npz(path)
-    avg_illum = np.load(f"weights_{max_inner_area_str}_{max_outer_area_str}.npy")
-    FF = get_form_factor_stochastic_radiosity(full_sparse_FF, avg_illum)
+    # avg_illum = np.load(f"weights_{max_inner_area_str}_{max_outer_area_str}.npy")
+    FF = get_form_factor_stochastic_radiosity(full_sparse_FF, args.k0)
 elif args.min_depth != 1:
     FF = CompressedFormFactorMatrix(
         shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params,

@@ -71,9 +71,9 @@ def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
 
     return scipy.sparse.csr_matrix((data, indices, indptr), shape=(m, n))
 
-def get_form_factor_stochastic_radiosity(FF, avg_illum, q=0.5):
+def get_form_factor_stochastic_radiosity(FF, k):
     FF_arr = FF.A
-    prob_weights = FF_arr * avg_illum
+    prob_weights = np.copy(FF_arr)
     
     disconnected_rows = (prob_weights.sum(axis=1) <= 0).nonzero()[0]
     prob_weights[disconnected_rows, :] = np.ones(prob_weights.shape[1])
@@ -81,12 +81,10 @@ def get_form_factor_stochastic_radiosity(FF, avg_illum, q=0.5):
 
     norm_prob_weights = prob_weights / prob_weights.sum(axis=1)[:, np.newaxis]
 
-    num_selected = int(np.quantile((norm_prob_weights>0).sum(axis=1), q))
-
     stoch_rad_FF = np.zeros(FF_arr.shape)
     for i in range(stoch_rad_FF.shape[0]):
         selected_idx = np.random.choice(norm_prob_weights.shape[1],
-                         size=(np.minimum(num_selected, (norm_prob_weights[i, :]>0).sum()),),
+                         size=(np.minimum(k, (norm_prob_weights[i, :]>0).sum()),),
                          replace=False, p=norm_prob_weights[i, :])
         
         row_mask = np.zeros(norm_prob_weights.shape[1])

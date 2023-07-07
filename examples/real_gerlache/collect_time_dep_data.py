@@ -99,7 +99,8 @@ if compression_type == "true_model":
     FF_dir = "true_{}_{}".format(max_inner_area_str, max_outer_area_str)
 
 elif compression_type == "stoch_radiosity":
-    FF_dir = "stoch_rad_{}_{}".format(max_inner_area_str, max_outer_area_str)
+    FF_dir = "stoch_rad_{}_{}_{}k0".format(max_inner_area_str, max_outer_area_str,
+        args.k0)
 
 elif compression_type == "svd":
     FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_inner_area_str, max_outer_area_str, args.tol,
