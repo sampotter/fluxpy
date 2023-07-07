@@ -15,6 +15,7 @@
 *.tif
 *.txt
 *.zip
+*.mat
 *~
 .DS_Store
 .DS_Store

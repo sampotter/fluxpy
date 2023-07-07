@@ -3,7 +3,7 @@
 import numpy as np
 import scipy.sparse
 
-from flux.form_factors import get_form_factor_matrix
+from flux.form_factors import get_form_factor_matrix, get_form_factor_stochastic_radiosity
 from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix, FormFactorMinDepthQuadtreeBlock, FormFactorROIQuadtreeBlock
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 
@@ -16,6 +16,7 @@ parser.add_argument('--compression_type', type=str, default="svd",choices=["nmf"
     "svd","ssvd",
     "rand_svd","rand_ssvd","rand_snmf",
     "saca","sbrp","rand_sid",
+    "stoch_radiosity",
     "true_model"])
 parser.add_argument('--max_inner_area', type=float, default=0.8)
 parser.add_argument('--max_outer_area', type=float, default=3.0)
@@ -55,6 +56,12 @@ if compression_type == "true_model":
     compression_params = {}
 
     savedir = "true_{}_{}".format(max_inner_area_str, max_outer_area_str)
+
+
+elif compression_type == "stoch_radiosity":
+    compression_params = {}
+
+    savedir = "stoch_rad_{}_{}".format(max_inner_area_str, max_outer_area_str)
 
 
 elif compression_type == "svd":
@@ -175,10 +182,10 @@ elif compression_type == "rand_sid":
         args.p, args.q, args.k0)
 
 
-if not compression_type == "true_model" and args.min_depth != 1:
+if not (compression_type == "true_model" or compression_type == "stoch_radiosity") and args.min_depth != 1:
     savedir += "_{}mindepth".format(args.min_depth)
 
-if not compression_type == "true_model" and max_depth is not None:
+if not (compression_type == "true_model" or compression_type == "stoch_radiosity") and max_depth is not None:
     savedir += "_{}maxdepth".format(max_depth)
 
 if args.roi:
@@ -208,6 +215,11 @@ start_assembly_time = arrow.now()
 
 if args.compression_type == "true_model":
     FF = get_form_factor_matrix(shape_model)
+elif args.compression_type == "stoch_radiosity":
+    path = f'results/true_{max_inner_area_str}_{max_outer_area_str}/FF_{max_inner_area_str}_{max_outer_area_str}.npz'
+    full_sparse_FF = scipy.sparse.load_npz(path)
+    avg_illum = np.load(f"weights_{max_inner_area_str}_{max_outer_area_str}.npy")
+    FF = get_form_factor_stochastic_radiosity(full_sparse_FF, avg_illum)
 elif args.min_depth != 1:
     FF = CompressedFormFactorMatrix(
         shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params,
@@ -225,7 +237,7 @@ assembly_time = (arrow.now() - start_assembly_time).total_seconds()
 np.save(savedir+f'/FF_assembly_time.npy', np.array(assembly_time))
 
 
-if args.compression_type == "true_model":
+if args.compression_type == "true_model" or args.compression_type == "stoch_radiosity":
     scipy.sparse.save_npz(savedir+f'/FF_{max_inner_area_str}_{max_outer_area_str}', FF)
 else:
     FF.save(savedir+f'/FF_{max_inner_area_str}_{max_outer_area_str}_{tol_str}_{compression_type}.bin')
