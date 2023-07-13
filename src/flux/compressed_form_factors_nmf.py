@@ -1335,7 +1335,9 @@ class FormFactorPartitionBlock(FormFactorBlockMatrix):
             for j, J in enumerate(parts):
                 spmat = get_form_factor_matrix(shape_model, I, J)
                 block = self.make_block(shape_model, I, J, spmat,
-                                        max_depth, force_max_depth)
+                                        max_depth, force_max_depth,
+                                        compression_type=self._root._compression_type,
+                                        compression_params=self._root._compression_params)
                 assert block is not None
                 row_blocks.append(block)
             blocks.append(row_blocks)

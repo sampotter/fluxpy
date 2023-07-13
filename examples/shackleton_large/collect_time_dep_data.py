@@ -185,8 +185,8 @@ else:
 print('  * loaded form factor matrix and (cartesian) shape model')
 
 # choose simulation parameters
-with open('params.json') as f:
-    params = json.load(f)
+# with open('params.json') as f:
+#     params = json.load(f)
 
 
 # Define time window (it can be done either with dates or with utc0 - initial epoch - and np.linspace of epochs)
