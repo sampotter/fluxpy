@@ -15,6 +15,8 @@ from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix
 from flux.model import ThermalModel
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 
+from flux.thermal import setgrid
+
 import argparse
 import arrow
 
@@ -159,7 +161,12 @@ D = D.copy(order='C')
 
 print('  * got sun positions from SPICE')
 
-z = np.linspace(0, 3e-3, 31)
+# z = np.linspace(0, 3e-3, 31)
+nz = 60
+zfac = 1.05
+zmax = 2.5
+z = setgrid(nz=nz, zfac=zfac, zmax=zmax)
+z = np.hstack([0, z])  # add surface layer
 
 print('  * set up thermal model')
 thermal_model = ThermalModel(

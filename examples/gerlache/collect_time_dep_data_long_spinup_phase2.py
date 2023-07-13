@@ -15,6 +15,8 @@ from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix
 from flux.model import ThermalModel
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 
+from flux.thermal import setgrid
+
 import argparse
 import arrow
 
@@ -168,7 +170,12 @@ D = D.copy(order='C')
 
 print('  * got sun positions from SPICE')
 
-z = np.linspace(0, 3e-3, 31)
+# z = np.linspace(0, 3e-3, 31)
+nz = 60
+zfac = 1.05
+zmax = 2.5
+z = setgrid(nz=nz, zfac=zfac, zmax=zmax)
+z = np.hstack([0, z])  # add surface layer
 
 print('  * set up thermal model')
 thermal_model = ThermalModel(
@@ -179,7 +186,7 @@ thermal_model = ThermalModel(
 
 sim_start_time = arrow.now()
 for frame_index, T in tqdm(enumerate(thermal_model), total=D.shape[0], desc='thermal models time-steps'):
-    if (frame_index % 2880) == 0:
+    if (frame_index % 2880) == 0 or ((frame_index < 2880) and (frame_index % 20 == 0)):
         path = savedir+"/T{:03d}.npy".format(frame_index)
         np.save(path, T)
 sim_duration = (arrow.now()-sim_start_time).total_seconds()
