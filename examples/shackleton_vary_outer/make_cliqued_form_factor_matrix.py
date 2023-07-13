@@ -11,8 +11,6 @@ import argparse
 import arrow
 import os
 
-from tqdm import tqdm
-
 from copy import copy
 
 parser = argparse.ArgumentParser()
