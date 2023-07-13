@@ -154,8 +154,8 @@ else:
     T_init = np.repeat(T_surf_mean[:,np.newaxis], T_spinup.shape[1], axis=-1)
 
 utc0 = '2001 JAN 01 12:00:00.00'
-utc1 = '2001 JUL 27 00:05:00.00'
-num_frames = 20160
+utc1 = '2001 JUL 27 00:20:00.00'
+num_frames = 20161
 stepet = 885
 sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet, path_to_furnsh="simple_long_spinup.furnsh",
                       target='SUN', observer='MOON', frame='MOON_ME')
