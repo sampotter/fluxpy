@@ -145,12 +145,14 @@ print('  * loaded form factor matrix and (cartesian) shape model')
 # Define time window (it can be done either with dates or with utc0 - initial epoch - and np.linspace of epochs)
 
 utc0 = '2001 JAN 01 12:00:00.00'
-utc1 = '2001 JUL 27 11:50:00.00'
+utc1 = '2001 JUN 27 11:50:00.00'
 num_frames = 17279
 stepet = 885
 sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet, path_to_furnsh="simple_long_spinup.furnsh",
                       target='SUN', observer='MOON', frame='MOON_ME')
 t = np.linspace(0, num_frames*stepet, num_frames + 1)
+
+print(t.shape, sun_vecs.shape)
 
 D = sun_vecs/np.linalg.norm(sun_vecs, axis=1)[:, np.newaxis]
 D = D.copy(order='C')
