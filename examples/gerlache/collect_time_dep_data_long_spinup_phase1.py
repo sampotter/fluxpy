@@ -142,16 +142,11 @@ else:
 
 print('  * loaded form factor matrix and (cartesian) shape model')
 
-# choose simulation parameters
-with open('params.json') as f:
-    params = json.load(f)
-
-
 # Define time window (it can be done either with dates or with utc0 - initial epoch - and np.linspace of epochs)
 
 utc0 = '2001 JAN 01 12:00:00.00'
-utc1 = '2001 JUN 26 23:50:00.00'
-num_frames = 17230
+utc1 = '2001 JUL 27 11:50:00.00'
+num_frames = 17279
 stepet = 885
 sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet, path_to_furnsh="simple_long_spinup.furnsh",
                       target='SUN', observer='MOON', frame='MOON_ME')
@@ -171,14 +166,16 @@ thermal_model = ThermalModel(
     z=z, T0=100, ti=120, rhoc=9.6e5, emiss=0.95,
     Fgeotherm=0.2, bcond='Q', shape_model=shape_model)
 
-Tmin, Tmax = np.inf, -np.inf
-vmin, vmax = 90, 310
-
+T_list = []
 sim_start_time = arrow.now()
 for frame_index, T in tqdm(enumerate(thermal_model), total=D.shape[0], desc='thermal models time-steps'):
+    if frame_index > 2880*5:
+        T_list.append(T)
     pass
 path = savedir+"/T_long_spinup.npy"
-np.save(path, T)
+
+T_list = np.array(T_list)
+np.save(path, T_list.mean(axis=0))
 sim_duration = (arrow.now()-sim_start_time).total_seconds()
 print('  * thermal model spinup completed in {:.2f} seconds'.format(sim_duration))
 
