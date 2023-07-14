@@ -91,7 +91,9 @@ def get_form_factor_stochastic_radiosity(FF, k):
         row_mask[selected_idx] = 1.
         
         stoch_rad_FF[i, :] = np.copy(FF_arr[i] * row_mask)
-        stoch_rad_FF[i, :] = stoch_rad_FF[i, :] * (FF_arr[i,: ].sum() / stoch_rad_FF[i, :].sum())
+        
+        if stoch_rad_FF[i, :].sum() > 0:
+            stoch_rad_FF[i, :] = stoch_rad_FF[i, :] * (FF_arr[i,: ].sum() / stoch_rad_FF[i, :].sum())
     return scipy.sparse.csr_matrix(stoch_rad_FF)
 
 class FormFactorMatrix(scipy.sparse.linalg.LinearOperator):
