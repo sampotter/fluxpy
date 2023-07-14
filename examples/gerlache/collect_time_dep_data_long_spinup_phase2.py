@@ -155,9 +155,9 @@ else:
     T_surf_mean = T_spinup[:,0]
     T_init = np.repeat(T_surf_mean[:,np.newaxis], T_spinup.shape[1], axis=-1)
 
-utc0 = '2001 JAN 01 12:00:00.00'
-utc1 = '2001 JUL 27 00:20:00.00'
-num_frames = 20161
+utc0 = '2000 JAN 01 12:00:00.00'
+utc1 = '2000 OCT 22 12:20:00.00'
+num_frames = 28801
 stepet = 885
 sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet, path_to_furnsh="simple_long_spinup.furnsh",
                       target='SUN', observer='MOON', frame='MOON_ME')
@@ -169,6 +169,8 @@ D = sun_vecs/np.linalg.norm(sun_vecs, axis=1)[:, np.newaxis]
 D = D.copy(order='C')
 
 print('  * got sun positions from SPICE')
+
+print(sun_vecs[0], sun_vecs[2880], sun_vecs[5760])
 
 # z = np.linspace(0, 3e-3, 31)
 nz = 60
@@ -182,13 +184,17 @@ thermal_model = ThermalModel(
     FF, t, D,
     F0=np.repeat(1365, len(D)), rho=0.11, method='1mvp',
     z=z, T0=T_init, ti=120, rhoc=9.6e5, emiss=0.95,
-    Fgeotherm=0.2, bcond='Q', shape_model=shape_model)
+    Fgeotherm=0.2, bcond='Q', shape_model=shape_model, return_flux=True)
 
 sim_start_time = arrow.now()
-for frame_index, T in tqdm(enumerate(thermal_model), total=D.shape[0], desc='thermal models time-steps'):
+for frame_index, (T, E, _, _) in tqdm(enumerate(thermal_model), total=D.shape[0], desc='thermal models time-steps'):
     if (frame_index % 2880) == 0 or ((frame_index < 2880) and (frame_index % 20 == 0)):
+        
         path = savedir+"/T{:03d}.npy".format(frame_index)
         np.save(path, T)
+        
+        path = savedir+"/E{:03d}.npy".format(frame_index)
+        np.save(path, E)
 sim_duration = (arrow.now()-sim_start_time).total_seconds()
 print('  * thermal model run completed in {:.2f} seconds'.format(sim_duration))
 

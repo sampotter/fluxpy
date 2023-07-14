@@ -146,9 +146,9 @@ print('  * loaded form factor matrix and (cartesian) shape model')
 
 # Define time window (it can be done either with dates or with utc0 - initial epoch - and np.linspace of epochs)
 
-utc0 = '2001 JAN 01 12:00:00.00'
-utc1 = '2001 JUN 27 11:50:00.00'
-num_frames = 17279
+utc0 = '2000 JAN 01 12:00:00.00'
+utc1 = '2000 JUL 26 00:20:00.00'
+num_frames = 20161
 stepet = 885
 sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet, path_to_furnsh="simple_long_spinup.furnsh",
                       target='SUN', observer='MOON', frame='MOON_ME')
@@ -178,7 +178,7 @@ thermal_model = ThermalModel(
 T_list = []
 sim_start_time = arrow.now()
 for frame_index, T in tqdm(enumerate(thermal_model), total=D.shape[0], desc='thermal models time-steps'):
-    if frame_index > 2880*5:
+    if frame_index > 2880*6:
         T_list.append(T)
     pass
 path = savedir+"/T_long_spinup.npy"
