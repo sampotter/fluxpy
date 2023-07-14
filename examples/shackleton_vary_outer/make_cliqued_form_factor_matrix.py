@@ -32,6 +32,8 @@ parser.add_argument('--q', type=int, default=1)
 
 parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
 
+parser.add_argument('--n_cliques', type=int, default=25)
+
 parser.add_argument('--load_ff', action='store_true')
 
 parser.set_defaults(feature=False)
@@ -167,6 +169,7 @@ elif compression_type == "rand_sid":
 
 
 savedir = "results_cliques/"+savedir
+savedir = savedir+"_{}nc".format(args.n_cliques)
 if not os.path.exists('results_cliques'):
     os.mkdir('results_cliques')
 if not os.path.exists(savedir):
@@ -237,25 +240,14 @@ for new_idx in np.argsort([len(c) for c in all_pseudo_clique_lists])[::-1]:
 
 
 culled_cliques = []
-clique_quantile = np.quantile([len(this_clique) for this_clique in all_pseudo_clique_lists],0.95)
 
-replaced_array = np.zeros(len(ordered_pseudo_clique_list), dtype=int)
-for i in range(len(ordered_pseudo_clique_list)):
-    if replaced_array[i]:
-        continue
-
-    if len(ordered_pseudo_clique_list[i]) < clique_quantile:
-        this_new_clique = list(np.copy(ordered_pseudo_clique_list[i]))
-        for j in range(i+1, len(ordered_pseudo_clique_list)):
-            if not replaced_array[j] and len(ordered_pseudo_clique_list[j]) < clique_quantile:
-                this_new_clique += list(np.copy(ordered_pseudo_clique_list[j]))
-                replaced_array[j] = 1
-        replaced_array[i] = 1
-        culled_cliques.append(np.array(this_new_clique))
-        
-    else:
-        culled_cliques.append(np.copy(ordered_pseudo_clique_list[i]))
-        replaced_array[i] = 1
+for i in range(args.n_cliques):    
+    culled_cliques.append(np.copy(ordered_pseudo_clique_list[i]))
+    
+all_small_cliques = []
+for i in range(args.n_cliques, len(ordered_pseudo_clique_list)):
+    all_small_cliques += list(np.copy(ordered_pseudo_clique_list[i]))
+culled_cliques.append(np.array(all_small_cliques))
 
 current_clique_list = copy(culled_cliques)
 

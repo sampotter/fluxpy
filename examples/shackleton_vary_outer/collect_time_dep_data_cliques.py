@@ -37,6 +37,8 @@ parser.add_argument('--q', type=int, default=1)
 
 parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
 
+parser.add_argument('--n_cliques', type=int, default=25)
+
 parser.set_defaults(feature=False)
 
 args = parser.parse_args()
@@ -135,6 +137,7 @@ elif compression_type == "rand_sid":
 
 
 FF_dir = "results_cliques/"+FF_dir
+FF_dir = FF_dir+"_{}nc".format(args.n_cliques)
 if not os.path.exists(FF_dir):
     print("PATH DOES NOT EXIST "+FF_dir)
     assert False
