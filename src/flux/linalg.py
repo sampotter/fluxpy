@@ -42,8 +42,8 @@ def estimate_rank(spmat, tol, max_nbytes=None, k0=40):
         except:
             import pdb; pdb.set_trace()
             pass
-        if k == m:
-            return U, S, Vt, thresh[m]
+        if k == m-1:
+            return U, S, Vt, thresh[k-1]
         assert thresh[0] >= 1
         below_thresh = np.where(thresh <= tol)[0]
         if below_thresh.size > 0:
@@ -109,8 +109,8 @@ def estimate_sparsity_svd(spmat, tol, max_nbytes=None, k0=40):
             if max_nbytes is not None and sparse_svd_nbytes >= max_nbytes:
                 return None
             
-            if kk == m:
-                return U[:, :kk], S[:kk], Vt[:kk-1, :], Sr_prev
+            if kk == m-1:
+                return U[:, :kk], S[:kk], Vt[:kk, :], Sr_prev
 
             prev_nbytes = sparse_svd_nbytes
             Sr_prev = Sr
@@ -670,8 +670,8 @@ def estimate_rank_random_svd(spmat, tol, max_nbytes=None, k0=40, p=5, q=1):
         except:
             import pdb; pdb.set_trace()
             pass
-        if k == m:
-            return U, S, Vt, thresh[m]
+        if k == m-1:
+            return U, S, Vt, thresh[k-1]
         assert thresh[0] >= 1
         below_thresh = np.where(thresh <= tol)[0]
         if below_thresh.size > 0:
