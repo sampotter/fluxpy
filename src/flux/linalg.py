@@ -82,6 +82,9 @@ def estimate_sparsity_svd(spmat, tol, max_nbytes=None, k0=40):
             Uk, Sk, Vtk = U[:, :kk], S[:kk], Vt[:kk, :]
             resid = (spmat - (Uk @ (Vtk.T * np.diag(Sk)).T)).A
 
+            if kk == m-1:
+                return U[:, :kk], S[:kk], Vt[:kk, :], scipy.sparse.csr_matrix(np.zeros_like(resid))
+                
             num_resids = resid.shape[0] * resid.shape[1]
             nnz_resid = np.count_nonzero(resid)
 
@@ -109,8 +112,6 @@ def estimate_sparsity_svd(spmat, tol, max_nbytes=None, k0=40):
             if max_nbytes is not None and sparse_svd_nbytes >= max_nbytes:
                 return None
             
-            if kk == m-1:
-                return U[:, :kk], S[:kk], Vt[:kk, :], Sr_prev
 
             prev_nbytes = sparse_svd_nbytes
             Sr_prev = Sr
@@ -302,6 +303,9 @@ def estimate_sparsity_aca(spmat, tol, max_nbytes=None, k0=40):
             Ak, Bk = A[:, :kk], B[:kk, :]
             resid = (spmat - (Ak @ Bk)).A
 
+            if kk == m:
+                return A[:, :kk], B[:kk, :], scipy.sparse.csr_matrix(np.zeros_like(resid))
+
             num_resids = resid.shape[0] * resid.shape[1]
             nnz_resid = np.count_nonzero(resid)
 
@@ -329,8 +333,6 @@ def estimate_sparsity_aca(spmat, tol, max_nbytes=None, k0=40):
             if max_nbytes is not None and sparse_aca_nbytes >= max_nbytes:
                 return None
             
-            if kk == m:
-                return A[:, :kk], B[:kk, :], Sr
 
             prev_nbytes = sparse_aca_nbytes
             Sr_prev = Sr
@@ -382,6 +384,9 @@ def estimate_sparsity_brp(spmat, tol, max_nbytes=None, k0=5):
         Y1, D, Y2 = bilateral_random_projection(spmat.A, k)
         
         resid = (spmat - (Y1 @ D @ Y2.T)).A
+        
+        if k == m:
+            return Y1, D, Y2, scipy.sparse.csr_matrix(np.zeros_like(resid))
 
         num_resids = resid.shape[0] * resid.shape[1]
         nnz_resid = np.count_nonzero(resid)
@@ -409,9 +414,6 @@ def estimate_sparsity_brp(spmat, tol, max_nbytes=None, k0=5):
 
         if max_nbytes is not None and sparse_brp_nbytes >= max_nbytes:
             return None
-        
-        if k == m:
-            return Y1, D, Y2, Sr
 
         prev_nbytes = sparse_brp_nbytes
         Y1_prev = Y1
@@ -481,6 +483,9 @@ def estimate_sparsity_random_id(spmat, tol, max_nbytes=None, k0=40, p=5, q=5):
         
         resid = (spmat - (C @ V)).A
 
+        if k == m:
+            return C, V, scipy.sparse.csr_matrix(np.zeros_like(resid))
+
         num_resids = resid.shape[0] * resid.shape[1]
         nnz_resid = np.count_nonzero(resid)
 
@@ -508,8 +513,6 @@ def estimate_sparsity_random_id(spmat, tol, max_nbytes=None, k0=40, p=5, q=5):
         if max_nbytes is not None and sparse_id_nbytes >= max_nbytes:
             return None
         
-        if k == m:
-            return C, V, Sr
 
         prev_nbytes = sparse_id_nbytes
         C_prev = C
@@ -712,6 +715,9 @@ def estimate_sparsity_random_svd(spmat, tol, max_nbytes=None, k0=40, p=5, q=1):
             Uk, Sk, Vtk = U[:, :kk], S[:kk], Vt[:kk, :]
             resid = (spmat - (Uk @ (Vtk.T * np.diag(Sk)).T)).A
 
+            if kk == m:
+                return U[:, :kk], S[:kk], Vt[:kk, :], scipy.sparse.csr_matrix(np.zeros_like(resid))
+
             num_resids = resid.shape[0] * resid.shape[1]
             nnz_resid = np.count_nonzero(resid)
 
@@ -739,8 +745,6 @@ def estimate_sparsity_random_svd(spmat, tol, max_nbytes=None, k0=40, p=5, q=1):
             if max_nbytes is not None and sparse_svd_nbytes >= max_nbytes:
                 return None
             
-            if kk == m:
-                return U[:, :kk], S[:kk], Vt[:kk, :], Sr
 
             prev_nbytes = sparse_svd_nbytes
             Sr_prev = Sr
