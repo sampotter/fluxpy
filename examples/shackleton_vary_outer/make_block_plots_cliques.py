@@ -32,6 +32,8 @@ parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
 
 parser.add_argument('--n_cliques', type=int, default=25)
 
+parser.add_argument('--obb', action='store_true')
+
 parser.add_argument('--plot_labels', action='store_true')
 
 parser.set_defaults(feature=False)
@@ -176,6 +178,9 @@ elif compression_type == "rand_sid":
         args.p, args.q, args.k0)
 
 FF_dir = FF_dir + "_{}nc".format(args.n_cliques)
+
+if args.obb:
+    FF_dir = FF_dir + "_obb"
 
 FF_path =  "results_cliques/"+ FF_dir + "/FF_{}_{}_{:.0e}_{}.bin".format(max_area_str, outer_radius_str, args.tol, compression_type)
 if not os.path.exists(FF_path):

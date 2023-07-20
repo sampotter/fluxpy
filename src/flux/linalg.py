@@ -262,7 +262,7 @@ def cross_approximation_full(M, k):
         delta = M[i_star,j_star] - F_hat[i_star,j_star]
         
         if delta == 0:
-            return A, B
+            return scipy.sparse.csr_matrix(A), scipy.sparse.csr_matrix(B)
         
         a_nu = (M[:, j_star] - F_hat[:,j_star]).reshape(-1,1)
         b_nu = ((M[i_star, :] - F_hat[i_star,:]) / delta).reshape(-1,1)

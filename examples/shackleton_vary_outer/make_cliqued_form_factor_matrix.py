@@ -4,7 +4,7 @@ import numpy as np
 import scipy.sparse
 
 from flux.form_factors import get_form_factor_matrix
-from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix, FormFactorPartitionBlock, FormFactorQuadtreeBlock
+from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix, FormFactorPartitionBlock, FormFactorQuadtreeBlock, FormFactorObbQuadtreeBlock
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 
 import argparse
@@ -35,7 +35,11 @@ parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
 
 parser.add_argument('--n_cliques', type=int, default=25)
 
+parser.add_argument('--obb', action='store_true')
+
 parser.add_argument('--load_ff', action='store_true')
+
+parser.add_argument('--overwrite', action='store_true')
 
 parser.set_defaults(feature=False)
 
@@ -200,10 +204,21 @@ elif compression_type == "rand_sid":
 
 savedir = "results_cliques/"+savedir
 savedir = savedir+"_{}nc".format(args.n_cliques)
+if args.obb:
+    savedir += "_obb"
 if not os.path.exists('results_cliques'):
     os.mkdir('results_cliques')
 if not os.path.exists(savedir):
     os.mkdir(savedir)
+
+
+if (not args.overwrite):
+    if args.compression_type == "true_model":
+        if os.path.exists(savedir+f'/FF_{max_area_str}_{outer_radius_str}'):
+            raise RuntimeError("Sparse FF already exists!")
+    else:
+        if os.path.exists(savedir+f'/FF_{max_area_str}_{outer_radius_str}_{tol_str}_{compression_type}.bin'):
+            raise RuntimeError("Compressed FF already exists!")
 
 
 verts = np.load(f'shackleton_verts_{max_area_str}_{outer_radius_str}.npy')
@@ -286,10 +301,14 @@ if np.sum([len(this_clique) for this_clique in current_clique_list]) != FF_adj.s
 else:
     print("Cliques cover index set!")
 
-
-FF = CompressedFormFactorMatrix(
-        shape_model, tol=tol, min_size=16384, compression_type=compression_type, compression_params=compression_params, parts=current_clique_list,
-        RootBlock=FormFactorPartitionBlock, ChildBlock=FormFactorQuadtreeBlock)
+if args.obb:
+    FF = CompressedFormFactorMatrix(
+            shape_model, tol=tol, min_size=16384, compression_type=compression_type, compression_params=compression_params, parts=current_clique_list,
+            RootBlock=FormFactorPartitionBlock, ChildBlock=FormFactorObbQuadtreeBlock)
+else:
+    FF = CompressedFormFactorMatrix(
+            shape_model, tol=tol, min_size=16384, compression_type=compression_type, compression_params=compression_params, parts=current_clique_list,
+            RootBlock=FormFactorPartitionBlock, ChildBlock=FormFactorQuadtreeBlock)
 
 assembly_time = (arrow.now() - start_assembly_time).total_seconds()
 

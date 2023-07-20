@@ -18,6 +18,7 @@ from flux.debug import IndentedPrinter
 from flux.form_factors import get_form_factor_matrix
 from flux.octree import get_octant_order
 from flux.quadtree import get_quadrant_order, get_quadrant_order_roi
+from flux.obbtree import get_obb_partition_2d
 from flux.util import nbytes, get_sunvec
 
 
@@ -1002,6 +1003,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             or isinstance(block, FormFactorSparseBrpBlock) \
             or isinstance(block, FormFactorSparseIdBlock) \
             or isinstance(block, FormFactorQuadtreeBlock) \
+            or isinstance(block, FormFactorObbQuadtreeBlock) \
             or isinstance(block, FormFactorAcaBlock) \
             or isinstance(block, FormFactorBrpBlock) \
             or isinstance(block, FormFactorIdBlock)
@@ -1524,6 +1526,24 @@ class FormFactorROIQuadtreeBlock(FormFactorQuadtreeBlock):
         self._row_block_inds = top_level_block_inds
         self._col_block_inds = top_level_block_inds
 
+class FormFactorObbQuadtreeBlock(FormFactor2dTreeBlock):
+    """A form factor matrix block corresponding to one level of a quadtree
+    via oriented bounding box partitioning.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def make_child_block(self, *args):
+        return self.root.make_obb_quadtree_block(*args)
+
+    def _set_block_inds(self, shape_model, I, J):
+
+        self._row_block_inds = get_obb_partition_2d(np.arange(shape_model.F.shape[0]) if I is None else I, shape_model)
+
+        self._col_block_inds = get_obb_partition_2d(np.arange(shape_model.F.shape[0]) if J is None else J, shape_model)
+
 class FormFactorOctreeBlock(FormFactor2dTreeBlock):
 
     def __init__(self, *args, **kwargs):
@@ -1733,6 +1753,9 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def make_quadtree_block(self, *args):
         return FormFactorQuadtreeBlock(self, *args)
+
+    def make_obb_quadtree_block(self, *args):
+        return FormFactorObbQuadtreeBlock(self, *args)
 
     def make_octree_block(self, *args):
         return FormFactorOctreeBlock(self, *args)
