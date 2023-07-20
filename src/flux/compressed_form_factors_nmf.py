@@ -1142,10 +1142,18 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         if ret is None:
             return None
 
-        A, B = ret
+        A, B, tol = ret
         aca_block = self.root.make_aca_block(A, B)
 
-        return aca_block
+        # If the tolerance estimated this way doesn't satisfy
+        # the requested tolerance, return the sparse block
+        # assert tol != 0
+        if tol <= self._tol:
+            return aca_block
+
+        logging.warning("""computed a really inaccurate ACA, using
+        a larger sparse block instead...""")
+        return None
 
     def _get_sparse_aca_block(self, spmat, k0=40):
         ret = flux.linalg.estimate_sparsity_aca(
@@ -1166,10 +1174,18 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         if ret is None:
             return None
 
-        Y1, D, Y2 = ret
-        brp_block = self.root.make_sparse_brp_block(Y1, D, Y2)
+        Y1, D, Y2, tol = ret
+        brp_block = self.root.make_brp_block(Y1, D, Y2)
 
-        return brp_block
+        # If the tolerance estimated this way doesn't satisfy
+        # the requested tolerance, return the sparse block
+        # assert tol != 0
+        if tol <= self._tol:
+            return brp_block
+
+        logging.warning("""computed a really inaccurate BRP, using
+        a larger sparse block instead...""")
+        return None
 
     def _get_sparse_brp_block(self, spmat, k0=40):
         ret = flux.linalg.estimate_sparsity_brp(
@@ -1190,10 +1206,18 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
         if ret is None:
             return None
 
-        C, V = ret
-        id_block = self.root.make_sparse_id_block(C, V)
+        C, V, tol = ret
+        id_block = self.root.make_id_block(C, V)
 
-        return id_block
+        # If the tolerance estimated this way doesn't satisfy
+        # the requested tolerance, return the sparse block
+        # assert tol != 0
+        if tol <= self._tol:
+            return id_block
+
+        logging.warning("""computed a really inaccurate ID, using
+        a larger sparse block instead...""")
+        return None
 
     def _get_sparse_random_id_block(self, spmat, k0=40, p=5, q=1):
         ret = flux.linalg.estimate_sparsity_random_id(
