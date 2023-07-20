@@ -42,8 +42,6 @@ parser.add_argument('--q', type=int, default=1)
 
 parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
 
-parser.add_argument('--roi', action='store_true')
-
 parser.add_argument('--cliques', action='store_true')
 parser.add_argument('--n_cliques', type=int, default=25)
 
@@ -117,9 +115,6 @@ if not (compression_type == "true_model" or compression_type == "stoch_radiosity
 
 if not (compression_type == "true_model" or compression_type == "stoch_radiosity") and max_depth is not None:
     FF_dir += "_{}maxdepth".format(max_depth)
-
-if args.roi:
-    FF_dir = "roi_" + FF_dir
 
 
 if args.cliques:

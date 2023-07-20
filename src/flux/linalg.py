@@ -276,6 +276,38 @@ def cross_approximation_full(M, k):
     return scipy.sparse.csr_matrix(A), scipy.sparse.csr_matrix(B)
 
 
+def estimate_rank_aca(spmat, tol, max_nbytes=None, k0=40):
+    assert tol < 1
+
+    if spmat.shape[0] == 0 or spmat.shape[1] == 0:
+        return 0
+
+    if spmat.shape == (1, 1):
+        return 1
+
+    prev_k = 0
+    m, k = min(spmat.shape), k0
+    while True:
+        k = min(k, m)
+        if not k >= 1:
+            raise RuntimeError('bad value of k')
+        A, B = cross_approximation_full(spmat.A, k)
+
+        for kk in range(prev_k+1,k+1):
+            
+            Ak, Bk = A[:, :kk], B[:kk, :]
+
+            aca_nbytes = nbytes(Ak) + nbytes(Bk)
+            if max_nbytes is not None and aca_nbytes >= max_nbytes:
+                return None
+            thresh = scipy.sparse.linalg.norm((Ak @ Bk) - spmat, ord='fro') / scipy.sparse.linalg.norm(spmat, ord='fro')
+            if kk == m or thresh <= tol:
+                return Ak, Bk, thresh
+        
+        prev_k = k
+        k *= 2
+        
+
 def estimate_sparsity_aca(spmat, tol, max_nbytes=None, k0=40):
     assert tol < 1
 
@@ -359,6 +391,32 @@ def bilateral_random_projection(X, k):
     Y1 = X @ A1
 
     return scipy.sparse.csr_matrix(Y1), scipy.sparse.csr_matrix(np.linalg.inv(A2.T @ Y1)), scipy.sparse.csr_matrix(Y2)
+
+
+def estimate_rank_brp(spmat, tol, max_nbytes=None, k0=40):
+    assert tol < 1
+
+    if spmat.shape[0] == 0 or spmat.shape[1] == 0:
+        return 0
+
+    if spmat.shape == (1, 1):
+        return 1
+
+    m, k = min(spmat.shape), k0
+    num_iters = 0
+    while True:
+        num_iters += 1
+        k = min(k, m)
+        if not k >= 1:
+            raise RuntimeError('bad value of k')
+        Y1, D, Y2 = bilateral_random_projection(spmat.A, k)
+        brp_nbytes = nbytes(Y1) + nbytes(D) + nbytes(Y2)
+        if max_nbytes is not None and brp_nbytes >= max_nbytes:
+            return None
+        thresh = scipy.sparse.linalg.norm((Y1 @ D @ Y2.T) - spmat, ord='fro') / scipy.sparse.linalg.norm(spmat, ord='fro')
+        if k == m or thresh <= tol:
+            return Y1, D, Y2, thresh
+        k += 5
 
 
 def estimate_sparsity_brp(spmat, tol, max_nbytes=None, k0=5):
@@ -457,6 +515,32 @@ def random_interpolative_decomp(A, k, p=5, q=5):
     J = J[:k]
 
     return scipy.sparse.csr_matrix(A[:, J]), scipy.sparse.csr_matrix(V)
+
+
+def estimate_rank_random_id(spmat, tol, max_nbytes=None, k0=40, p=5, q=5):
+    assert tol < 1
+
+    if spmat.shape[0] == 0 or spmat.shape[1] == 0:
+        return 0
+
+    if spmat.shape == (1, 1):
+        return 1
+
+    m, k = min(spmat.shape), k0
+    num_iters = 0
+    while True:
+        num_iters += 1
+        k = min(k, m)
+        if not k >= 1:
+            raise RuntimeError('bad value of k')
+        C, V = random_interpolative_decomp(spmat.A, k, p=p, q=q)
+        id_nbytes = nbytes(C) + nbytes(V)
+        if max_nbytes is not None and id_nbytes >= max_nbytes:
+            return None
+        thresh = scipy.sparse.linalg.norm((C@V) - spmat, ord='fro') / scipy.sparse.linalg.norm(spmat, ord='fro')
+        if k == m or thresh <= tol:
+            return C, V, thresh
+        k += 5
 
 
 def estimate_sparsity_random_id(spmat, tol, max_nbytes=None, k0=40, p=5, q=5):

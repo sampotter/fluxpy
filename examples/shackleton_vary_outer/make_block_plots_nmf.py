@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--compression_type', type=str, default="svd",choices=["nmf","snmf","wsnmf",
     "svd","ssvd",
     "rand_svd","rand_ssvd","rand_snmf",
+    "aca", "brp", "rand_id",
     "saca","sbrp","rand_sid",
     "true_model"])
 parser.add_argument('--max_area', type=float, default=3.0)
@@ -158,6 +159,18 @@ elif compression_type == "rand_snmf":
 elif compression_type == "wsnmf":
     FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", max_area_str, outer_radius_str, args.tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
+
+elif compression_type == "aca":
+    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
+        args.k0)
+
+elif compression_type == "brp":
+    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
+        args.k0)
+
+elif compression_type == "rand_id":
+    FF_dir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
+        args.p, args.q, args.k0)
 
 elif compression_type == "saca":
     FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
