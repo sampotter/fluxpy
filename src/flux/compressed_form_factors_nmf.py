@@ -953,6 +953,20 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             compressed_block = self._get_sparse_random_id_block(spmat, k0=k0, p=p, q=q)
             nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
+        elif compression_type == "paca":
+            
+            k0 = compression_params["k0"]
+
+            compressed_block = self._get_paca_block(spmat, k0=k0)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
+
+        elif compression_type == "spaca":
+            
+            k0 = compression_params["k0"]
+
+            compressed_block = self._get_sparse_paca_block(spmat, k0=k0)
+            nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
+
         else:
             raise RuntimeError('invalid compression_type: %d' % compression_type)
 
@@ -1159,6 +1173,38 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
 
     def _get_sparse_aca_block(self, spmat, k0=40):
         ret = flux.linalg.estimate_sparsity_aca(
+            spmat, self._tol, max_nbytes=nbytes(spmat),
+            k0=k0)
+        if ret is None:
+            return None
+
+        A, B, Sr = ret
+        s_aca_block = self.root.make_sparse_aca_block(A, B, Sr)
+
+        return s_aca_block
+
+    def _get_paca_block(self, spmat, k0=40):
+        ret = flux.linalg.estimate_rank_partial_aca(
+            spmat, self._tol, max_nbytes=nbytes(spmat),
+            k0=k0)
+        if ret is None:
+            return None
+
+        A, B, tol = ret
+        aca_block = self.root.make_aca_block(A, B)
+
+        # If the tolerance estimated this way doesn't satisfy
+        # the requested tolerance, return the sparse block
+        # assert tol != 0
+        if tol <= self._tol:
+            return aca_block
+
+        logging.warning("""computed a really inaccurate ACA, using
+        a larger sparse block instead...""")
+        return None
+
+    def _get_sparse_paca_block(self, spmat, k0=40):
+        ret = flux.linalg.estimate_sparsity_partial_aca(
             spmat, self._tol, max_nbytes=nbytes(spmat),
             k0=k0)
         if ret is None:

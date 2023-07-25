@@ -12,8 +12,10 @@ from tqdm import tqdm
 
 from spice_util import get_sunvec
 from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix
-from flux.model import compute_steady_state_temp
+from flux.model import ThermalModel
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
+
+from flux.thermal import setgrid
 
 import argparse
 import arrow
@@ -46,6 +48,8 @@ parser.add_argument('--paige_mult', type=int, default=1)
 
 parser.add_argument('--cliques', action='store_true')
 parser.add_argument('--n_cliques', type=int, default=25)
+
+parser.add_argument('--self_spinup', action='store_true')
 
 parser.set_defaults(feature=False)
 
@@ -116,10 +120,10 @@ elif compression_type == "rand_sid":
         args.p, args.q, args.k0)
 
 
-if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige_mult") and args.min_depth != 1:
+if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige") and args.min_depth != 1:
     FF_dir += "_{}mindepth".format(args.min_depth)
 
-if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige_mult") and max_depth is not None:
+if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige") and max_depth is not None:
     FF_dir += "_{}maxdepth".format(max_depth)
 
 
@@ -131,7 +135,7 @@ else:
 if not os.path.exists(FF_dir):
     print("PATH DOES NOT EXIST "+FF_dir)
     assert False
-savedir = FF_dir + "/T_frames_memoryless"
+savedir = FF_dir + "/T_frames_post_spinup"
 if not os.path.exists(savedir):
     os.mkdir(savedir)
 
@@ -152,27 +156,56 @@ else:
 
 print('  * loaded form factor matrix and (cartesian) shape model')
 
-
 # Define time window (it can be done either with dates or with utc0 - initial epoch - and np.linspace of epochs)
 
-utc0 = '2011 MAR 01 00:00:00.00'
-utc1 = '2012 MAR 01 00:00:00.00'
-stepet = 86400
-sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet, path_to_furnsh="simple_421.furnsh",
+if args.self_spinup:
+    if not os.path.exists(FF_dir + "/T_frames_long/T28800.npy"):
+        raise RuntimeError("Need to run spin up first!")
+    else:
+        T_spinup = np.load(FF_dir + "/T_frames_long/T28800.npy")
+        T_surf_mean = T_spinup[:,0]
+        T_init = np.repeat(T_surf_mean[:,np.newaxis], T_spinup.shape[1], axis=-1)
+else:
+    if not os.path.exists("results/true_{}_{}/T_frames_long/T28800.npy".format(max_area_str, outer_radius_str)):
+        raise RuntimeError("Need to run spin up first!")
+    else:
+        T_spinup = np.load("results/true_{}_{}/T_frames_long/T28800.npy".format(max_area_str, outer_radius_str))
+        T_surf_mean = T_spinup[:,0]
+        T_init = np.repeat(T_surf_mean[:,np.newaxis], T_spinup.shape[1], axis=-1)
+
+utc0 = '2000 JAN 01 12:00:00.00'
+utc1 = '2000 JAN 31 00:00:00.00'
+num_frames = 2880
+stepet = 885
+sun_vecs = get_sunvec(utc0=utc0, utc1=utc1, stepet=stepet, path_to_furnsh="simple_long_spinup.furnsh",
                       target='SUN', observer='MOON', frame='MOON_ME')
+t = np.linspace(0, num_frames*stepet, num_frames + 1)
+
 
 D = sun_vecs/np.linalg.norm(sun_vecs, axis=1)[:, np.newaxis]
 D = D.copy(order='C')
 
 print('  * got sun positions from SPICE')
 
-sim_start_time = arrow.now()
-for i in tqdm(range(D.shape[0])):
-    E = shape_model.get_direct_irradiance(1365, D[i])
-    T = compute_steady_state_temp(FF, E, rho=0.11, emiss=0.95)
-    path = savedir+"/T{:03d}.npy".format(i)
-    np.save(path, T)
-sim_duration = (arrow.now()-sim_start_time).total_seconds()
+nz = 60
+zfac = 1.05
+zmax = 2.5
+z = setgrid(nz=nz, zfac=zfac, zmax=zmax)
+z = np.hstack([0, z])  # add surface layer
 
+print('  * set up thermal model')
+thermal_model = ThermalModel(
+    FF, t, D,
+    F0=np.repeat(1365, len(D)), rho=0.11, method='1mvp',
+    z=z, T0=T_init, ti=120, rhoc=9.6e5, emiss=0.95,
+    Fgeotherm=0.2, bcond='Q', shape_model=shape_model, return_flux=False)
+
+sim_start_time = arrow.now()
+for frame_index, T in tqdm(enumerate(thermal_model), total=D.shape[0], desc='thermal models time-steps'):
+    if (frame_index % 20 == 0):
+        path = savedir+"/T{:03d}.npy".format(frame_index)
+        np.save(path, T)
+sim_duration = (arrow.now()-sim_start_time).total_seconds()
 print('  * thermal model run completed in {:.2f} seconds'.format(sim_duration))
-np.save(savedir+f'/sim_duration_memoryless.npy', np.array(sim_duration))
+
+np.save(savedir+f'/sim_duration.npy', np.array(sim_duration))

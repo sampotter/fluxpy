@@ -251,6 +251,51 @@ def estimate_sparsity_nmf_weighted(spmat, FF_weights, tol, max_nbytes=None, k0=5
 
 # ACA ALGORITHMS
 
+def cross_approximation_partial(M, k):
+    
+    for i in range(M.shape[0]):
+        if not (M[i,:] == np.zeros_like(M[i,:])).all():
+            i_star = i
+            break
+    
+    row_pivot_idx = []
+    A = np.empty((M.shape[0], 0))
+    B = np.empty((0, M.shape[1]))
+    F_hat = A @ B
+    
+    nu = 1
+    while nu <= k:
+        j_star = np.argmax(abs(M[i_star,:] - F_hat[i_star,:]))
+        delta = M[i_star,j_star] - F_hat[i_star,j_star]
+        
+        if delta == 0:
+            return scipy.sparse.csr_matrix(A), scipy.sparse.csr_matrix(B)
+        
+        a_nu = (M[:, j_star] - F_hat[:,j_star]).reshape(-1,1)
+        b_nu = ((M[i_star, :] - F_hat[i_star,:]) / delta).reshape(-1,1)
+        
+        A = np.concatenate([A, a_nu], axis=1)
+        B = np.concatenate([B, b_nu.T], axis=0)
+        F_hat = A @ B
+        
+        row_pivot_idx.append(i_star)
+        
+        # get the next row pivot index
+        i_star = None
+        i_sorted = np.argsort(abs(M[:, j_star] - F_hat[:, j_star]))[::-1]
+        for i in i_sorted:
+            if i not in row_pivot_idx and not (M[i,:] - F_hat[i, :] == np.zeros_like(M[i,:])).all():
+                i_star = i
+                break
+        
+        if i_star is None:
+            raise RuntimeError("Could not find unused row pivot index")
+            
+        nu += 1
+    
+    return scipy.sparse.csr_matrix(A), scipy.sparse.csr_matrix(B)
+
+
 def cross_approximation_full(M, k):
     A = np.empty((M.shape[0], 0))
     B = np.empty((0, M.shape[1]))
@@ -329,6 +374,103 @@ def estimate_sparsity_aca(spmat, tol, max_nbytes=None, k0=40):
             raise RuntimeError('bad value of k')
 
         A, B = cross_approximation_full(spmat.A, k)
+        
+        for kk in range(prev_k+1,k+1):
+            
+            Ak, Bk = A[:, :kk], B[:kk, :]
+            resid = (spmat - (Ak @ Bk)).A
+
+            if kk == m:
+                return A[:, :kk], B[:kk, :], scipy.sparse.csr_matrix(np.zeros_like(resid))
+
+            num_resids = resid.shape[0] * resid.shape[1]
+            nnz_resid = np.count_nonzero(resid)
+
+            sorted_resid_idx = np.unravel_index(np.argsort(abs(resid), axis=None), resid.shape)
+
+            target = np.power(np.linalg.norm(resid, ord='fro'), 2) - np.power(tol*scipy.sparse.linalg.norm(spmat, ord='fro'), 2)
+
+            if target <= 0:
+                Sr = np.zeros_like(resid)
+                Sr = scipy.sparse.csr_matrix(Sr)
+
+            else:
+                cumulative_residual = np.cumsum(np.power(resid[sorted_resid_idx[0], sorted_resid_idx[1]][::-1], 2))
+                keep_resids = (cumulative_residual > target).nonzero()[0][0] + 1
+
+                Sr = np.copy(resid)
+                Sr[sorted_resid_idx[0][:num_resids-keep_resids], sorted_resid_idx[1][:num_resids-keep_resids]] = 0.
+                Sr = scipy.sparse.csr_matrix(Sr)
+
+            sparse_aca_nbytes = nbytes(Ak) + nbytes(Bk) + nbytes(Sr)
+
+            if sparse_aca_nbytes >= prev_nbytes:
+                return A[:, :kk-1], B[:kk-1, :], Sr_prev
+
+            if max_nbytes is not None and sparse_aca_nbytes >= max_nbytes:
+                return None
+            
+
+            prev_nbytes = sparse_aca_nbytes
+            Sr_prev = Sr
+
+        prev_k = k
+        k *= 2
+
+
+def estimate_rank_partial_aca(spmat, tol, max_nbytes=None, k0=40):
+    assert tol < 1
+
+    if spmat.shape[0] == 0 or spmat.shape[1] == 0:
+        return 0
+
+    if spmat.shape == (1, 1):
+        return 1
+
+    prev_k = 0
+    m, k = min(spmat.shape), k0
+    while True:
+        k = min(k, m)
+        if not k >= 1:
+            raise RuntimeError('bad value of k')
+        A, B = cross_approximation_partial(spmat.A, k)
+
+        for kk in range(prev_k+1,k+1):
+            
+            Ak, Bk = A[:, :kk], B[:kk, :]
+
+            aca_nbytes = nbytes(Ak) + nbytes(Bk)
+            if max_nbytes is not None and aca_nbytes >= max_nbytes:
+                return None
+            thresh = scipy.sparse.linalg.norm((Ak @ Bk) - spmat, ord='fro') / scipy.sparse.linalg.norm(spmat, ord='fro')
+            if kk == m or thresh <= tol:
+                return Ak, Bk, thresh
+        
+        prev_k = k
+        k *= 2
+
+
+def estimate_sparsity_partial_aca(spmat, tol, max_nbytes=None, k0=40):
+    assert tol < 1
+
+    if spmat.shape[0] == 0 or spmat.shape[1] == 0:
+        return 0
+
+    if spmat.shape == (1, 1):
+        return 1
+
+    prev_k = 0
+    prev_nbytes = np.inf
+    Sr_prev = np.zeros(spmat.shape)
+    
+    m, k = min(spmat.shape), k0
+    while True:
+        k = min(k, m)
+        
+        if not k >= 1:
+            raise RuntimeError('bad value of k')
+
+        A, B = cross_approximation_partial(spmat.A, k)
         
         for kk in range(prev_k+1,k+1):
             

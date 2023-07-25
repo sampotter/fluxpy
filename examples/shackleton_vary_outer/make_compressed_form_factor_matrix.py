@@ -3,7 +3,7 @@
 import numpy as np
 import scipy.sparse
 
-from flux.form_factors import get_form_factor_matrix, get_form_factor_stochastic_radiosity
+from flux.form_factors import get_form_factor_matrix, get_form_factor_stochastic_radiosity, get_form_factor_paige, get_form_factor_sparsified
 from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix, FormFactorMinDepthQuadtreeBlock
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 
@@ -15,9 +15,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--compression_type', type=str, default="svd",choices=["nmf","snmf","wsnmf",
     "svd","ssvd",
     "rand_svd","rand_ssvd","rand_snmf",
-    "aca", "brp", "rand_id",
-    "saca","sbrp","rand_sid",
-    "stoch_radiosity",
+    "aca", "brp", "rand_id","paca",
+    "saca","sbrp","rand_sid","spaca",
+    "stoch_radiosity","paige","sparse_tol","sparse_k",
     "true_model"])
 parser.add_argument('--max_area', type=float, default=3.0)
 parser.add_argument('--outer_radius', type=int, default=80)
@@ -35,6 +35,9 @@ parser.add_argument('--p', type=int, default=5)
 parser.add_argument('--q', type=int, default=1)
 
 parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
+
+parser.add_argument('--paige_mult', type=int, default=1)
+parser.add_argument('--sparse_mult', type=int, default=1)
 
 parser.add_argument('--overwrite', action='store_true')
 
@@ -63,6 +66,24 @@ elif compression_type == "stoch_radiosity":
     compression_params = {}
 
     savedir = "stoch_rad_{}_{}_{}k0".format(max_area_str, outer_radius_str, args.k0)
+
+
+elif compression_type == "paige":
+    compression_params = {}
+
+    savedir = "paige_{}_{}_{}k".format(max_area_str, outer_radius_str, args.paige_mult)
+
+
+elif compression_type == "sparse_tol":
+    compression_params = {}
+
+    savedir = "sparse_{}_{}_{:.0e}".format(max_area_str, outer_radius_str, args.tol)
+
+
+elif compression_type == "sparse_k":
+    compression_params = {}
+
+    savedir = "sparse_{}_{}_{}k".format(max_area_str, outer_radius_str, args.sparse_mult)
 
 
 elif compression_type == "svd":
@@ -212,10 +233,28 @@ elif compression_type == "rand_sid":
         args.p, args.q, args.k0)
 
 
-if not (compression_type == "true_model" or compression_type == "stoch_radiosity") and args.min_depth != 1:
+elif compression_type == "paca":
+    compression_params = {
+        "k0": args.k0
+    }
+
+    savedir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, tol,
+        args.k0)
+
+
+elif compression_type == "spaca":
+    compression_params = {
+        "k0": args.k0
+    }
+
+    savedir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, tol,
+        args.k0)
+
+
+if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k") and args.min_depth != 1:
     savedir += "_{}mindepth".format(args.min_depth)
 
-if not (compression_type == "true_model" or compression_type == "stoch_radiosity") and max_depth is not None:
+if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k") and max_depth is not None:
     savedir += "_{}maxdepth".format(max_depth)
 
 
@@ -227,7 +266,7 @@ if not os.path.exists(savedir):
 
 
 if (not args.overwrite):
-    if args.compression_type == "true_model":
+    if compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k":
         if os.path.exists(savedir+f'/FF_{max_area_str}_{outer_radius_str}'):
             raise RuntimeError("Sparse FF already exists!")
     else:
@@ -251,15 +290,32 @@ start_assembly_time = arrow.now()
 
 if args.compression_type == "true_model":
     FF = get_form_factor_matrix(shape_model)
+
 elif args.compression_type == "stoch_radiosity":
     path = f'results/true_{max_area_str}_{outer_radius_str}/FF_{max_area_str}_{outer_radius_str}.npz'
     full_sparse_FF = scipy.sparse.load_npz(path)
-    # avg_illum = np.load(f"weights_{max_area_str}_{outer_radius_str}.npy")
     FF = get_form_factor_stochastic_radiosity(full_sparse_FF, args.k0)
+
+elif args.compression_type == "paige":
+    path = f'results/true_{max_area_str}_{outer_radius_str}/FF_{max_area_str}_{outer_radius_str}.npz'
+    full_sparse_FF = scipy.sparse.load_npz(path)
+    FF = get_form_factor_paige(shape_model, full_sparse_FF, args.paige_mult*np.sqrt(shape_model.F.shape[0]))
+
+elif args.compression_type == "sparse_tol":
+    path = f'results/true_{max_area_str}_{outer_radius_str}/FF_{max_area_str}_{outer_radius_str}.npz'
+    full_sparse_FF = scipy.sparse.load_npz(path)
+    FF = get_form_factor_sparsified(full_sparse_FF, tol=args.tol)
+
+elif args.compression_type == "sparse_k":
+    path = f'results/true_{max_area_str}_{outer_radius_str}/FF_{max_area_str}_{outer_radius_str}.npz'
+    full_sparse_FF = scipy.sparse.load_npz(path)
+    FF = get_form_factor_sparsified(full_sparse_FF, k=args.sparse_mult*shape_model.F.shape[0])
+
 elif args.min_depth != 1:
     FF = CompressedFormFactorMatrix(
         shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params,
         min_depth=args.min_depth, RootBlock=FormFactorMinDepthQuadtreeBlock)
+
 else:
     FF = CompressedFormFactorMatrix(
         shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params)
@@ -269,7 +325,7 @@ assembly_time = (arrow.now() - start_assembly_time).total_seconds()
 np.save(savedir+f'/FF_assembly_time.npy', np.array(assembly_time))
 
 
-if args.compression_type == "true_model" or args.compression_type == "stoch_radiosity":
+if args.compression_type == "true_model" or args.compression_type == "stoch_radiosity" or args.compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k":
     scipy.sparse.save_npz(savedir+f'/FF_{max_area_str}_{outer_radius_str}', FF)
 else:
     FF.save(savedir+f'/FF_{max_area_str}_{outer_radius_str}_{tol_str}_{compression_type}.bin')

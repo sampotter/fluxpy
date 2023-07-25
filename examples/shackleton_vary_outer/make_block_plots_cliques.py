@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import flux.compressed_form_factors_nmf as cff
-from flux.compressed_form_factors_cliques import CliquedFormFactorMatrix
+from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix
 
 import scipy
 import os
@@ -186,7 +186,7 @@ FF_path =  "results_cliques/"+ FF_dir + "/FF_{}_{}_{:.0e}_{}.bin".format(max_are
 if not os.path.exists(FF_path):
     print("PATH DOES NOT EXIST " + FF_path)
     assert False
-FF = CliquedFormFactorMatrix.from_file(FF_path)
+FF = CompressedFormFactorMatrix.from_file(FF_path)
 
 
 fig = plt.figure(figsize=(18, 6))  # , figsize=(18, 6))

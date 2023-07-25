@@ -3,10 +3,13 @@ import pickle
 import array
 import flux.config
 import numpy as np
+import scipy
 import scipy.sparse
 import scipy.sparse.linalg
 
 from cached_property import cached_property
+
+from flux.shape import get_surface_normals_and_face_areas, get_centroids
 
 def get_form_factor_matrix(shape_model, I=None, J=None, eps=None):
     P = shape_model.P
@@ -95,6 +98,83 @@ def get_form_factor_stochastic_radiosity(FF, k):
         if stoch_rad_FF[i, :].sum() > 0:
             stoch_rad_FF[i, :] = stoch_rad_FF[i, :] * (FF_arr[i,: ].sum() / stoch_rad_FF[i, :].sum())
     return scipy.sparse.csr_matrix(stoch_rad_FF)
+
+def get_form_factor_paige(shape_model, FF, k):
+
+    FF_arr = FF.A
+
+    N, A = get_surface_normals_and_face_areas(shape_model.V, shape_model.F)
+    P = get_centroids(shape_model.V, shape_model.F)
+
+    dist_mat = scipy.spatial.distance.cdist(P, P, metric='sqeuclidean')
+    dist_mat[dist_mat == 0] = 1.
+    difference_tensor = P.reshape(-1, 1, 3) - P.reshape(1, -1, 3)
+
+    dot_prod_matrix = np.zeros((difference_tensor.shape[0], difference_tensor.shape[1]))
+    for j in range(difference_tensor.shape[1]):
+        dot_prod_matrix[:,j] = (difference_tensor[:,j] @ N[j]) * A[j]
+
+    solid_angle_mat = (FF_arr > 0) * dot_prod_matrix / (np.pi * dist_mat)
+    max_solid_angle_arr = solid_angle_mat.max(axis=1)
+
+    paiges_FF = np.zeros(FF_arr.shape)
+    for i in range(paiges_FF.shape[0]):
+        
+        row_nz = (solid_angle_mat[i] > 0).nonzero()[0]
+        if len(row_nz) == 0:
+            continue
+        
+        row_selected_idx = []
+        while len(row_selected_idx) < k:
+            random_idx = np.random.choice(row_nz)
+            if solid_angle_mat[i, random_idx] > np.random.uniform(0,max_solid_angle_arr[i]):
+                row_selected_idx.append(random_idx)
+        
+        row_mask = np.zeros(solid_angle_mat.shape[1])
+        row_mask[row_selected_idx] = 1.
+        
+        sum_FF_actual = FF_arr[i, :].sum()
+        paiges_FF[i, :] = np.copy(FF_arr[i, :] * row_mask)
+        sum_FF_paiges = paiges_FF[i, :].sum()
+
+        assert sum_FF_paiges != 0.
+        
+        paiges_FF[i, :] *= (sum_FF_actual/sum_FF_paiges)
+    
+    return scipy.sparse.csr_matrix(paiges_FF)
+
+def get_form_factor_sparsified(FF, k=None, tol=None):
+
+    assert (k is not None) or (tol is not None)
+
+    FF_arr = FF.A
+
+    FF_sums = FF_arr.sum(axis=1)
+
+    num_elements = FF_arr.shape[0] * FF_arr.shape[1]
+
+    sorted_ff_idx = np.unravel_index(np.argsort(abs(FF_arr), axis=None), FF_arr.shape)
+
+    if tol is not None:
+        target = np.power(np.linalg.norm(FF_arr, ord='fro'), 2) - np.power(tol*np.linalg.norm(FF_arr, ord='fro'), 2)
+
+        cumulative_residual = np.cumsum(np.power(FF_arr[sorted_ff_idx[0], sorted_ff_idx[1]][::-1], 2))
+        keep_resids = (cumulative_residual > target).nonzero()[0][0] + 1
+    elif k is not None:
+        keep_resids = k
+
+    Sr = np.copy(FF_arr)
+    Sr[sorted_ff_idx[0][:num_elements-keep_resids], sorted_ff_idx[1][:num_elements-keep_resids]] = 0.
+
+    Sr_sums = Sr.sum(axis=1)
+    Sr_sums[Sr_sums==0] = 1.
+
+    Sr *= (FF_sums / Sr_sums)[:, np.newaxis]
+
+    Sr = scipy.sparse.csr_matrix(Sr)
+
+    return Sr
+
 
 class FormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
