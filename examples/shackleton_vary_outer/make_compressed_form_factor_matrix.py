@@ -5,6 +5,7 @@ import scipy.sparse
 
 from flux.form_factors import get_form_factor_matrix, get_form_factor_stochastic_radiosity, get_form_factor_paige, get_form_factor_sparsified
 from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix, FormFactorMinDepthQuadtreeBlock
+from flux.compressed_form_factors_truncated_sparse import TruncatedHierarchicalFormFactorMatrix
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 
 import argparse
@@ -18,6 +19,7 @@ parser.add_argument('--compression_type', type=str, default="svd",choices=["nmf"
     "aca", "brp", "rand_id","paca",
     "saca","sbrp","rand_sid","spaca",
     "stoch_radiosity","paige","sparse_tol","sparse_k",
+    "sparse_hierarch",
     "true_model"])
 parser.add_argument('--max_area', type=float, default=3.0)
 parser.add_argument('--outer_radius', type=int, default=80)
@@ -78,6 +80,12 @@ elif compression_type == "sparse_tol":
     compression_params = {}
 
     savedir = "sparse_{}_{}_{:.0e}".format(max_area_str, outer_radius_str, args.tol)
+
+
+elif compression_type == "sparse_hierarch":
+    compression_params = {}
+
+    savedir = "sparse_hier_{}_{}_{:.0e}".format(max_area_str, outer_radius_str, args.tol)
 
 
 elif compression_type == "sparse_k":
@@ -305,6 +313,10 @@ elif args.compression_type == "sparse_tol":
     path = f'results/true_{max_area_str}_{outer_radius_str}/FF_{max_area_str}_{outer_radius_str}.npz'
     full_sparse_FF = scipy.sparse.load_npz(path)
     FF = get_form_factor_sparsified(full_sparse_FF, tol=args.tol)
+
+elif args.compression_type == "sparse_hierarch":
+    FF = TruncatedHierarchicalFormFactorMatrix(
+        shape_model, tol=tol, min_size=16384, max_depth=max_depth)
 
 elif args.compression_type == "sparse_k":
     path = f'results/true_{max_area_str}_{outer_radius_str}/FF_{max_area_str}_{outer_radius_str}.npz'

@@ -1297,7 +1297,10 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
                 block = self._blocks[i, j]
                 if block.is_empty_leaf: continue
                 update_inds = np.ix_(row_inds, col_inds)
-                y[update_inds] = block + x[update_inds]
+                if isinstance(x, scipy.sparse.csr_matrix):
+                    y[update_inds] = block + (x.A)[update_inds]
+                else:
+                    y[update_inds] = block + x[update_inds]
         return y
 
     @property

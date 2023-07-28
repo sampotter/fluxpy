@@ -126,10 +126,10 @@ elif compression_type == "rand_sid":
         args.p, args.q, args.k0)
 
 
-if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige_mult" or compression_type == "sparse_tol" or compression_type == "sparse_k") and args.min_depth != 1:
+if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k") and args.min_depth != 1:
     FF_dir += "_{}mindepth".format(args.min_depth)
 
-if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige_mult" or compression_type == "sparse_tol" or compression_type == "sparse_k") and max_depth is not None:
+if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k") and max_depth is not None:
     FF_dir += "_{}maxdepth".format(max_depth)
 
 
