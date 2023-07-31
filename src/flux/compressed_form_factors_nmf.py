@@ -1291,13 +1291,14 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
     def __add__(self, x):
         if x.shape != self.shape:
             raise ValueError('cannot add %r and %r shape object: shape mismatch' % (self, x.shape))
-        y = np.zeros((self.shape[0], self.shape[1]), dtype=self.dtype)
+        if isinstance(x, scipy.sparse.csr_matrix):
+            y = np.zeros((self.shape[0], self.shape[1]), dtype=self.dtype)
+        else:
+            y = np.zeros((self.shape[0], self.shape[1]), dtype=self.dtype)
         for i, row_inds in enumerate(self._row_block_inds):
             for j, col_inds in enumerate(self._col_block_inds):
                 block = self._blocks[i, j]
                 if block.is_empty_leaf: continue
-                update_inds = np.ix_(row_inds, col_inds)
-                if isinstance(x, scipy.sparse.csr_matrix):
                     y[update_inds] = block + (x.A)[update_inds]
                 else:
                     y[update_inds] = block + x[update_inds]
