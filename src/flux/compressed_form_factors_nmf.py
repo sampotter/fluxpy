@@ -91,6 +91,8 @@ class FormFactorNullBlock(FormFactorLeafBlock,
             raise RuntimeError('a null block must have a degenerate shape')
         super().__init__(root, shape)
 
+        self.partial_norm = 0.
+
     def _matmat(self, x):
         if self.shape[1] != x.shape[0]:
             raise ValueError(
@@ -119,11 +121,17 @@ class FormFactorNullBlock(FormFactorLeafBlock,
     def is_empty_leaf(self):
         return True
 
+    @property
+    def sq_resid_sum(self):
+        return 0.
+
 
 class FormFactorZeroBlock(FormFactorLeafBlock,
                           scipy.sparse.linalg.LinearOperator):
     def __init__(self, root, shape):
         super().__init__(root, shape)
+
+        self.partial_norm = 0.
 
     def _matmat(self, x):
         m = self.shape[0]
@@ -154,6 +162,10 @@ class FormFactorZeroBlock(FormFactorLeafBlock,
     def is_empty_leaf(self):
         return True
 
+    @property
+    def sq_resid_sum(self):
+        return 0.
+
 
 class FormFactorDenseBlock(FormFactorLeafBlock,
                            scipy.sparse.linalg.LinearOperator):
@@ -162,6 +174,8 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
             mat = mat.toarray()
         super().__init__(root, mat.shape)
         self._mat = mat
+
+        self.partial_norm = np.power(mat.flatten(), 2).sum()
 
     @property
     def nbytes(self):
@@ -194,6 +208,10 @@ class FormFactorDenseBlock(FormFactorLeafBlock,
     def is_empty_leaf(self):
         return False
 
+    @property
+    def sq_resid_sum(self):
+        return 0.
+
 
 class FormFactorSparseBlock(FormFactorLeafBlock,
                             scipy.sparse.linalg.LinearOperator):
@@ -216,14 +234,20 @@ class FormFactorSparseBlock(FormFactorLeafBlock,
     def is_empty_leaf(self):
         return False
 
+    @property
+    def sq_resid_sum(self):
+        return 0.
+
 
 class FormFactorCsrBlock(FormFactorSparseBlock):
 
     def __init__(self, root, mat):
         super().__init__(root, mat.shape)
         if isinstance(mat, np.ndarray):
+            self.partial_norm = np.power(mat.flatten(), 2).sum()
             spmat = scipy.sparse.csr_matrix(mat)
         elif isinstance(mat, scipy.sparse.spmatrix):
+            self.partial_norm = np.power(mat.A.flatten(), 2).sum()
             spmat = mat
         else:
             raise Exception('invalid class for mat: %s' % type(mat))
@@ -240,11 +264,15 @@ class FormFactorCsrBlock(FormFactorSparseBlock):
     def _mat(self):
         return self._spmat.toarray()
 
+    @property
+    def sq_resid_sum(self):
+        return 0.
+
 
 class FormFactorSvdBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, u, s, vt):
+    def __init__(self, root, u, s, vt, mat_block):
         shape = (u.shape[0], vt.shape[1])
         super().__init__(root, shape)
 
@@ -256,6 +284,9 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
 
         vt_csr = scipy.sparse.csr_matrix(vt)
         self._vt = vt if nbytes(vt) < nbytes(vt_csr) else vt_csr
+
+        self.partial_norm = np.power(mat_block.flatten(), 2).sum()
+        self.sq_resid_sum = np.power(((self._u @ np.diag(self._s) @ self._vt) - mat_block).flatten(), 2).sum()
 
     def _matmat(self, x):
         y = self._vt@x
@@ -295,7 +326,7 @@ class FormFactorSvdBlock(FormFactorLeafBlock,
 class FormFactorSparseSvdBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, u, s, vt, sr):
+    def __init__(self, root, u, s, vt, sr, mat_block):
         shape = (u.shape[0], vt.shape[1])
         super().__init__(root, shape)
 
@@ -310,6 +341,9 @@ class FormFactorSparseSvdBlock(FormFactorLeafBlock,
 
         sr_csr = scipy.sparse.csr_matrix(sr)
         self._sr = sr if nbytes(sr) < nbytes(sr_csr) else sr_csr
+
+        self.partial_norm = np.power(mat_block.flatten(), 2).sum()
+        self.sq_resid_sum = np.power(((self._u @ np.diag(self._s) @ self._vt) + self._sr - mat_block).flatten(), 2).sum()
 
     def _matmat(self, x):
         y = self._vt@x
@@ -352,7 +386,7 @@ class FormFactorSparseSvdBlock(FormFactorLeafBlock,
 class FormFactorNmfBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, w, h):
+    def __init__(self, root, w, h, mat_block):
         shape = (w.shape[0], h.shape[1])
         super().__init__(root, shape)
 
@@ -363,6 +397,9 @@ class FormFactorNmfBlock(FormFactorLeafBlock,
 
         h_csr = scipy.sparse.csr_matrix(h)
         self._h = h if nbytes(h) < nbytes(h_csr) else h_csr
+
+        self.partial_norm = np.power(mat_block.flatten(), 2).sum()
+        self.sq_resid_sum = np.power((self._w@self._h - mat_block).flatten(), 2).sum()
 
     def _matmat(self, x):
         y = self._h@x
@@ -401,7 +438,7 @@ class FormFactorNmfBlock(FormFactorLeafBlock,
 class FormFactorSparseNmfBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, w, h, sr):
+    def __init__(self, root, w, h, sr, mat_block):
         shape = (w.shape[0], h.shape[1])
         super().__init__(root, shape)
 
@@ -415,6 +452,9 @@ class FormFactorSparseNmfBlock(FormFactorLeafBlock,
 
         sr_csr = scipy.sparse.csr_matrix(sr)
         self._sr = sr if nbytes(sr) < nbytes(sr_csr) else sr_csr
+
+        self.partial_norm = np.power(mat_block.flatten(), 2).sum()
+        self.sq_resid_sum = np.power((self._w@self._h + self._sr - mat_block).flatten(), 2).sum()
 
     def _matmat(self, x):
         y = self._h@x
@@ -456,7 +496,7 @@ class FormFactorSparseNmfBlock(FormFactorLeafBlock,
 class FormFactorAcaBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, a, b):
+    def __init__(self, root, a, b, mat_block):
         shape = (a.shape[0], b.shape[1])
         super().__init__(root, shape)
 
@@ -465,6 +505,9 @@ class FormFactorAcaBlock(FormFactorLeafBlock,
 
         b_csr = scipy.sparse.csr_matrix(b)
         self._b = b if nbytes(b) < nbytes(b_csr) else b_csr
+
+        self.partial_norm = np.power(mat_block.flatten(), 2).sum()
+        self.sq_resid_sum = np.power((self._a@self._b - mat_block).flatten(), 2).sum()
 
     def _matmat(self, x):
         y = self._b@x
@@ -503,7 +546,7 @@ class FormFactorAcaBlock(FormFactorLeafBlock,
 class FormFactorSparseAcaBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, a, b, sr):
+    def __init__(self, root, a, b, sr, mat_block):
         shape = (a.shape[0], b.shape[1])
         super().__init__(root, shape)
 
@@ -515,6 +558,9 @@ class FormFactorSparseAcaBlock(FormFactorLeafBlock,
 
         sr_csr = scipy.sparse.csr_matrix(sr)
         self._sr = sr if nbytes(sr) < nbytes(sr_csr) else sr_csr
+
+        self.partial_norm = np.power(mat_block.flatten(), 2).sum()
+        self.sq_resid_sum = np.power((self._a@self._b + self._sr - mat_block).flatten(), 2).sum()
 
     def _matmat(self, x):
         y = self._b@x
@@ -556,7 +602,7 @@ class FormFactorSparseAcaBlock(FormFactorLeafBlock,
 class FormFactorBrpBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, y1, d, y2):
+    def __init__(self, root, y1, d, y2, mat_block):
         shape = (y1.shape[0], y2.shape[1])
         super().__init__(root, shape)
 
@@ -568,6 +614,9 @@ class FormFactorBrpBlock(FormFactorLeafBlock,
 
         y2_csr = scipy.sparse.csr_matrix(y2)
         self._y2 = y2 if nbytes(y2) < nbytes(y2_csr) else y2_csr
+
+        self.partial_norm = np.power(mat_block.flatten(), 2).sum()
+        self.sq_resid_sum = np.power(((self._y1 @ self._d @ self._y2.T) - mat_block).flatten(), 2).sum()
 
     def _matmat(self, x):
         y = self._y2.T@x
@@ -609,7 +658,7 @@ class FormFactorBrpBlock(FormFactorLeafBlock,
 class FormFactorSparseBrpBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, y1, d, y2, sr):
+    def __init__(self, root, y1, d, y2, sr, mat_block):
         shape = (sr.shape[0], sr.shape[1])
         super().__init__(root, shape)
 
@@ -624,6 +673,9 @@ class FormFactorSparseBrpBlock(FormFactorLeafBlock,
 
         sr_csr = scipy.sparse.csr_matrix(sr)
         self._sr = sr if nbytes(sr) < nbytes(sr_csr) else sr_csr
+
+        self.partial_norm = np.power(mat_block.flatten(), 2).sum()
+        self.sq_resid_sum = np.power(((self._y1 @ self._d @ self._y2.T) + self._sr - mat_block).flatten(), 2).sum()
 
     def _matmat(self, x):
         y = self._y2.T@x
@@ -668,7 +720,7 @@ class FormFactorSparseBrpBlock(FormFactorLeafBlock,
 class FormFactorIdBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, c, v):
+    def __init__(self, root, c, v, mat_block):
         shape = (c.shape[0], v.shape[1])
         super().__init__(root, shape)
 
@@ -677,6 +729,9 @@ class FormFactorIdBlock(FormFactorLeafBlock,
 
         v_csr = scipy.sparse.csr_matrix(v)
         self._v = v if nbytes(v) < nbytes(v_csr) else v_csr
+
+        self.partial_norm = np.power(mat_block.flatten(), 2).sum()
+        self.sq_resid_sum = np.power((self._c@self._v - mat_block).flatten(), 2).sum()
 
     def _matmat(self, x):
         y = self._v@x
@@ -715,7 +770,7 @@ class FormFactorIdBlock(FormFactorLeafBlock,
 class FormFactorSparseIdBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
-    def __init__(self, root, c, v, sr):
+    def __init__(self, root, c, v, sr, mat_block):
         shape = (c.shape[0], v.shape[1])
         super().__init__(root, shape)
 
@@ -727,6 +782,9 @@ class FormFactorSparseIdBlock(FormFactorLeafBlock,
 
         sr_csr = scipy.sparse.csr_matrix(sr)
         self._sr = sr if nbytes(sr) < nbytes(sr_csr) else sr_csr
+
+        self.partial_norm = np.power(mat_block.flatten(), 2).sum()
+        self.sq_resid_sum = np.power((self._c@self._v + self._sr - mat_block).flatten(), 2).sum()
 
     def _matmat(self, x):
         y = self._v@x
@@ -1031,7 +1089,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         U, S, Vt, tol = ret
-        svd_block = self.root.make_svd_block(U, S, Vt)
+        svd_block = self.root.make_svd_block(U, S, Vt, spmat.A)
 
         # If the tolerance estimated this way doesn't satisfy
         # the requested tolerance, return the sparse block
@@ -1051,7 +1109,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         U, S, Vt, tol = ret
-        svd_block = self.root.make_svd_block(U, S, Vt)
+        svd_block = self.root.make_svd_block(U, S, Vt, spmat.A)
 
         # If the tolerance estimated this way doesn't satisfy
         # the requested tolerance, return the sparse block
@@ -1071,7 +1129,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         U, S, Vt, Sr = ret
-        s_svd_block = self.root.make_sparse_svd_block(U, S, Vt, Sr)
+        s_svd_block = self.root.make_sparse_svd_block(U, S, Vt, Sr, spmat.A)
 
         return s_svd_block
 
@@ -1083,7 +1141,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         U, S, Vt, Sr = ret
-        s_svd_block = self.root.make_sparse_svd_block(U, S, Vt, Sr)
+        s_svd_block = self.root.make_sparse_svd_block(U, S, Vt, Sr, spmat.A)
 
         return s_svd_block
 
@@ -1095,7 +1153,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         W, H, tol = ret
-        nmf_block = self.root.make_nmf_block(W, H)
+        nmf_block = self.root.make_nmf_block(W, H, spmat.A)
 
         # If the tolerance estimated this way doesn't satisfy
         # the requested tolerance, return the sparse block
@@ -1115,7 +1173,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         W, H, Sr = ret
-        s_nmf_block = self.root.make_sparse_nmf_block(W, H, Sr)
+        s_nmf_block = self.root.make_sparse_nmf_block(W, H, Sr, spmat.A)
 
         return s_nmf_block
 
@@ -1127,7 +1185,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         W, H, Sr = ret
-        s_nmf_block = self.root.make_sparse_nmf_block(W, H, Sr)
+        s_nmf_block = self.root.make_sparse_nmf_block(W, H, Sr, spmat.A)
 
         return s_nmf_block
 
@@ -1139,7 +1197,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         W, H, Sr, tol = ret
-        s_nmf_block = self.root.make_sparse_nmf_block(W, H, Sr)
+        s_nmf_block = self.root.make_sparse_nmf_block(W, H, Sr, spmat.A)
 
         # If the tolerance estimated this way doesn't satisfy
         # the requested tolerance, return the sparse block
@@ -1159,7 +1217,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         A, B, tol = ret
-        aca_block = self.root.make_aca_block(A, B)
+        aca_block = self.root.make_aca_block(A, B, spmat.A)
 
         # If the tolerance estimated this way doesn't satisfy
         # the requested tolerance, return the sparse block
@@ -1179,7 +1237,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         A, B, Sr = ret
-        s_aca_block = self.root.make_sparse_aca_block(A, B, Sr)
+        s_aca_block = self.root.make_sparse_aca_block(A, B, Sr, spmat.A)
 
         return s_aca_block
 
@@ -1191,7 +1249,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         A, B, tol = ret
-        aca_block = self.root.make_aca_block(A, B)
+        aca_block = self.root.make_aca_block(A, B, spmat.A)
 
         # If the tolerance estimated this way doesn't satisfy
         # the requested tolerance, return the sparse block
@@ -1211,7 +1269,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         A, B, Sr = ret
-        s_aca_block = self.root.make_sparse_aca_block(A, B, Sr)
+        s_aca_block = self.root.make_sparse_aca_block(A, B, Sr, spmat.A)
 
         return s_aca_block
 
@@ -1223,7 +1281,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         Y1, D, Y2, tol = ret
-        brp_block = self.root.make_brp_block(Y1, D, Y2)
+        brp_block = self.root.make_brp_block(Y1, D, Y2, spmat.A)
 
         # If the tolerance estimated this way doesn't satisfy
         # the requested tolerance, return the sparse block
@@ -1243,7 +1301,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         Y1, D, Y2, Sr = ret
-        s_brp_block = self.root.make_sparse_brp_block(Y1, D, Y2, Sr)
+        s_brp_block = self.root.make_sparse_brp_block(Y1, D, Y2, Sr, spmat.A)
 
         return s_brp_block
 
@@ -1255,7 +1313,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         C, V, tol = ret
-        id_block = self.root.make_id_block(C, V)
+        id_block = self.root.make_id_block(C, V, spmat.A)
 
         # If the tolerance estimated this way doesn't satisfy
         # the requested tolerance, return the sparse block
@@ -1275,7 +1333,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             return None
 
         C, V, Sr = ret
-        s_id_block = self.root.make_sparse_id_block(C, V, Sr)
+        s_id_block = self.root.make_sparse_id_block(C, V, Sr, spmat.A)
 
         return s_id_block
 
@@ -1299,10 +1357,24 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             for j, col_inds in enumerate(self._col_block_inds):
                 block = self._blocks[i, j]
                 if block.is_empty_leaf: continue
-                    y[update_inds] = block + (x.A)[update_inds]
-                else:
-                    y[update_inds] = block + x[update_inds]
+                y[update_inds] = block + x[update_inds]
         return y
+
+    @property
+    def partial_norm(self):
+        total = 0.
+        for i in range(len(self._row_block_inds)):
+            for j in range(len(self._col_block_inds)):
+                total += self._blocks[i, j].partial_norm
+        return total
+
+    @property
+    def sq_resid_sum(self):
+        total = 0.
+        for i in range(len(self._row_block_inds)):
+            for j in range(len(self._col_block_inds)):
+                total += self._blocks[i, j].sq_resid_sum
+        return total
 
     @property
     def nbytes(self):
@@ -1819,6 +1891,12 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def __add__(self, x):
         return self._root+x
+
+    def resid_frobenius_norm(self):
+        return np.power(self._root.sq_resid_sum, 0.5)
+
+    def full_mat_frobenius_norm(self):
+        return np.power(self._root.partial_norm, 0.5)
 
     def get_blocks_at_depth(self, depth):
         if depth > self.depth:
