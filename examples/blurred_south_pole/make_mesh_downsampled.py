@@ -25,7 +25,10 @@ rds = rio.open_rasterio(tif_path)
 xgrid = rds.coords['y'].values*-1.e-3
 ygrid = rds.coords['x'].values*1.e-3
 dem = rds.data[0].T[:,::-1]
-dem = scipy.ndimage.gaussian_filter(dem, sigma=5)
+
+sigma_str = sys.argv[3]
+sigma = float(sigma_str)
+dem = scipy.ndimage.gaussian_filter(dem, sigma=sigma)
 
 nx = len(xgrid)
 ny = len(ygrid)
@@ -156,7 +159,7 @@ faces = np.array(mesh.elements)
 
 print(f'  * {verts.shape[0]} vertices and {faces.shape[0]} faces')
 
-area_str = f'{max_inner_area_str}_{R_roi_str}'
+area_str = f'{max_inner_area_str}_{R_roi_str}_{sigma_str}'
 np.save(f'blurred_pole_verts_stereo_{area_str}', verts_stereo)
 np.save(f'blurred_pole_verts_{area_str}', verts)
 np.save(f'blurred_pole_faces_{area_str}', faces)
