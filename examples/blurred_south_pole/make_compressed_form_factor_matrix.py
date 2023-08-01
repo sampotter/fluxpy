@@ -63,37 +63,37 @@ max_depth = args.max_depth if args.max_depth != 0 else None
 if compression_type == "true_model":
     compression_params = {}
 
-    savedir = "true_{}_{}_{}".format(max_area_str, outer_radius_str, sigma_str sigma_str)
+    savedir = "true_{}_{}_{}".format(max_area_str, outer_radius_str, sigma_str, sigma_str)
 
 
 elif compression_type == "stoch_radiosity":
     compression_params = {}
 
-    savedir = "stoch_rad_{}_{}_{}_{}k0".format(max_area_str, outer_radius_str, sigma_str args.k0)
+    savedir = "stoch_rad_{}_{}_{}_{}k0".format(max_area_str, outer_radius_str, sigma_str, args.k0)
 
 
 elif compression_type == "paige":
     compression_params = {}
 
-    savedir = "paige_{}_{}_{}_{}k".format(max_area_str, outer_radius_str, sigma_str args.paige_mult)
+    savedir = "paige_{}_{}_{}_{}k".format(max_area_str, outer_radius_str, sigma_str, args.paige_mult)
 
 
 elif compression_type == "sparse_tol":
     compression_params = {}
 
-    savedir = "sparse_{}_{}_{}_{:.0e}".format(max_area_str, outer_radius_str, sigma_str args.tol)
+    savedir = "sparse_{}_{}_{}_{:.0e}".format(max_area_str, outer_radius_str, sigma_str, args.tol)
 
 
 elif compression_type == "sparse_hierarch":
     compression_params = {}
 
-    savedir = "sparse_hier_{}_{}_{}_{:.0e}".format(max_area_str, outer_radius_str, sigma_str args.tol)
+    savedir = "sparse_hier_{}_{}_{}_{:.0e}".format(max_area_str, outer_radius_str, sigma_str, args.tol)
 
 
 elif compression_type == "sparse_k":
     compression_params = {}
 
-    savedir = "sparse_{}_{}_{}_{}k".format(max_area_str, outer_radius_str, sigma_str args.sparse_mult)
+    savedir = "sparse_{}_{}_{}_{}k".format(max_area_str, outer_radius_str, sigma_str, args.sparse_mult)
 
 
 elif compression_type == "svd":
@@ -101,7 +101,7 @@ elif compression_type == "svd":
         "k0": args.k0
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.k0)
 
 
@@ -110,7 +110,7 @@ elif compression_type == "ssvd":
         "k0": args.k0
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.k0)
 
 
@@ -121,7 +121,7 @@ elif compression_type == "rand_svd":
         "q": args.q
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.p, args.q, args.k0)
 
 
@@ -132,7 +132,7 @@ elif compression_type == "rand_ssvd":
         "q": args.q
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.p, args.q, args.k0)
 
 
@@ -144,7 +144,7 @@ elif compression_type == "nmf":
         "beta_loss": args.nmf_beta_loss
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", max_area_str, outer_radius_str, sigma_str, tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 
@@ -156,7 +156,7 @@ elif compression_type == "snmf":
         "beta_loss": args.nmf_beta_loss
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", max_area_str, outer_radius_str, sigma_str, tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 
@@ -169,7 +169,7 @@ elif compression_type == "rand_snmf":
         "q": args.q
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.nmf_max_iters, args.nmf_tol, args.p, args.q, args.k0)
 
 
@@ -181,7 +181,7 @@ elif compression_type == "wsnmf":
         "beta_loss": args.nmf_beta_loss
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", max_area_str, outer_radius_str, sigma_str, tol,
         args.nmf_max_iters, args.nmf_tol, args.k0)
 
 
@@ -190,7 +190,7 @@ elif compression_type == "aca":
         "k0": args.k0
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.k0)
 
 
@@ -199,7 +199,7 @@ elif compression_type == "brp":
         "k0": args.k0
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.k0)
 
 
@@ -210,7 +210,7 @@ elif compression_type == "rand_id":
         "q": args.q
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.p, args.q, args.k0)
 
 
@@ -219,7 +219,7 @@ elif compression_type == "saca":
         "k0": args.k0
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.k0)
 
 
@@ -228,7 +228,7 @@ elif compression_type == "sbrp":
         "k0": args.k0
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.k0)
 
 
@@ -239,7 +239,7 @@ elif compression_type == "rand_sid":
         "q": args.q
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.p, args.q, args.k0)
 
 
@@ -248,7 +248,7 @@ elif compression_type == "paca":
         "k0": args.k0
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.k0)
 
 
@@ -257,7 +257,7 @@ elif compression_type == "spaca":
         "k0": args.k0
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str tol,
+    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.k0)
 
 
