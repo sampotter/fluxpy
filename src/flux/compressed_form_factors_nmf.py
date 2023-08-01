@@ -1357,6 +1357,7 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             for j, col_inds in enumerate(self._col_block_inds):
                 block = self._blocks[i, j]
                 if block.is_empty_leaf: continue
+                update_inds = np.ix_(row_inds, col_inds)
                 y[update_inds] = block + x[update_inds]
         return y
 
