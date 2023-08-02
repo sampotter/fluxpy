@@ -292,7 +292,7 @@ class FormFactorTruncatedCsrBlock(FormFactorSparseBlock):
 
         sorted_ff_idx = np.unravel_index(np.argsort(abs(mat), axis=None), mat.shape)
 
-        target = np.power(np.linalg.norm(mat, ord='fro'), 2) - np.power(self._tol*np.linalg.norm(mat, ord='fro'), 2)
+        target = np.power(np.linalg.norm(mat, ord='fro'), 2) - np.power(0.1*self._tol*np.linalg.norm(mat, ord='fro'), 2)
 
         cumulative_residual = np.cumsum(np.power(mat[sorted_ff_idx[0], sorted_ff_idx[1]][::-1], 2))
         keep_resids = (cumulative_residual > target).nonzero()[0][0] + 1
