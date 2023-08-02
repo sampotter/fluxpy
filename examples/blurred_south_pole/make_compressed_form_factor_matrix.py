@@ -20,7 +20,7 @@ parser.add_argument('--compression_type', type=str, default="svd",choices=["nmf"
     "saca","sbrp","rand_sid","spaca",
     "stoch_radiosity","paige","sparse_tol","sparse_k",
     "sparse_hierarch",
-    "true_model"])
+    "true_model","none"])
 parser.add_argument('--max_area', type=float, default=3.0)
 parser.add_argument('--outer_radius', type=int, default=80)
 parser.add_argument('--sigma', type=float, default=5.0)
@@ -43,6 +43,8 @@ parser.add_argument('--paige_mult', type=int, default=1)
 parser.add_argument('--sparse_mult', type=int, default=1)
 
 parser.add_argument('--overwrite', action='store_true')
+
+parser.add_argument('--compress_sparse', action='store_true')
 
 parser.set_defaults(feature=False)
 
@@ -260,12 +262,25 @@ elif compression_type == "spaca":
     savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
         args.k0)
 
+elif compression_type == "none" and not args.compress_sparse:
+    compression_params = {}
+
+    savedir = "{}_{}_{}_{}".format("hierarchical", max_area_str, outer_radius_str, sigma_str)
+
+elif compression_type == "none" and args.compress_sparse:
+    compression_params = {}
+
+    savedir = "{}_{}_{}_{}_{:.0e}".format("hierarchical", max_area_str, outer_radius_str, sigma_str, tol)
+
 
 if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k") and args.min_depth != 1:
     savedir += "_{}mindepth".format(args.min_depth)
 
 if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k") and max_depth is not None:
     savedir += "_{}maxdepth".format(max_depth)
+
+if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k") and args.compress_sparse:
+    savedir += "_cs"
 
 
 savedir = "results/"+savedir
@@ -328,11 +343,11 @@ elif args.compression_type == "sparse_k":
 elif args.min_depth != 1:
     FF = CompressedFormFactorMatrix(
         shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params,
-        min_depth=args.min_depth, RootBlock=FormFactorMinDepthQuadtreeBlock)
+        min_depth=args.min_depth, RootBlock=FormFactorMinDepthQuadtreeBlock, truncated_sparse=args.compress_sparse)
 
 else:
     FF = CompressedFormFactorMatrix(
-        shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params)
+        shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params, truncated_sparse=args.compress_sparse)
 
 assembly_time = (arrow.now() - start_assembly_time).total_seconds()
 

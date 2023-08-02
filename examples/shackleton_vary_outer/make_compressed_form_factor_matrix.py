@@ -43,6 +43,8 @@ parser.add_argument('--sparse_mult', type=int, default=1)
 
 parser.add_argument('--overwrite', action='store_true')
 
+parser.add_argument('--compress_sparse', action='store_true')
+
 parser.set_defaults(feature=False)
 
 args = parser.parse_args()
@@ -265,6 +267,8 @@ if not (compression_type == "true_model" or compression_type == "stoch_radiosity
 if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k") and max_depth is not None:
     savedir += "_{}maxdepth".format(max_depth)
 
+if not (compression_type == "true_model" or compression_type == "stoch_radiosity" or compression_type == "paige" or compression_type == "sparse_tol" or compression_type == "sparse_k") and args.compress_sparse:
+    savedir += "_cs"
 
 savedir = "results/"+savedir
 if not os.path.exists('results'):
@@ -326,11 +330,11 @@ elif args.compression_type == "sparse_k":
 elif args.min_depth != 1:
     FF = CompressedFormFactorMatrix(
         shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params,
-        min_depth=args.min_depth, RootBlock=FormFactorMinDepthQuadtreeBlock)
+        min_depth=args.min_depth, RootBlock=FormFactorMinDepthQuadtreeBlock, truncated_sparse=args.compress_sparse)
 
 else:
     FF = CompressedFormFactorMatrix(
-        shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params)
+        shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params, truncated_sparse=args.compress_sparse)
 
 assembly_time = (arrow.now() - start_assembly_time).total_seconds()
 

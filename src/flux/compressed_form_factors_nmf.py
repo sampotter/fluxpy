@@ -269,6 +269,57 @@ class FormFactorCsrBlock(FormFactorSparseBlock):
         return 0.
 
 
+class FormFactorTruncatedCsrBlock(FormFactorSparseBlock):
+
+    def __init__(self, root, mat):
+        super().__init__(root, mat.shape)
+        if isinstance(mat, np.ndarray):
+            dmat = mat
+        elif isinstance(mat, scipy.sparse.spmatrix):
+            dmat = mat.A
+        else:
+            raise Exception('invalid class for mat: %s' % type(mat))
+        
+        Sr = self.get_form_factor_truncated(dmat)
+        self._spmat = Sr
+        
+        self.partial_norm = np.power(dmat.flatten(), 2).sum()
+        self._sq_resid_sum = np.power((self._spmat - dmat).flatten(), 2).sum()
+
+    def get_form_factor_truncated(self, mat):
+
+        num_elements = mat.shape[0] * mat.shape[1]
+
+        sorted_ff_idx = np.unravel_index(np.argsort(abs(mat), axis=None), mat.shape)
+
+        target = np.power(np.linalg.norm(mat, ord='fro'), 2) - np.power(self._tol*np.linalg.norm(mat, ord='fro'), 2)
+
+        cumulative_residual = np.cumsum(np.power(mat[sorted_ff_idx[0], sorted_ff_idx[1]][::-1], 2))
+        keep_resids = (cumulative_residual > target).nonzero()[0][0] + 1
+
+        Sr = np.copy(mat)
+        Sr[sorted_ff_idx[0][:num_elements-keep_resids], sorted_ff_idx[1][:num_elements-keep_resids]] = 0.
+
+        Sr = scipy.sparse.csr_matrix(Sr)
+
+        return Sr
+
+    @property
+    def nbytes(self):
+        return self._spmat.data.nbytes
+
+    def tocsr(self):
+        return self._spmat
+
+    @property
+    def _mat(self):
+        return self._spmat.toarray()
+
+    @property
+    def sq_resid_sum(self):
+        return self._sq_resid_sum
+
+
 class FormFactorSvdBlock(FormFactorLeafBlock,
                          scipy.sparse.linalg.LinearOperator):
 
@@ -1025,6 +1076,11 @@ class FormFactorBlockMatrix(CompressedFormFactorBlock,
             compressed_block = self._get_sparse_paca_block(spmat, k0=k0)
             nbytes_compressed = np.inf if compressed_block is None else nbytes(compressed_block)
 
+        elif compression_type == "none":
+
+            compressed_block = None
+            nbytes_compressed = np.inf
+
         else:
             raise RuntimeError('invalid compression_type: %d' % compression_type)
 
@@ -1738,7 +1794,7 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def __init__(self, shape_model, tol=1e-5,
                  min_size=16384, max_depth=None, force_max_depth=False, compression_type="svd", compression_params={},
-                 RootBlock=FormFactorQuadtreeBlock, min_depth=None, roi_c=None, roi_r=None, **kwargs):
+                 RootBlock=FormFactorQuadtreeBlock, min_depth=None, roi_c=None, roi_r=None, truncated_sparse=False, **kwargs):
         """Create a new CompressedFormFactorMatrix.
 
         Parameters
@@ -1776,6 +1832,7 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
         self._min_depth = min_depth
         self._roi_c = roi_c
         self._roi_r = roi_r
+        self._truncated_sparse = truncated_sparse
 
         if compression_type == "wsnmf":
 
@@ -1840,7 +1897,10 @@ class CompressedFormFactorMatrix(scipy.sparse.linalg.LinearOperator):
 
     def make_sparse_block(self, *args, fmt='csr'):
         if fmt == 'csr':
-            return FormFactorCsrBlock(self, *args)
+            if self._truncated_sparse:
+                return FormFactorTruncatedCsrBlock(self, *args)
+            else:
+                return FormFactorCsrBlock(self, *args)
         else:
             raise Exception('unknown sparse matrix format "%s"' % fmt)
 
