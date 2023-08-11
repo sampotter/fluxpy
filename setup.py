@@ -26,7 +26,7 @@ ext_modules = [
         name='flux.cgal.aabb',
         sources=['src/flux/cgal/aabb.pyx',
                  'src/flux/cgal/aabb_wrapper.cpp'],
-        include_dirs=['.'],
+        include_dirs=['.','C:/Users/mwrep/Documents/NASA/boost_1_82_0', 'C:/Users/mwrep/Documents/NASA/CGAL-5.6/include'],
         language='c++',
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp']

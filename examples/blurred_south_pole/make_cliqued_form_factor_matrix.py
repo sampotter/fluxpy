@@ -1,10 +1,8 @@
-#!/usr/bin/env python
-
 import numpy as np
 import scipy.sparse
 
 from flux.form_factors import get_form_factor_matrix
-from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix, FormFactorPartitionBlock, FormFactorQuadtreeBlock, FormFactorObbQuadtreeBlock
+from flux.compressed_form_factors import CompressedFormFactorMatrix, FormFactorPartitionBlock, FormFactorQuadtreeBlock, FormFactorObbQuadtreeBlock
 from flux.shape import CgalTrimeshShapeModel, get_surface_normals
 
 import argparse
@@ -14,30 +12,22 @@ import os
 from copy import copy
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--compression_type', type=str, default="svd",choices=["nmf","snmf","wsnmf",
-    "svd","ssvd",
-    "rand_svd","rand_ssvd","rand_snmf",
-    "aca", "brp", "rand_id",
-    "saca","sbrp","rand_sid"])
+parser.add_argument('--compression_type', type=str, default="svd", choices=["svd", "rand_svd", "aca", "rand_id"])
 parser.add_argument('--max_area', type=float, default=3.0)
 parser.add_argument('--outer_radius', type=int, default=80)
 parser.add_argument('--sigma', type=float, default=5.0)
+
 parser.add_argument('--tol', type=float, default=1e-1)
+parser.add_argument('--max_depth', type=int, default=0)
+parser.add_argument('--compress_sparse', action='store_true')
 
-parser.add_argument('--nmf_max_iters', type=int, default=int(1e4))
-parser.add_argument('--nmf_tol', type=float, default=1e-2)
-
+parser.add_argument('--add_residuals', action='store_true')
 parser.add_argument('--k0', type=int, default=40)
-
 parser.add_argument('--p', type=int, default=5)
 parser.add_argument('--q', type=int, default=1)
 
-parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
-
 parser.add_argument('--n_cliques', type=int, default=25)
-
 parser.add_argument('--obb', action='store_true')
-
 parser.add_argument('--load_ff', action='store_true')
 
 parser.add_argument('--overwrite', action='store_true')
@@ -55,154 +45,40 @@ sigma_str = str(args.sigma)
 tol_str = "{:.0e}".format(args.tol)
 tol = args.tol
 
+max_depth = args.max_depth if args.max_depth != 0 else None
 
-if compression_type == "svd":
+
+if compression_type == "svd" or compression_type == "aca":
     compression_params = {
         "k0": args.k0
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
+    prefix = compression_type + "_resid" if args.add_residuals else compression_type
+
+    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(prefix, max_area_str, outer_radius_str, sigma_str, tol,
         args.k0)
 
 
-elif compression_type == "ssvd":
-    compression_params = {
-        "k0": args.k0
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
-        args.k0)
-
-
-elif compression_type == "rand_svd":
+elif compression_type == "rand_svd" or compression_type == "rand_id":
     compression_params = {
         "k0": args.k0,
         "p": args.p,
         "q": args.q
     }
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
+    prefix = compression_type + "_resid" if args.add_residuals else compression_type
+
+    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(prefix, max_area_str, outer_radius_str, sigma_str, tol,
         args.p, args.q, args.k0)
 
 
-elif compression_type == "rand_ssvd":
-    compression_params = {
-        "k0": args.k0,
-        "p": args.p,
-        "q": args.q
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
-        args.p, args.q, args.k0)
 
 
-elif compression_type == "nmf":
-    compression_params = {
-        "max_iters": args.nmf_max_iters,
-        "nmf_tol": args.nmf_tol,
-        "k0": args.k0,
-        "beta_loss": args.nmf_beta_loss
-    }
+if max_depth is not None:
+    savedir += "_{}maxdepth".format(max_depth)
 
-    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", max_area_str, outer_radius_str, sigma_str, tol,
-        args.nmf_max_iters, args.nmf_tol, args.k0)
-
-
-elif compression_type == "snmf":
-    compression_params = {
-        "max_iters": args.nmf_max_iters,
-        "nmf_tol": args.nmf_tol,
-        "k0": args.k0,
-        "beta_loss": args.nmf_beta_loss
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", max_area_str, outer_radius_str, sigma_str, tol,
-        args.nmf_max_iters, args.nmf_tol, args.k0)
-
-
-elif compression_type == "rand_snmf":
-    compression_params = {
-        "max_iters": args.nmf_max_iters,
-        "nmf_tol": args.nmf_tol,
-        "k0": args.k0,
-        "p": args.p,
-        "q": args.q
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
-        args.nmf_max_iters, args.nmf_tol, args.p, args.q, args.k0)
-
-
-elif compression_type == "wsnmf":
-    compression_params = {
-        "max_iters": args.nmf_max_iters,
-        "nmf_tol": args.nmf_tol,
-        "k0": args.k0,
-        "beta_loss": args.nmf_beta_loss
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", max_area_str, outer_radius_str, sigma_str, tol,
-        args.nmf_max_iters, args.nmf_tol, args.k0)
-
-
-elif compression_type == "aca":
-    compression_params = {
-        "k0": args.k0
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
-        args.k0)
-
-
-elif compression_type == "brp":
-    compression_params = {
-        "k0": args.k0
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
-        args.k0)
-
-
-elif compression_type == "rand_id":
-    compression_params = {
-        "k0": args.k0,
-        "p": args.p,
-        "q": args.q
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
-        args.p, args.q, args.k0)
-
-
-elif compression_type == "saca":
-    compression_params = {
-        "k0": args.k0
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
-        args.k0)
-
-
-elif compression_type == "sbrp":
-    compression_params = {
-        "k0": args.k0
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
-        args.k0)
-
-
-elif compression_type == "rand_sid":
-    compression_params = {
-        "k0": args.k0,
-        "p": args.p,
-        "q": args.q
-    }
-
-    savedir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, tol,
-        args.p, args.q, args.k0)
-
-
+if args.compress_sparse:
+    savedir += "_cs"
 
 savedir = "results_cliques/"+savedir
 savedir = savedir+"_{}nc".format(args.n_cliques)
@@ -214,9 +90,13 @@ if not os.path.exists(savedir):
     os.mkdir(savedir)
 
 
-if (not args.overwrite):
-    if os.path.exists(savedir+f'/FF_{max_area_str}_{outer_radius_str}_{tol_str}_{compression_type}.bin'):
-        raise RuntimeError("Compressed FF already exists!")
+if not args.overwrite:
+    if args.add_residuals:
+        if os.path.exists(savedir+f'/FF_{max_area_str}_{outer_radius_str}_{tol_str}_{compression_type}_resid.bin'):
+            raise RuntimeError("Compressed FF already exists!")
+    else:
+        if os.path.exists(savedir+f'/FF_{max_area_str}_{outer_radius_str}_{tol_str}_{compression_type}.bin'):
+            raise RuntimeError("Compressed FF already exists!")
 
 
 verts = np.load(f'blurred_pole_verts_{max_area_str}_{outer_radius_str}_{sigma_str}.npy')
@@ -301,15 +181,18 @@ else:
 
 if args.obb:
     FF = CompressedFormFactorMatrix(
-            shape_model, tol=tol, min_size=16384, compression_type=compression_type, compression_params=compression_params, parts=current_clique_list,
-            RootBlock=FormFactorPartitionBlock, ChildBlock=FormFactorObbQuadtreeBlock)
+            shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params, parts=current_clique_list,
+            RootBlock=FormFactorPartitionBlock, ChildBlock=FormFactorObbQuadtreeBlock, truncated_sparse=args.compress_sparse, add_residuals=args.add_residuals)
 else:
     FF = CompressedFormFactorMatrix(
-            shape_model, tol=tol, min_size=16384, compression_type=compression_type, compression_params=compression_params, parts=current_clique_list,
-            RootBlock=FormFactorPartitionBlock, ChildBlock=FormFactorQuadtreeBlock)
+            shape_model, tol=tol, min_size=16384, max_depth=max_depth, compression_type=compression_type, compression_params=compression_params, parts=current_clique_list,
+            RootBlock=FormFactorPartitionBlock, ChildBlock=FormFactorQuadtreeBlock, truncated_sparse=args.compress_sparse, add_residuals=args.add_residuals)
 
 assembly_time = (arrow.now() - start_assembly_time).total_seconds()
 
 np.save(savedir+f'/FF_assembly_time.npy', np.array(assembly_time))
 
-FF.save(savedir+f'/FF_{max_area_str}_{outer_radius_str}_{tol_str}_{compression_type}.bin')
+if args.add_residuals:
+    FF.save(savedir+f'/FF_{max_area_str}_{outer_radius_str}_{tol_str}_{compression_type}_resid.bin')
+else:
+    FF.save(savedir+f'/FF_{max_area_str}_{outer_radius_str}_{tol_str}_{compression_type}.bin')

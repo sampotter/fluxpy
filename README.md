@@ -18,6 +18,8 @@ pip via the anaconda channel by running:
 conda create --name radiosity
 conda activate radiosity
 conda install -c anaconda pip
+conda install -c anaconda cython
+conda install -c conda-forge rioxarray
 ```
 Alternatively, run `python -m venv .` to create a virtual environment in standard Python without using Anaconda. Activating the virtual 
 environment (via `conda activate radiosity` or `source bin/activate`) means that all python and pip operations will be
@@ -56,24 +58,23 @@ Finally, from the cloned repository, run:
 python setup.py install
 ```
 
-## Running the unit tests ##
-
-To run python-flux's unit tests, just run:
-``` shell
-./run_tests.sh
-```
-from the root of this repository. All this script does is execute `python -m unittest discover ./tests`; i.e., it discovers and runs all Python unit tests found in the directory `./tests`.
-
 ## Running the examples ##
 
 The `examples` directory contains simple Python scripts illustrating
-how to use this package. Each example directory contains a README with
-more information about that particulra example.
+how to use this package. The most up-to-date implementations can be
+found in the `examples/shackleton_vary_outer` and `examples/blurred_south_pole`
+sub-directories.
 
 For instance, try running:
 ``` shell
-cd examples/lunar_south_pole
-python haworth.py
+conda install -c conda-forge arrow
+conda install -c conda-forge tqdm
+
+cd examples/shackleton_vary_outer
+python make_mesh.py 5.0 40
+python make_compressed_form_factor_matrix.py --compression_type "svd" --max_area 5.0 --outer_radius 40 --tol 1e-1 --k0 40 --add_residuals
+python make_block_plots.py --compression_type "svd" --max_area 5.0 --outer_radius 40 --tol 1e-1 --k0 40 --add_residuals
+python collect_time_dep_data_nomemory.py --compression_type "svd" --max_area 5.0 --outer_radius 40 --tol 1e-1 --k0 40 --add_residuals
 ```
 after following the installation instructions
 above.

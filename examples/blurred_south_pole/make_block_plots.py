@@ -3,35 +3,31 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 
-import flux.compressed_form_factors_nmf as cff
-from flux.compressed_form_factors_nmf import CompressedFormFactorMatrix
+import flux.compressed_form_factors as cff
+from flux.compressed_form_factors import CompressedFormFactorMatrix
 
 import scipy
 import os
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--compression_type', type=str, default="svd",choices=["nmf","snmf","wsnmf",
-    "svd","ssvd",
-    "rand_svd","rand_ssvd","rand_snmf",
-    "aca", "brp", "rand_id",
-    "saca","sbrp","rand_sid"])
+parser.add_argument('--compression_type', type=str, default="svd", choices=["svd", "rand_svd", "aca", "rand_id"])
 parser.add_argument('--max_area', type=float, default=3.0)
 parser.add_argument('--outer_radius', type=int, default=80)
+parser.add_argument('--sigma', type=float, default=5.0)
+
 parser.add_argument('--tol', type=float, default=1e-1)
+parser.add_argument('--min_depth', type=int, default=1)
+parser.add_argument('--max_depth', type=int, default=0)
+parser.add_argument('--compress_sparse', action='store_true')
 
-parser.add_argument('--nmf_max_iters', type=int, default=int(1e4))
-parser.add_argument('--nmf_tol', type=float, default=1e-2)
-
+parser.add_argument('--add_residuals', action='store_true')
 parser.add_argument('--k0', type=int, default=40)
-
 parser.add_argument('--p', type=int, default=5)
 parser.add_argument('--q', type=int, default=1)
 
-parser.add_argument('--nmf_beta_loss', type=int, default=2, choices=[1,2])
-
+parser.add_argument('--cliques', action='store_true')
 parser.add_argument('--n_cliques', type=int, default=25)
-
 parser.add_argument('--obb', action='store_true')
 
 parser.add_argument('--plot_labels', action='store_true')
@@ -76,8 +72,8 @@ def plot_blocks(block, fig, **kwargs):
             child = block._blocks[i, j]
             if child.is_leaf:
                 if isinstance(child, cff.FormFactorSvdBlock) or isinstance(child, cff.FormFactorSparseSvdBlock) or \
-                isinstance(child, cff.FormFactorNmfBlock) or isinstance(child, cff.FormFactorSparseNmfBlock) or \
-                isinstance(child, cff.FormFactorSparseAcaBlock) or isinstance(child, cff.FormFactorSparseBrpBlock) or isinstance(child, cff.FormFactorSparseIdBlock):
+                isinstance(child, cff.FormFactorAcaBlock) or isinstance(child, cff.FormFactorSparseAcaBlock) or \
+                isinstance(child, cff.FormFactorIdBlock) or isinstance(child, cff.FormFactorSparseIdBlock):
                     facecolor = 'cyan' if child.compressed else 'orange'
                     rect = patches.Rectangle(
                         c, w, h, edgecolor='none', facecolor=facecolor)
@@ -120,69 +116,49 @@ def plot_blocks(block, fig, **kwargs):
 compression_type = args.compression_type
 max_area_str = str(args.max_area)
 outer_radius_str = str(args.outer_radius)
+sigma_str = str(args.sigma)
 
-if compression_type == "svd":
-    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
+max_depth = args.max_depth if args.max_depth != 0 else None
+
+if compression_type == "svd" or compression_type == "aca":
+    if args.add_residuals:
+        FF_dir = "{}_resid_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, args.tol,
         args.k0)
+    else:
+        FF_dir = "{}_{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, args.tol,
+            args.k0)
 
-elif compression_type == "ssvd":
-    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
-        args.k0)
+elif compression_type == "rand_svd" or compression_type == "rand_id":
+    if args.add_residuals:
+        FF_dir = "{}_resid_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, args.tol,
+            args.p, args.q, args.k0)
+    else:
+        FF_dir = "{}_{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, sigma_str, args.tol,
+            args.p, args.q, args.k0)
 
-elif compression_type == "rand_svd":
-    FF_dir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
-        args.p, args.q, args.k0)
 
-elif compression_type == "rand_ssvd":
-    FF_dir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
-        args.p, args.q, args.k0)
+if not args.cliques and args.min_depth != 1:
+    FF_dir += "_{}mindepth".format(args.min_depth)
 
-elif compression_type == "nmf":
-    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "klnmf", max_area_str, outer_radius_str, args.tol,
-        args.nmf_max_iters, args.nmf_tol, args.k0)
+if max_depth is not None:
+    FF_dir += "_{}maxdepth".format(max_depth)
 
-elif compression_type == "snmf":
-    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "sklnmf", max_area_str, outer_radius_str, args.tol,
-        args.nmf_max_iters, args.nmf_tol, args.k0)
+if args.compress_sparse:
+    FF_dir += "_cs"
 
-elif compression_type == "rand_snmf":
-    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
-        args.nmf_max_iters, args.nmf_tol, args.p, args.q, args.k0)
+result_dir = "results"
+if args.cliques:
+    FF_dir += "_{}nc".format(args.n_cliques)
+    result_dir += "_cliques"
 
-elif compression_type == "wsnmf":
-    FF_dir = "{}_{}_{}_{:.0e}_{:.0e}it_{:.0e}tol_{}k0".format(compression_type if args.nmf_beta_loss==2 else "wsklnmf", max_area_str, outer_radius_str, args.tol,
-        args.nmf_max_iters, args.nmf_tol, args.k0)
-
-elif compression_type == "aca":
-    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
-        args.k0)
-
-elif compression_type == "brp":
-    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
-        args.k0)
-
-elif compression_type == "rand_id":
-    FF_dir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
-        args.p, args.q, args.k0)
-
-elif compression_type == "saca":
-    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
-        args.k0)
-
-elif compression_type == "sbrp":
-    FF_dir = "{}_{}_{}_{:.0e}_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
-        args.k0)
-
-elif compression_type == "rand_sid":
-    FF_dir = "{}_{}_{}_{:.0e}_{}p_{}q_{}k0".format(compression_type, max_area_str, outer_radius_str, args.tol,
-        args.p, args.q, args.k0)
-
-FF_dir = FF_dir + "_{}nc".format(args.n_cliques)
-
-if args.obb:
+if args.cliques and args.obb:
     FF_dir = FF_dir + "_obb"
 
-FF_path =  "results_cliques/"+ FF_dir + "/FF_{}_{}_{:.0e}_{}.bin".format(max_area_str, outer_radius_str, args.tol, compression_type)
+if args.add_residuals:
+    FF_path =  result_dir+"/"+ FF_dir + "/FF_{}_{}_{:.0e}_{}_resid.bin".format(max_area_str, outer_radius_str, args.tol, compression_type)
+else:
+    FF_path =  result_dir+"/"+ FF_dir + "/FF_{}_{}_{:.0e}_{}.bin".format(max_area_str, outer_radius_str, args.tol, compression_type)
+
 if not os.path.exists(FF_path):
     print("PATH DOES NOT EXIST " + FF_path)
     assert False
@@ -193,7 +169,7 @@ fig = plt.figure(figsize=(18, 6))  # , figsize=(18, 6))
 print(f'- {FF_path}')
 fig, ax = plot_blocks(FF._root, fig)
 if args.plot_labels:
-    fig.savefig("results_cliques/"+FF_dir+"/block_plot_labeled.png")
+    fig.savefig(result_dir+"/"+FF_dir+"/block_plot_labeled.png")
 else:
-    fig.savefig("results_cliques/"+FF_dir+"/block_plot.png")
+    fig.savefig(result_dir+"/"+FF_dir+"/block_plot.png")
 plt.close(fig)
