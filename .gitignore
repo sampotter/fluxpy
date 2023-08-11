@@ -2,7 +2,6 @@
 *.avi
 *.bin
 *.egg-info
-*.ipynb
 *.ipynb_checkpoints
 *.json
 *.npy
