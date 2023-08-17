@@ -134,7 +134,7 @@ eps = 1e-5
 neighbor_idx_dict = {}
 
 all_pseudo_cliques = []
-for i in tqdm(np.random.permutation(I)):
+for i in np.random.permutation(I):
     
     # make sure the seed is not already in a clique
     if np.array([i in _pseudo_clique for _pseudo_clique in all_pseudo_cliques]).any():
