@@ -220,14 +220,13 @@ class TrimeshShapeModel(ShapeModel):
             directions.
 
         '''
-        if basemesh == None:
-            basemesh = self
-
         # Determine which rays escaped (i.e., can see the sun)
         if basemesh is None:
-            I = ~self.is_occluded(np.arange(self.num_faces), Dsun)
+            I = ~self.is_occluded(np.arange(self.num_faces), Dsun.copy(order='C'))
         else:
-            I = ~basemesh.is_occluded(np.arange(self.num_faces), Dsun)
+            I = ~basemesh.is_occluded(np.arange(self.num_faces), Dsun.copy(order='C'))
+
+        # I = basemesh.intersect1_2d(basemesh.P.astype('double'), (Dsun - basemesh.P).astype('double')) == -1
 
         # Compute the direct irradiance
         if Dsun.ndim == 1:
@@ -246,7 +245,11 @@ class TrimeshShapeModel(ShapeModel):
             E = self.N@Dsun.T
             # E = np.einsum(self.N,[0,1],Dsun,[2,1]) # same as '@', easier to generalize if needed
             E = np.where(I, E, 0)
-            E = np.mean(F0)*np.maximum(0, np.sum(E,axis=1)/Dsun.shape[0]) # F0 doesn't varies by <1 W/m2 within discretized source
+            # TODO, should np.sum(E) if extended Sun, else np.max(E) if taking max over time
+            # E = np.mean(F0)*np.maximum(0, np.sum(E,axis=1)/Dsun.shape[0]) # F0 varies by <1 W/m2 within discretized source
+            # print(E.shape)
+            # exit()
+            E = np.mean(F0)*np.maximum(0, np.mean(np.where(E > 0, E, 0), axis=1)) # F0 varies by <1 W/m2 within discretized source
         else:
             raise RuntimeError('Dsun.ndim > 2 not implemented yet')
 
