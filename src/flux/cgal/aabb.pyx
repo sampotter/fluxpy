@@ -53,7 +53,7 @@ cdef class AABB:
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def intersect1_2d(self, double[:,::1] X, double[:,::1] D):
+    def intersect1_2d_with_coords(self, double[:,::1] X, double[:,::1] D):
         cdef size_t m = X.shape[0]
         cdef size_t n = D.shape[0]
         cdef size_t l
@@ -63,14 +63,27 @@ cdef class AABB:
             raise RuntimeError('intersect1_2d expects input centers and directions with the same length')
 
         cdef long[:] fint = np.zeros((m), dtype=np.int_)
+        cdef double[:, :] xta = np.zeros((m, 3), dtype=np.float_)
         cdef size_t[:] i = np.zeros((m), dtype=np.uint)
 
         for l in prange(m, nogil=True): # run outer loop in parallel
                 if cgal_aabb_intersect1(self.aabb, &X[l,0], &D[l,0], &i[l], &xt[0]):
                     fint[l] = i[l]
+                    xta[l, 0] = xt[0]
+                    xta[l, 1] = xt[1]
+                    xta[l, 2] = xt[2]
                 else:
                     fint[l] = -1
-        return np.asarray(fint)
+                    xta[l] = -1
+
+        # return intersected faces and their centroid coordinates
+        return np.asarray(fint), np.asarray(xta)
+
+    def intersect1_2d(self, X, D):
+
+        fint, xta = self.intersect1_2d_with_coords(X, D)
+
+        return fint
 
     def test_face_to_face_vis(self, size_t i, size_t j):
         return cgal_aabb_test_face_to_face_vis(self.aabb, i, j)
