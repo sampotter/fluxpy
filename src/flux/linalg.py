@@ -431,21 +431,43 @@ def estimate_rank_random_id(spmat, tol, max_nbytes=None, k0=40, p=5, q=5):
     if spmat.shape == (1, 1):
         return 1
 
+    dmat = spmat.A
     m, k = min(spmat.shape), k0
-    num_iters = 0
     while True:
-        num_iters += 1
         k = min(k, m)
         if not k >= 1:
             raise RuntimeError('bad value of k')
-        C, V = random_interpolative_decomp(spmat.A, k, p=p, q=q)
-        id_nbytes = nbytes(C) + nbytes(V)
-        if max_nbytes is not None and id_nbytes >= max_nbytes:
+
+        Q = simple_range_finder(dmat, k, p=p, q=q)
+        B = Q.T @ dmat
+        _, n = B.shape
+
+        _, R, P = scipy.linalg.qr(B, mode='economic', overwrite_a=False, pivoting=True, check_finite=False)
+        qr_spectrum = abs(R[np.arange(R.shape[0]), np.arange(R.shape[0])])
+
+        thresh = qr_spectrum/qr_spectrum[0]
+        assert thresh[0] >= 1
+        below_thresh = np.where(thresh <= tol)[0]
+        if below_thresh.size > 0:
+            r = below_thresh[0]
+
+            T =  scipy.linalg.pinv(R[:r, :r]).dot(R[:r, r:n])
+            V = np.bmat([[np.eye(r), T]])
+            V = V[:, np.argsort(P)]
+            V = scipy.sparse.csr_matrix(V)
+
+            J = P[:r]
+            C = scipy.sparse.csr_matrix(dmat[:, J])
+
+            id_nbytes = nbytes(C) + nbytes(V)
+            if max_nbytes is not None and id_nbytes >= max_nbytes:
+                return None
+            return C, V, thresh[r]
+
+        if k == m:
             return None
-        thresh = scipy.sparse.linalg.norm((C@V) - spmat, ord='fro') / scipy.sparse.linalg.norm(spmat, ord='fro')
-        if k == m or thresh <= tol:
-            return C, V, thresh
-        k += 5
+        
+        k *= 2
 
 
 def estimate_sparsity_random_id(spmat, tol, max_nbytes=None, k0=40, p=5, q=5):
