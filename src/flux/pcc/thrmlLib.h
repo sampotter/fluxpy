@@ -3,6 +3,9 @@
 void conductionQ(int, double [], double, double, double,
 		double [], double [], double [], double, double, double *);
 
+void conductionQ_Ttdep(int, double [], double, double, double,
+		double [], double [], double [], double, double, double *);
+
 void conductionT(int nz, double z[], double dt, double T[], double Tsurf,
 		 double Tsurfp1, double ti[], double rhoc[], double Fgeotherm,
 		 double *Fsurf);

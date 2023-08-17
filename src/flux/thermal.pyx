@@ -6,6 +6,10 @@ cdef extern from "pcc/thrmlLib.h":
 		     Qnp1, double T[], double ti[], double rhoc[],
 		     double emiss, double Fgeotherm, double *Fsurf)
 
+    void conductionQ_Ttdep(int nz, double z[], double dt, double Qn, double
+		     Qnp1, double T[], double ti[], double rhoc2[],
+		     double emiss, double Fgeotherm, double *Fsurf)
+
     void conductionT(int nz, double z[], double dt, double T[], double Tsurf,
 		    double Tsurfp1, double ti[], double rhoc[], double Fgeotherm,
 		    double *Fsurf)
@@ -29,6 +33,7 @@ cdef class PccThermalModel1D:
         double[::1] _Tsurfprev
 
         str _bcond
+        bint _use_Tdep_condQ
 
     @property
     def num_layers(self):
@@ -86,6 +91,10 @@ cdef class PccThermalModel1D:
     def bcond(self):
         return self._bcond
 
+    @property
+    def _use_Tdep_condQ(self):
+        return self._use_Tdep_condQ
+
     def __cinit__(self,
                   double[::1] z,
                   double[:, ::1] T0,
@@ -124,7 +133,8 @@ cdef class PccThermalModel1D:
 
         self._rhoc = rhoc
         if (self.rhoc <= 0).any():
-            raise ValueError('volumetric heat capacity ("rhoc") values should be positive')
+            # set negative rhoc to set as function of T
+            self._use_Tdep_condQ = True
         if self.rhoc.ndim != 1 or self.rhoc.size != self.num_layers:
             raise ValueError('"rhoc" should be a 1D array with length == z.size')
 
@@ -247,18 +257,33 @@ cdef class PccThermalModel1D:
                 raise RuntimeError('trying to step with negative fluxes')
 
             for i in range(self._num_faces):
-                conductionQ(
-                    self.num_layers_interior, # number of grid points below surface
-                    &self._z[0],              # depth below surface
-                    dt,                       # time step
-                    self._Qprev[i],           # net solar insolation at previous time step
-                    X[i],                     # net solar insolation at current time step
-                    &self._T[i, 0],           # vertical temperature profile
-                    &self._ti[0],             # thermal inertia
-                    &self._rhoc[0],           # volumetric heat capacity
-                    self._emiss[i],           # emissivity
-                    self._Fgeotherm[i],       # geothermal heat flux at bottom boundary
-                    &self._Fsurf[i])          # heat flux at surface (output)
+                if self._use_Tdep_condQ: #(self.rhoc <= 0).any():
+                    # print("Negative self.rhoc, using conductionQ_Ttdep")
+                    conductionQ_Ttdep(
+                        self.num_layers_interior, # number of grid points below surface
+                        &self._z[0],              # depth below surface
+                        dt,                       # time step
+                        self._Qprev[i],           # net solar insolation at previous time step
+                        X[i],                     # net solar insolation at current time step
+                        &self._T[i, 0],           # vertical temperature profile
+                        &self._ti[0],             # thermal inertia
+                        &self._rhoc[0],           # volumetric heat capacity
+                        self._emiss[i],           # emissivity
+                        self._Fgeotherm[i],       # geothermal heat flux at bottom boundary
+                        &self._Fsurf[i])          # heat flux at surface (output)
+                else:
+                    conductionQ(
+                        self.num_layers_interior, # number of grid points below surface
+                        &self._z[0],              # depth below surface
+                        dt,                       # time step
+                        self._Qprev[i],           # net solar insolation at previous time step
+                        X[i],                     # net solar insolation at current time step
+                        &self._T[i, 0],           # vertical temperature profile
+                        &self._ti[0],             # thermal inertia
+                        &self._rhoc[0],           # volumetric heat capacity
+                        self._emiss[i],           # emissivity
+                        self._Fgeotherm[i],       # geothermal heat flux at bottom boundary
+                        &self._Fsurf[i])          # heat flux at surface (output)
 
             self._Qprev = X
 
