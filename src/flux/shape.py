@@ -135,6 +135,15 @@ class TrimeshShapeModel(ShapeModel):
         '''
         return self._intersect1(x, d)
 
+    def intersect1_2d(self, X, D):
+        '''Trace a single ray starting from `X` and in the direction `D`.  If
+        there is a hit, return the index (`i`) of the hit and a
+        parameter `t` such that the hit point is given by `X(t) = X +
+        t*D`.
+
+        '''
+        return self._intersect1_2d(X, D)
+
     def get_visibility(self, I, J, oriented=False):
 
         '''Compute the visibility mask for pairs of indices (i, j) taken from
@@ -156,7 +165,7 @@ class TrimeshShapeModel(ShapeModel):
         # aren't oriented towards each other to False
         if oriented:
             I_, J_ = np.where(vis)
-            mask = ((self.P[J_] - self.P[I_])*self.N[I_]).sum(1) <= 0
+            mask = ((self.P[J[J_]] - self.P[I[I_]])*self.N[I[I_]]).sum(1) <= 0
             for i, j in zip(I_[mask], J_[mask]):
                 vis[i, j] = False
 
@@ -211,14 +220,13 @@ class TrimeshShapeModel(ShapeModel):
             directions.
 
         '''
-        if basemesh == None:
-            basemesh = self
-
         # Determine which rays escaped (i.e., can see the sun)
         if basemesh is None:
-            I = ~self.is_occluded(np.arange(self.num_faces), Dsun)
+            I = ~self.is_occluded(np.arange(self.num_faces), Dsun.copy(order='C'))
         else:
-            I = ~basemesh.is_occluded(np.arange(self.num_faces), Dsun)
+            I = ~basemesh.is_occluded(np.arange(self.num_faces), Dsun.copy(order='C'))
+
+        # I = basemesh.intersect1_2d(basemesh.P.astype('double'), (Dsun - basemesh.P).astype('double')) == -1
 
         # Compute the direct irradiance
         if Dsun.ndim == 1:
@@ -237,7 +245,11 @@ class TrimeshShapeModel(ShapeModel):
             E = self.N@Dsun.T
             # E = np.einsum(self.N,[0,1],Dsun,[2,1]) # same as '@', easier to generalize if needed
             E = np.where(I, E, 0)
-            E = np.mean(F0)*np.maximum(0, np.sum(E,axis=1)/Dsun.shape[0]) # F0 doesn't varies by <1 W/m2 within discretized source
+            # TODO, should np.sum(E) if extended Sun, else np.max(E) if taking max over time
+            # E = np.mean(F0)*np.maximum(0, np.sum(E,axis=1)/Dsun.shape[0]) # F0 varies by <1 W/m2 within discretized source
+            # print(E.shape)
+            # exit()
+            E = np.mean(F0)*np.maximum(0, np.mean(np.where(E > 0, E, 0), axis=1)) # F0 varies by <1 W/m2 within discretized source
         else:
             raise RuntimeError('Dsun.ndim > 2 not implemented yet')
 
@@ -268,6 +280,9 @@ class CgalTrimeshShapeModel(TrimeshShapeModel):
 
     def _intersect1(self, x, d):
         return self.aabb.intersect1(x, d)
+
+    def _intersect1_2d(self, X, D):
+        return self.aabb.intersect1_2d(X, D)
 
     def _get_visibility(self, I, J):
         if not isinstance(I, np.ndarray):

@@ -200,8 +200,8 @@ class ThermalModel:
         if self._source_num_faces == 1:
             f, d, delta_t = self._F0[i], self._D[i], self._t[i] - self._t[i - 1]
         else:
-            f, d, delta_t = self._F0[i*self._source_num_faces:(i+1)*self._source_num_faces,:], \
-                            self._D[i*self._source_num_faces:(i+1)*self._source_num_faces,:], \
+            f, d, delta_t = self._F0[i*self._source_num_faces:(i+1)*self._source_num_faces, :], \
+                            self._D[i*self._source_num_faces:(i+1)*self._source_num_faces, :], \
                             self._t[i] - self._t[i - 1]
 
         # compute the current insolation

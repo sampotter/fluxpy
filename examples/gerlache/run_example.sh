@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-MAX_INNER_AREAS=("0.05") # "1.6" "0.8" "0.4" "0.2" "0.1")
+MAX_INNER_AREAS=("1.6" "0.8" "0.4" "0.2") # "0.1")
 MAX_OUTER_AREA="3.0" # very coarse
 TOLS=(1e-1 1e-2)
 NITER=20
 FROM_ITER=0
 
-if true; then
+if false; then
 
 if [ ! -f ldem_87s_5mpp.tif ]; then
 	echo "didn't find DEM. downloading it from PGDA..."
@@ -26,6 +26,7 @@ do
 	echo "- max inner area: $MAX_INNER_AREA, max outer area: $MAX_OUTER_AREA"
 	./make_mesh.py $MAX_INNER_AREA $MAX_OUTER_AREA
 done
+fi
 
 echo "computing FF matrices"
 rm -f FF_assembly_times.txt
@@ -40,7 +41,19 @@ do
 		echo "  * computed compressed FF matrix (tol = $TOL)"
 	done
 done
-fi
+#fi
+
+## make block matrix plots
+./make_block_plots.py
+
+## collect data to make equilibrium temperature plots
+./collect_equil_T_data.py
+
+## make plots comparing form factor matrices
+./make_equil_T_plots.py
+./make_FF_comparison_plots.py
+
+exit
 
 # collect data for time-dependent plots
 echo "collecting time-dependent data"
@@ -57,20 +70,15 @@ do
     ./clean_T_spinup.py  $MAX_INNER_AREA $MAX_OUTER_AREA $TOL
 	done
 done
+fi
 
-## collect data to make equilibrium temperature plots
-#./collect_equil_T_data.py
 #
 ## make equilibrium temperature plots
-#./make_equil_T_plots.py
-./make_equil_T_post_spinup_plots.py
+#./make_equil_T_post_spinup_plots.py
 
 #
-## make plots comparing form factor matrices
-#./make_FF_comparison_plots.py
 
 ## make time-dependent plots
 #./make_time_dep_plots.py
 #
-## make block matrix plots
-#./make_block_plots.py
+

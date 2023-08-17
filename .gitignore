@@ -8,11 +8,13 @@
 *.npz
 *.obj
 *.pdf
+*.ply
 *.png
 *.so
 *.tif
 *.txt
 *.zip
+*.mat
 *~
 .DS_Store
 .DS_Store
@@ -27,4 +29,6 @@ dist
 src/flux/cgal/aabb.cpp
 src/flux/thermal.c
 src/flux/view_factor/view_factor.c
+src/flux/cgal/CGAL/
+src/flux/cgal/boost/
 stats
