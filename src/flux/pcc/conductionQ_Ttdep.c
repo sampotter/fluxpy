@@ -52,13 +52,21 @@ void conductionQ_Ttdep(int nz, double z[], double dt, double Qn, double Qnp1,
 	// in a workspace or allocate on the heap (preferably the former)
 	int i, iter;
 	const double sigSB = 5.6704e-8;
-	double a[nz+1], b[nz+1], c[nz+1], r[nz+1];
-	double k[nz+1], k1, alpha[nz+1], gamma[nz+1], Tr;
+	double k1, Tr;
 	double arad, brad, ann, annp1, bn, buf, dz, beta;
-	double Told[nz+1];
+
+	double *a = malloc((nz + 1)*sizeof(double));
+	double *b = malloc((nz + 1)*sizeof(double));
+	double *c = malloc((nz + 1)*sizeof(double));
+	double *r = malloc((nz + 1)*sizeof(double));
+	double *k = malloc((nz + 1)*sizeof(double));
+	double *alpha = malloc((nz + 1)*sizeof(double));
+	double *gamma = malloc((nz + 1)*sizeof(double));
+	double *Told = malloc((nz + 1)*sizeof(double));
 
     double dT300, cp;
-    double rho[nz+1],Kc[nz+1];
+	double *rho = malloc((nz + 1)*sizeof(double));
+	double *Kc = malloc((nz + 1)*sizeof(double));
     const double Kd = 5.7E-3; // Wm^-1K^-1
     const double Ks = 4.E-4; // Wm^-1K^-1
     const double H = 0.06; // meters
