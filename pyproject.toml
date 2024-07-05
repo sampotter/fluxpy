@@ -1,2 +1,15 @@
 [build-system]
 requires = ['Cython', 'setuptools', 'wheel']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = "fluxpy"
+version = "0.0.1"
+authors = [
+        {name = "Samuel F. Potter", email = "sam@coreform.com"}
+]
+description = "Fast thermal modeling and radiosity in Python."
+
+[project.urls]
+Homepage = "https://github.com/sampotter/fluxpy"
+Issues = "https://github.com/sampotter/fluxpy/issues"
