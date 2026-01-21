@@ -1,10 +1,12 @@
 #!/usr/bin/env python
+import matplotlib.pyplot as plt
+import meshio
 import meshpy.triangle as triangle
 import numpy as np
 import sys
 import rioxarray as rio
 
-path = 'ldem_87s_5mpp' # 'LDEM_80S_150M' #
+path = 'ldem_87s_50mpp' # '/home/sberton2/Lavoro/code/nac_kplo/aux/ldem_20mpp_Stefano' # 'LDEM_80S_150M' #
 tif_path = path + '.tif'
 
 max_inner_area_str = sys.argv[1]
@@ -106,8 +108,8 @@ def stereo2cart(x, y):
     cos_el = np.cos(el)
     return r*np.array([cos_el*np.cos(az), cos_el*np.sin(az), np.sin(el)])
 
-xc_roi, yc_roi = -45, 0
-r_roi, R_roi = 20, 40
+xc_roi, yc_roi = 8, -6
+r_roi, R_roi = 10, 30
 
 x0_roi, x1_roi = xc_roi - R_roi, xc_roi + R_roi
 y0_roi, y1_roi = yc_roi - R_roi, yc_roi + R_roi

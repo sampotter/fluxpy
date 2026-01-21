@@ -1,0 +1,22 @@
+\begindata
+
+   PATH_VALUES     = ( '../kernels' )
+
+   PATH_SYMBOLS    = ( 'KERNELS_COMMON'   )
+
+   KERNELS_TO_LOAD = (
+                       '$KERNELS_COMMON/pck00010.tpc',
+                       '$KERNELS_COMMON/moon_080317.tf',
+                       '$KERNELS_COMMON/moon_assoc_me.tf',
+                       '$KERNELS_COMMON/moon_pa_de421_1900-2050.bpc',
+                       '$KERNELS_COMMON/naif0012.tls',
+                       '$KERNELS_COMMON/de421.bsp',
+                       '$KERNELS_COMMON/spinup_Sun_MOONME_ONEYEAR_m1p5deg.bsp'
+                     )
+
+\begintext
+                       '$KERNELS_COMMON/pck00010_msgr_v23.tpc'
+                       '$KERNELS_COMMON/spinup_Sun_MOONME_ONEMONTH_m1p5deg.bsp'
+
+
+

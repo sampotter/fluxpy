@@ -113,17 +113,33 @@ bool cgal_aabb_intersect1(cgal_aabb const *aabb, double const x[3],
 	Vector d_(d[0], d[1], d[2]);
 	Ray ray(x_, d_);
 
-	Ray_intersection intersection = aabb->tree.first_intersection(ray);
-	if (intersection) {
-		*i = intersection->second;
+    try
+    {
+        Ray_intersection intersection = aabb->tree.first_intersection(ray);
+        if (intersection) {
+            *i = intersection->second;
+            // needed to avoid boost:get_bad error sometimes
+            try
+            {
+            Point xt_ = boost::get<Point>(intersection->first);
+            xt[0] = xt_.x();
+            xt[1] = xt_.y();
+            xt[2] = xt_.z();
 
-		Point xt_ = boost::get<Point>(intersection->first);
-		xt[0] = xt_.x();
-		xt[1] = xt_.y();
-		xt[2] = xt_.z();
-
-		return true;
-	} else {
-		return false;
+            return true;
+            }
+            catch(...)
+            {
+            printf("%s", "Warning: cgal_aabb_intersect1 threw except\n");
+            return false;
+            }
+        } else {
+            return false;
+        }
 	}
+    catch(...)
+    {
+        printf("%s", "Warning: cgal_aabb_intersect1 threw another except\n");
+        return false;
+    }
 }

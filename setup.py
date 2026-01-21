@@ -10,6 +10,7 @@ ext_modules = [
         name='flux.thermal',
         sources=['src/flux/thermal.pyx',
                  'src/flux/pcc/conductionQ.c',
+                 'src/flux/pcc/conductionQ_Ttdep.c',
                  'src/flux/pcc/conductionT.c',
                  'src/flux/pcc/tridag.c'],
         include_dirs=['.'],
@@ -26,7 +27,9 @@ ext_modules = [
         name='flux.cgal.aabb',
         sources=['src/flux/cgal/aabb.pyx',
                  'src/flux/cgal/aabb_wrapper.cpp'],
-        include_dirs=['.'],
+        include_dirs=['.'
+                      # also include paths to CGAL and Boost libs
+                    ],
         language='c++',
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp']
